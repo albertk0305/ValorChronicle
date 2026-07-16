@@ -151,6 +151,33 @@ When incoming damage consumes shields:
 * Avoid allocations in frequently executed battle or board loops when reasonably practical.
 * Do not optimize prematurely at the cost of clarity.
 
+## Logging rules
+
+* Project-owned runtime code must use `ValorChronicle.Core.Logging.GameLogger` instead of calling `UnityEngine.Debug` directly.
+* Use `GameLogger.Log` for normal progress and diagnostic information.
+* Use `GameLogger.Warning` for development-time warnings that do not represent runtime failure.
+* Use `GameLogger.Error` for failure states that must remain visible in release builds.
+* Use `GameLogger.Exception` for caught exceptions that must remain visible in release builds.
+* Do not conditionally remove initialization failures, missing required services, scene-load failures, or caught exceptions from release builds.
+* Do not apply `ConditionalAttribute` to Unity lifecycle methods.
+
+## Content data rules
+
+* Content definitions use ScriptableObject assets as immutable source data.
+* Runtime state must not be stored in ScriptableObject definitions.
+* All content references use stable internal IDs, not display names.
+* Content IDs use lowercase letters, digits, and single underscores only.
+* Once an ID is used in save data, do not rename it without migration.
+* Validate all definitions before building runtime lookup dictionaries.
+* Derived values such as final HP or final ATK must not be stored in definitions or save data.
+
+## Random rules
+
+* Project-owned gameplay code must not call `UnityEngine.Random` directly.
+* Use `IRandomSource` for gameplay randomness.
+* Use `UnityRandomSource` for normal runtime behavior.
+* Use `SeededRandomSource` for deterministic tests and bug reproduction.
+
 ## Scenes, prefabs, and assets
 
 Do not modify scenes, prefabs, imported assets, ScriptableObjects, or ProjectSettings unless the request explicitly requires it.
