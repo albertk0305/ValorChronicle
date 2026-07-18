@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a546cdac0a61432eaffc549a8f1f79a4, type: 3}
   m_Name: boss_kragmor
   m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Data.Definitions.BossDefinition
-  id: Kragmor
-  displayNameKey: Kragmor
+  id: kragmor
+  displayNameKey: kragmor
   element: 0
   turnLimit: 25
   actionOrSkillIds: []

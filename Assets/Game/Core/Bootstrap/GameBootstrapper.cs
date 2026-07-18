@@ -5,6 +5,7 @@ using ValorChronicle.Core.Random;
 using ValorChronicle.Core.Scene;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Validation;
+using ValorChronicle.Save.Services;
 
 namespace ValorChronicle.Core.Bootstrap
 {
@@ -18,6 +19,10 @@ namespace ValorChronicle.Core.Bootstrap
         public SceneService SceneService { get; private set; }
         public DefinitionDatabase DefinitionDatabase => definitionDatabase;
         public IRandomSource RandomSource { get; private set; }
+        /// <summary>Gets the initialized save service for persistent game-domain operations.</summary>
+        public SaveService SaveService { get; private set; }
+        /// <summary>Gets the most recent bootstrap result, or null while initialization is pending.</summary>
+        public BootstrapInitializationResult InitializationResult { get; private set; }
 
         private async void Awake()
         {
@@ -31,51 +36,102 @@ namespace ValorChronicle.Core.Bootstrap
             DontDestroyOnLoad(gameObject);
 
             SceneService = new SceneService();
+            RandomSource = new UnityRandomSource();
 
             try
             {
-                bool initialized = await InitializeAsync();
-
-                if (!initialized)
-                {
-                    GameLogger.Error("[Bootstrap] Initialization failed.", this);
-                }
+                InitializationResult = await InitializeAsync();
+                HandleInitializationResult(InitializationResult);
             }
             catch (System.Exception exception)
             {
                 GameLogger.Exception(exception, this);
-                GameLogger.Error("[Bootstrap] Initialization failed.", this);
-
-                // 향후 여기서 오류 팝업 또는 복구 화면을 띄울 수 있다.
+                GameLogger.Error("[Bootstrap] Unexpected initialization failure.", this);
             }
         }
 
-        private async Task<bool> InitializeAsync()
+        private async Task<BootstrapInitializationResult> InitializeAsync()
         {
             GameLogger.Log("[Bootstrap] Initialization started.", this);
 
-            if (definitionDatabase == null)
+            var coordinator = new GameInitializationCoordinator(
+                initializeContent: () =>
+                {
+                    if (definitionDatabase == null)
+                    {
+                        throw new System.InvalidOperationException(
+                            "DefinitionDatabase is not assigned.");
+                    }
+
+                    definitionDatabase.Initialize();
+                },
+                validateContent: () =>
+                {
+                    ValidationReport report = DataValidator.Validate(definitionDatabase);
+                    DataValidator.LogReport(report);
+                    return !report.HasErrors;
+                },
+                createSaveService: () =>
+                {
+                    VerifyDevelopmentLookups();
+                    return SaveSystemFactory.Create(
+                        Application.persistentDataPath,
+                        definitionDatabase);
+                },
+                profileIdProvider: new GuidProfileIdProvider(),
+                loadMainScene: () => SceneService.LoadAsync(GameScene.Main));
+
+            BootstrapInitializationResult result = await coordinator.InitializeAsync();
+            SaveService = coordinator.SaveService;
+            return result;
+        }
+
+        private void HandleInitializationResult(BootstrapInitializationResult result)
+        {
+            if (result == null)
             {
-                GameLogger.Error("[Bootstrap] DefinitionDatabase is not assigned.", this);
-                return false;
+                GameLogger.Error("[Bootstrap] Initialization returned no result.", this);
+                return;
             }
 
-            ValidationReport report = DataValidator.Validate(definitionDatabase);
-            DataValidator.LogReport(report);
-
-            if (report.HasErrors)
+            if (!result.IsSuccess)
             {
-                return false;
+                if (result.Exception != null)
+                {
+                    GameLogger.Exception(result.Exception, this);
+                }
+
+                string saveStatus = result.SaveLoadResult == null
+                    ? "NotAttempted"
+                    : result.SaveLoadResult.Status.ToString();
+                GameLogger.Error(
+                    $"[Bootstrap] Initialization failed. " +
+                    $"Status={result.Status}, SaveStatus={saveStatus}. {result.Message}",
+                    this);
+                return;
             }
 
-            definitionDatabase.Initialize();
-            VerifyDevelopmentLookups();
-
-            RandomSource = new UnityRandomSource();
+            switch (result.SaveLoadResult.Status)
+            {
+                case SaveLoadStatus.LoadedMain:
+                    GameLogger.Log("[Bootstrap] Existing profile loaded.", this);
+                    break;
+                case SaveLoadStatus.CreatedNewProfile:
+                    GameLogger.Log("[Bootstrap] New profile created.", this);
+                    break;
+                case SaveLoadStatus.LoadedAndRepairedMain:
+                    GameLogger.Warning(
+                        "[Bootstrap] Profile data was repaired and saved.",
+                        this);
+                    break;
+                case SaveLoadStatus.RecoveredFromBackup:
+                    GameLogger.Warning(
+                        "[Bootstrap] Main profile was recovered from backup.",
+                        this);
+                    break;
+            }
 
             GameLogger.Log("[Bootstrap] Initialization completed.", this);
-
-            return await SceneService.LoadAsync(GameScene.Main);
         }
 
         [System.Diagnostics.Conditional("UNITY_EDITOR")]

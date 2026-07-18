@@ -171,6 +171,32 @@ When incoming damage consumes shields:
 * Validate all definitions before building runtime lookup dictionaries.
 * Derived values such as final HP or final ATK must not be stored in definitions or save data.
 
+## Save data rules
+
+* Save DTOs contain persistent source values only.
+* Do not save derived values such as final HP, final ATK, party max HP, or current battle state.
+* Save content references by stable internal ID, never by display name.
+* Character ownership is represented by presence in the saved character collection.
+* Relics are stored as individual instances with stable instance IDs.
+* Store the relic equip relationship in one authoritative location only.
+* Profile progress and user settings must remain separate save files.
+
+## Save serialization rules
+
+* Use the official Unity Newtonsoft.Json package for profile save JSON.
+* Do not use Newtonsoft.Json copies bundled inside unrelated Editor packages.
+* Do not enable Json.NET TypeNameHandling for save data.
+* Serialization must not perform validation, migration, or content lookup.
+
+## Save repository rules
+
+* SaveRepository performs file I/O only.
+* It must not serialize, validate, migrate, sanitize, or create profile data.
+* Write new data to a temporary file instead of writing directly to the main save.
+* Back up the existing main save only when the caller has already established that it is valid.
+* Do not use Application.persistentDataPath in EditMode tests.
+* Repository tests must use an injected temporary root directory.
+
 ## Random rules
 
 * Project-owned gameplay code must not call `UnityEngine.Random` directly.
