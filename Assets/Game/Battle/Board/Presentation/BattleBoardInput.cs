@@ -24,11 +24,9 @@ namespace ValorChronicle.Battle.Board.Presentation
         private long startRuntimeId;
         private BlockView startView;
         private Vector2 startLocalPoint;
-        private Vector2 latestLocalPoint;
 
         public bool IsTrackingPointer => isTrackingPointer;
         public int TrackedPointerId => trackedPointerId;
-        public Vector2 LatestLocalPoint => latestLocalPoint;
 
         public void Configure(
             BattleBoardController targetController,
@@ -75,7 +73,6 @@ namespace ValorChronicle.Battle.Board.Presentation
             startRuntimeId = view.RuntimeId;
             startView = view;
             startLocalPoint = localPoint;
-            latestLocalPoint = localPoint;
         }
 
         public void OnDrag(PointerEventData eventData)
@@ -96,11 +93,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                 return;
             }
 
-            if (TryGetLocalPoint(eventData, out Vector2 localPoint))
-            {
-                latestLocalPoint = localPoint;
-            }
-            else
+            if (!TryGetLocalPoint(eventData, out _))
             {
                 ResetGesture();
             }
@@ -225,7 +218,6 @@ namespace ValorChronicle.Battle.Board.Presentation
             startRuntimeId = 0;
             startView = null;
             startLocalPoint = Vector2.zero;
-            latestLocalPoint = Vector2.zero;
         }
 
         private static void ValidateMinimumDragDistance(float value)

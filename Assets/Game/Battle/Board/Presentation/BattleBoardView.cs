@@ -1000,8 +1000,12 @@ namespace ValorChronicle.Battle.Board.Presentation
             int occupiedCount,
             out string failureReason)
         {
-            var keysByInstanceId = new Dictionary<int, List<long>>();
-            var keysByViewRuntimeId = new Dictionary<long, List<long>>();
+            var viewInstanceIds = new HashSet<int>();
+            var viewRuntimeIds = new HashSet<long>();
+            int duplicateInstanceId = 0;
+            long duplicateViewRuntimeId = 0;
+            bool hasDuplicateInstanceId = false;
+            bool hasDuplicateViewRuntimeId = false;
             foreach (KeyValuePair<long, BlockView> pair in viewsByRuntimeId)
             {
                 BlockView view = pair.Value;
@@ -1016,57 +1020,45 @@ namespace ValorChronicle.Battle.Board.Presentation
                 }
 
                 int instanceId = view.GetInstanceID();
-                if (!keysByInstanceId.TryGetValue(
-                    instanceId,
-                    out List<long> instanceKeys))
+                if (!viewInstanceIds.Add(instanceId)
+                    && !hasDuplicateInstanceId)
                 {
-                    instanceKeys = new List<long>();
-                    keysByInstanceId.Add(instanceId, instanceKeys);
+                    duplicateInstanceId = instanceId;
+                    hasDuplicateInstanceId = true;
                 }
 
-                instanceKeys.Add(pair.Key);
-                if (!keysByViewRuntimeId.TryGetValue(
-                    view.RuntimeId,
-                    out List<long> runtimeIdKeys))
+                if (!viewRuntimeIds.Add(view.RuntimeId)
+                    && !hasDuplicateViewRuntimeId)
                 {
-                    runtimeIdKeys = new List<long>();
-                    keysByViewRuntimeId.Add(view.RuntimeId, runtimeIdKeys);
+                    duplicateViewRuntimeId = view.RuntimeId;
+                    hasDuplicateViewRuntimeId = true;
                 }
-
-                runtimeIdKeys.Add(pair.Key);
             }
 
-            foreach (KeyValuePair<int, List<long>> pair in keysByInstanceId)
+            if (hasDuplicateInstanceId)
             {
-                if (pair.Value.Count <= 1)
-                {
-                    continue;
-                }
-
-                pair.Value.Sort();
+                List<long> keys = CollectKeysForViewInstance(
+                    duplicateInstanceId);
+                keys.Sort();
                 failureReason = BuildDictionaryFailure(
                     context,
                     "ViewAlias",
-                    $"ViewInstanceId={pair.Key}; DictionaryKeys=" +
-                    $"[{string.Join(",", pair.Value)}]",
+                    $"ViewInstanceId={duplicateInstanceId}; " +
+                    $"DictionaryKeys=[{string.Join(",", keys)}]",
                     occupiedCount);
                 return false;
             }
 
-            foreach (KeyValuePair<long, List<long>> pair
-                in keysByViewRuntimeId)
+            if (hasDuplicateViewRuntimeId)
             {
-                if (pair.Value.Count <= 1)
-                {
-                    continue;
-                }
-
-                pair.Value.Sort();
+                List<long> keys = CollectKeysForViewRuntimeId(
+                    duplicateViewRuntimeId);
+                keys.Sort();
                 failureReason = BuildDictionaryFailure(
                     context,
                     "ViewRuntimeIdDuplicate",
-                    $"ViewRuntimeId={pair.Key}; DictionaryKeys=" +
-                    $"[{string.Join(",", pair.Value)}]",
+                    $"ViewRuntimeId={duplicateViewRuntimeId}; " +
+                    $"DictionaryKeys=[{string.Join(",", keys)}]",
                     occupiedCount);
                 return false;
             }
@@ -1135,6 +1127,36 @@ namespace ValorChronicle.Battle.Board.Presentation
 
             failureReason = null;
             return true;
+        }
+
+        private List<long> CollectKeysForViewInstance(int instanceId)
+        {
+            var keys = new List<long>();
+            foreach (KeyValuePair<long, BlockView> pair in viewsByRuntimeId)
+            {
+                if (pair.Value != null
+                    && pair.Value.GetInstanceID() == instanceId)
+                {
+                    keys.Add(pair.Key);
+                }
+            }
+
+            return keys;
+        }
+
+        private List<long> CollectKeysForViewRuntimeId(long runtimeId)
+        {
+            var keys = new List<long>();
+            foreach (KeyValuePair<long, BlockView> pair in viewsByRuntimeId)
+            {
+                if (pair.Value != null
+                    && pair.Value.RuntimeId == runtimeId)
+                {
+                    keys.Add(pair.Key);
+                }
+            }
+
+            return keys;
         }
 
         private string BuildBlockFailure(
