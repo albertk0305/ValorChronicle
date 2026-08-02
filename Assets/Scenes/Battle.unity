@@ -5169,6 +5169,70 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &910000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1355702092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f63e4d38970e40ec80d4d4f11e880414, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Board.Presentation.BlockViewPool
+  blockViewPrefab: {fileID: 424106302065058184, guid: f7ec2c881b186a84fb507db5599ca836, type: 3}
+  container: {fileID: 1355702093}
+  prewarmCount: 30
+--- !u!114 &910000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1355702092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a74f5e49a81f41fd91e5e5022f991525, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Board.Presentation.BattleBoardView
+  spriteSet: {fileID: 11400000, guid: 2ec94a39f3644900bc3a6deaeb61ab58, type: 2}
+  pool: {fileID: 910000001}
+--- !u!114 &910000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1741258827}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8506f5ab920420ea2f6f61330aa2636, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Board.Presentation.BattleBoardController
+  boardView: {fileID: 910000002}
+  initialDropDuration: 0.45
+  initialDropColumnStagger: 0.04
+  swapDuration: 0.15
+  removalDuration: 0.1
+  collapseDuration: 0.16
+  refillDuration: 0.18
+  shuffleDuration: 0.16
+--- !u!114 &910000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1355702092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe6438f2ea294e0d906507f71eb67ad3, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Board.Presentation.BattleBoardInput
+  controller: {fileID: 910000003}
+  boardRect: {fileID: 1355702093}
+  minimumDragDistance: 54
 --- !u!1 &945381482
 GameObject:
   m_ObjectHideFlags: 0
@@ -7549,6 +7613,7 @@ GameObject:
   - component: {fileID: 1355702093}
   - component: {fileID: 910000001}
   - component: {fileID: 910000002}
+  - component: {fileID: 910000004}
   m_Layer: 5
   m_Name: Blocks
   m_TagString: Untagged
@@ -11970,48 +12035,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2124333474}
   m_CullTransparentMesh: 1
---- !u!114 &910000001
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1355702092}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f63e4d38970e40ec80d4d4f11e880414, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Board.Presentation.BlockViewPool
-  blockViewPrefab: {fileID: 100100004, guid: 1db83928e25348fbab295cd9d8509a47, type: 3}
-  container: {fileID: 1355702093}
-  prewarmCount: 30
---- !u!114 &910000002
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1355702092}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a74f5e49a81f41fd91e5e5022f991525, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Board.Presentation.BattleBoardView
-  spriteSet: {fileID: 11400000, guid: 2ec94a39f3644900bc3a6deaeb61ab58, type: 2}
-  pool: {fileID: 910000001}
---- !u!114 &910000003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1741258827}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b8506f5ab920420ea2f6f61330aa2636, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Board.Presentation.BattleBoardController
-  boardView: {fileID: 910000002}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

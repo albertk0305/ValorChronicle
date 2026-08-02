@@ -17,6 +17,7 @@ namespace ValorChronicle.Battle.Board.Presentation
         public BoardPosition Position { get; private set; }
         public Image Image => image;
         public RectTransform RectTransform => GetRectTransform();
+        public bool IsInputEnabled => image != null && image.raycastTarget;
 
         public void Bind(
             BoardBlock block,
@@ -37,9 +38,43 @@ namespace ValorChronicle.Battle.Board.Presentation
             RuntimeId = block.RuntimeId;
             Position = position;
             image.sprite = sprite;
-            GetRectTransform().anchoredPosition =
+            RectTransform targetRectTransform = GetRectTransform();
+            targetRectTransform.anchoredPosition =
                 BoardViewLayout.GetAnchoredPosition(position);
+            targetRectTransform.localScale = Vector3.one;
             gameObject.SetActive(true);
+        }
+
+        public void SetAnchoredPosition(Vector2 anchoredPosition)
+        {
+            GetRectTransform().anchoredPosition = anchoredPosition;
+        }
+
+        public void SetLogicalPosition(BoardPosition position)
+        {
+            Position = position;
+        }
+
+        public void SetLocalScale(Vector3 localScale)
+        {
+            GetRectTransform().localScale = localScale;
+        }
+
+        public void SetSprite(Sprite sprite)
+        {
+            if (sprite == null)
+            {
+                throw new ArgumentNullException(nameof(sprite));
+            }
+
+            EnsureImage();
+            image.sprite = sprite;
+        }
+
+        public void SetInputEnabled(bool isEnabled)
+        {
+            EnsureImage();
+            image.raycastTarget = isEnabled;
         }
 
         public void ResetForPool()
@@ -48,6 +83,8 @@ namespace ValorChronicle.Battle.Board.Presentation
             RuntimeId = 0;
             Position = default(BoardPosition);
             image.sprite = null;
+            image.raycastTarget = false;
+            GetRectTransform().localScale = Vector3.one;
             gameObject.SetActive(false);
         }
 
