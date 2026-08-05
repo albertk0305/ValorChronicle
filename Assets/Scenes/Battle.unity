@@ -5135,6 +5135,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 907370525}
+  - component: {fileID: 910000005}
+  - component: {fileID: 910000006}
   m_Layer: 5
   m_Name: GameContent
   m_TagString: Untagged
@@ -5233,6 +5235,33 @@ MonoBehaviour:
   controller: {fileID: 910000003}
   boardRect: {fileID: 1355702093}
   minimumDragDistance: 54
+--- !u!114 &910000005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 907370524}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3149404bac74d1ba6956aa2fcad12d7, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Flow.Presentation.BattleFlowController
+  boardController: {fileID: 910000003}
+--- !u!114 &910000006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 907370524}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76a5fe45762d4679a3bd4e9002a0fb34, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Flow.Presentation.BattleFlowDebugPanel
+  battleFlowController: {fileID: 910000005}
+  fallbackBossDefinition: {fileID: 11400000, guid: c9740748b1c32254788603fedb0a224b, type: 2}
 --- !u!1 &945381482
 GameObject:
   m_ObjectHideFlags: 0

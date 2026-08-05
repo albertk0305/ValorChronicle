@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -127,6 +128,8 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
         [UnityTest]
         public IEnumerator Initialize_ZeroDurationBecomesReadyAfterDropCompletes()
         {
+            int readyCount = 0;
+            controller.InitialBoardReady += () => readyCount++;
             SetField(controller, "initialDropDuration", 0f);
             SetField(controller, "initialDropColumnStagger", 0f);
 
@@ -136,11 +139,32 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             yield return null;
 
             Assert.That(controller.IsBoardReady, Is.True);
+            Assert.That(readyCount, Is.EqualTo(1));
             Assert.That(boardView.IsAnimating, Is.False);
             foreach (BlockView view in boardView.ActiveViews.Values)
             {
                 Assert.That(view.IsInputEnabled, Is.True);
             }
+
+            InvokePrivate(controller, "UpdateReadyStateAfterInitialDrop");
+            Assert.That(readyCount, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator Initialize_DoesNotPublishReadyBeforeDropOrFromStaleInitialization()
+        {
+            int readyCount = 0;
+            controller.InitialBoardReady += () => readyCount++;
+            SetField(controller, "initialDropDuration", 0f);
+            SetField(controller, "initialDropColumnStagger", 0f);
+
+            controller.Initialize();
+            Assert.That(readyCount, Is.Zero);
+
+            InvokePrivate(controller, "OnDisable");
+            yield return null;
+
+            Assert.That(readyCount, Is.Zero);
         }
 
         [UnityTest]
@@ -203,6 +227,10 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
         public IEnumerator TryExecuteSwap_NotSwappableConsumesNoDependencies()
         {
             yield return InitializeReadyBoard();
+            int startedCount = 0;
+            int finishedCount = 0;
+            controller.BoardActionStarted += _ => startedCount++;
+            controller.BoardActionFinished += _ => finishedCount++;
             BoardState beforeBoard = controller.CurrentBoard;
             int randomCalls = randomSource.NextCallCount;
             long nextId = GetNextId();
@@ -220,17 +248,60 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(boardView.IsAnimating, Is.False);
             Assert.That(randomSource.NextCallCount, Is.EqualTo(randomCalls));
             Assert.That(GetNextId(), Is.EqualTo(nextId));
+            Assert.That(startedCount, Is.Zero);
+            Assert.That(finishedCount, Is.Zero);
+        }
+
+        [UnityTest]
+        public IEnumerator ExternalInputGate_PreservesInternalInputConditions()
+        {
+            yield return InitializeReadyBoard();
+
+            Assert.That(controller.IsExternalInputEnabled, Is.True);
+            Assert.That(controller.CanAcceptBoardInput, Is.True);
+
+            controller.IsExternalInputEnabled = false;
+            Assert.That(controller.CanAcceptBoardInput, Is.False);
+
+            controller.IsExternalInputEnabled = true;
+            Assert.That(controller.CanAcceptBoardInput, Is.True);
+
+            SetField(
+                controller,
+                "actionTimings",
+                new BoardActionPresentationTimings(1f, 0f, 0f, 0f, 0f));
+            Assert.That(controller.TryExecuteSwap(
+                FindValidSwap(controller.CurrentBoard)), Is.True);
+            controller.IsExternalInputEnabled = false;
+            controller.IsExternalInputEnabled = true;
+
+            Assert.That(controller.CanAcceptBoardInput, Is.False);
+            InvokePrivate(controller, "OnDisable");
         }
 
         [UnityTest]
         public IEnumerator TryExecuteSwap_NoMatchReturnsToReadyWithoutConsumption()
         {
             yield return InitializeReadyBoard();
+            var eventOrder = new List<string>();
+            BoardActionExecution execution = null;
+            BoardActionCompletion completion = null;
+            controller.BoardActionStarted += value =>
+            {
+                execution = value;
+                eventOrder.Add("Started");
+            };
+            controller.BoardActionFinished += value =>
+            {
+                completion = value;
+                eventOrder.Add("Finished");
+            };
             BoardSwap swap = FindNoMatchSwap(controller.CurrentBoard);
             int randomCalls = randomSource.NextCallCount;
             long nextId = GetNextId();
 
             Assert.That(controller.TryExecuteSwap(swap), Is.True);
+            Assert.That(execution, Is.Not.Null);
             yield return null;
 
             Assert.That(controller.LastSwapActionResult.Status,
@@ -243,17 +314,44 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                 Is.True);
             Assert.That(randomSource.NextCallCount, Is.EqualTo(randomCalls));
             Assert.That(GetNextId(), Is.EqualTo(nextId));
+            Assert.That(eventOrder, Is.EqualTo(new[]
+            {
+                "Started",
+                "Finished"
+            }));
+            Assert.That(completion.ActionId, Is.EqualTo(execution.ActionId));
+            Assert.That(completion.Result, Is.SameAs(
+                controller.LastSwapActionResult));
+            Assert.That(completion.CompletionStatus, Is.EqualTo(
+                BoardActionCompletionStatus.Completed));
+            Assert.That(completion.Result.ConsumesTurn, Is.False);
+            Assert.That(completion.Failure, Is.Null);
         }
 
         [UnityTest]
         public IEnumerator TryExecuteSwap_ResolvedUsesContinuousRefillIds()
         {
             yield return InitializeReadyBoard();
+            BoardActionExecution execution = null;
+            BoardActionCompletion completion = null;
+            int startedCount = 0;
+            int finishedCount = 0;
+            controller.BoardActionStarted += value =>
+            {
+                execution = value;
+                startedCount++;
+            };
+            controller.BoardActionFinished += value =>
+            {
+                completion = value;
+                finishedCount++;
+            };
             BoardSwap swap = FindValidSwap(controller.CurrentBoard);
             object resolver = GetField(controller, "swapActionResolver");
             object idGenerator = GetField(controller, "blockIdGenerator");
 
             Assert.That(controller.TryExecuteSwap(swap), Is.True);
+            Assert.That(execution, Is.Not.Null);
             yield return null;
 
             BoardSwapActionResult result = controller.LastSwapActionResult;
@@ -286,6 +384,107 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             }
 
             Assert.That(GetNextId(), Is.EqualTo(expectedId));
+            Assert.That(completion, Is.Not.Null);
+            Assert.That(startedCount, Is.EqualTo(1));
+            Assert.That(finishedCount, Is.EqualTo(1));
+            Assert.That(completion.ActionId, Is.EqualTo(execution.ActionId));
+            Assert.That(completion.CompletionStatus, Is.EqualTo(
+                BoardActionCompletionStatus.Completed));
+            Assert.That(completion.Result.ConsumesTurn, Is.True);
+            Assert.That(completion.Result.Cascade, Is.SameAs(result.Cascade));
+            Assert.That(completion.Result.Shuffle, Is.SameAs(result.Shuffle));
+        }
+
+        [UnityTest]
+        public IEnumerator BoardActionsUseIncreasingIdsAndIgnoreStaleCompletion()
+        {
+            yield return InitializeReadyBoard();
+            var started = new List<BoardActionExecution>();
+            var finished = new List<BoardActionCompletion>();
+            controller.BoardActionStarted += started.Add;
+            controller.BoardActionFinished += finished.Add;
+
+            Assert.That(controller.TryExecuteSwap(
+                FindNoMatchSwap(controller.CurrentBoard)), Is.True);
+            yield return null;
+            long firstActionId = started[0].ActionId;
+
+            SetField(
+                controller,
+                "actionTimings",
+                new BoardActionPresentationTimings(1f, 0f, 0f, 0f, 0f));
+            Assert.That(controller.TryExecuteSwap(
+                FindValidSwap(controller.CurrentBoard)), Is.True);
+            Assert.That(started[1].ActionId, Is.GreaterThan(firstActionId));
+
+            bool staleAccepted = (bool)InvokePrivate(
+                controller,
+                "TryCompleteBoardAction",
+                firstActionId,
+                BoardActionCompletionStatus.Completed,
+                null);
+
+            Assert.That(staleAccepted, Is.False);
+            Assert.That(finished.Count, Is.EqualTo(1));
+            InvokePrivate(controller, "OnDisable");
+            Assert.That(finished.Count, Is.EqualTo(2));
+            Assert.That(finished[1].ActionId, Is.EqualTo(
+                started[1].ActionId));
+            Assert.That(finished[1].CompletionStatus, Is.EqualTo(
+                BoardActionCompletionStatus.Interrupted));
+        }
+
+        [UnityTest]
+        public IEnumerator PresentationFailurePublishesFailedExactlyOnce()
+        {
+            yield return InitializeReadyBoard();
+            SetField(
+                controller,
+                "actionTimings",
+                new BoardActionPresentationTimings(
+                    1f,
+                    0f,
+                    0f,
+                    0f,
+                    0f));
+            var finished = new List<BoardActionCompletion>();
+            controller.BoardActionFinished += finished.Add;
+            Assert.That(controller.TryExecuteSwap(
+                FindValidSwap(controller.CurrentBoard)), Is.True);
+            Assert.That(finished, Is.Empty);
+            var failure = new InvalidOperationException(
+                "Injected presentation failure.");
+            var original = (IEnumerator)GetField(
+                controller,
+                "activePresentationSequence");
+            if (original is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+
+            SetField(
+                controller,
+                "activePresentationSequence",
+                new ThrowingEnumerator(failure));
+            LogAssert.Expect(
+                LogType.Exception,
+                new Regex("Injected presentation failure\\."));
+            LogAssert.Expect(
+                LogType.Error,
+                "[BattleBoard] Board presentation failed.");
+
+            yield return null;
+
+            Assert.That(finished.Count, Is.EqualTo(1));
+            Assert.That(finished[0].CompletionStatus, Is.EqualTo(
+                BoardActionCompletionStatus.Failed));
+            Assert.That(finished[0].Failure, Is.SameAs(failure));
+            Assert.That(controller.IsBoardReady, Is.True);
+            Assert.That(controller.CanAcceptBoardInput, Is.True);
+            Assert.That(boardView.MatchesBoard(controller.CurrentBoard),
+                Is.True);
+            InvokePrivate(controller, "OnDisable");
+            Assert.That(finished.Count, Is.EqualTo(1));
         }
 
         [UnityTest]
@@ -345,6 +544,8 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
         public IEnumerator InterruptedActionKeepsFinalBoardAndStabilizesView()
         {
             yield return InitializeReadyBoard();
+            var finished = new List<BoardActionCompletion>();
+            controller.BoardActionFinished += finished.Add;
             SetField(
                 controller,
                 "actionTimings",
@@ -362,6 +563,13 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                 Is.False);
             Assert.That(boardView.IsAnimating, Is.False);
             Assert.That(boardView.MatchesBoard(finalBoard), Is.True);
+            Assert.That(finished.Count, Is.EqualTo(1));
+            Assert.That(finished[0].CompletionStatus, Is.EqualTo(
+                BoardActionCompletionStatus.Interrupted));
+
+            InvokePrivate(controller, "OnDisable");
+            yield return null;
+            Assert.That(finished.Count, Is.EqualTo(1));
         }
 
         [UnityTest]
@@ -527,13 +735,38 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                     target);
         }
 
-        private static void InvokePrivate(object target, string name)
+        private static object InvokePrivate(
+            object target,
+            string name,
+            params object[] arguments)
         {
-            target.GetType().GetMethod(
+            return target.GetType().GetMethod(
                 name,
                 BindingFlags.Instance | BindingFlags.NonPublic).Invoke(
                     target,
-                    null);
+                    arguments);
+        }
+
+        private sealed class ThrowingEnumerator : IEnumerator
+        {
+            private readonly Exception exception;
+
+            public ThrowingEnumerator(Exception exception)
+            {
+                this.exception = exception;
+            }
+
+            public object Current => null;
+
+            public bool MoveNext()
+            {
+                throw exception;
+            }
+
+            public void Reset()
+            {
+                throw new NotSupportedException();
+            }
         }
 
         private static void SetProperty(

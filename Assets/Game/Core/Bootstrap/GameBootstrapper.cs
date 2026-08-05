@@ -149,8 +149,8 @@ namespace ValorChronicle.Core.Bootstrap
 
             if (definitionDatabase.Bosses.Count > 0)
             {
-                bool foundBoss = definitionDatabase.TryGetBoss("boss_kragmor", out _);
-                LogDevelopmentLookupResult("boss_kragmor", foundBoss);
+                bool foundBoss = definitionDatabase.TryGetBoss("kragmor", out _);
+                LogDevelopmentLookupResult("kragmor", foundBoss);
             }
         }
 

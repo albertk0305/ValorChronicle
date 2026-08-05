@@ -42,7 +42,12 @@ namespace ValorChronicle.Battle.Board.Presentation
 
         private bool initialized;
         private bool isActionInProgress;
+        private bool initialBoardReadyPublished;
+        private bool activeActionStarted;
+        private int initializationVersion;
         private int actionVersion;
+        private long nextActionId;
+        private long activeActionId;
         private IRandomSource randomSource;
         private BoardBlockIdGenerator blockIdGenerator;
         private BoardGenerator boardGenerator;
@@ -51,12 +56,20 @@ namespace ValorChronicle.Battle.Board.Presentation
         private BoardSwapActionResolver swapActionResolver;
         private BoardActionPresentationTimings actionTimings;
         private IEnumerator activePresentationSequence;
+        private BoardSwapActionResult activeActionResult;
+
+        public event Action InitialBoardReady;
+        public event Action<BoardActionExecution> BoardActionStarted;
+        public event Action<BoardActionCompletion> BoardActionFinished;
 
         public BoardState CurrentBoard { get; private set; }
         public BoardSwapActionResult LastSwapActionResult { get; private set; }
         public bool IsInitialized => initialized;
         public bool IsBoardReady { get; private set; }
-        public bool CanAcceptBoardInput => initialized
+        public bool HasInitialBoardReady => initialBoardReadyPublished;
+        public bool IsExternalInputEnabled { get; set; } = true;
+        public bool CanAcceptBoardInput => IsExternalInputEnabled
+            && initialized
             && IsBoardReady
             && !isActionInProgress
             && HasResolverGraph
@@ -89,14 +102,17 @@ namespace ValorChronicle.Battle.Board.Presentation
 
         private void OnDisable()
         {
+            initializationVersion++;
             if (!isActionInProgress)
             {
                 return;
             }
 
+            long interruptedActionId = activeActionId;
             actionVersion++;
             IEnumerator interruptedSequence = activePresentationSequence;
             activePresentationSequence = null;
+            Exception interruptionFailure = null;
             try
             {
                 if (interruptedSequence is IDisposable disposable)
@@ -106,6 +122,7 @@ namespace ValorChronicle.Battle.Board.Presentation
             }
             catch (Exception exception)
             {
+                interruptionFailure = exception;
                 GameLogger.Exception(exception, this);
                 GameLogger.Error(
                     "[BattleBoard] Failed to stop the board presentation.",
@@ -115,6 +132,10 @@ namespace ValorChronicle.Battle.Board.Presentation
             isActionInProgress = false;
             UpdateReadyStateAfterPresentation(
                 "The interrupted board presentation did not stabilize.");
+            TryCompleteBoardAction(
+                interruptedActionId,
+                BoardActionCompletionStatus.Interrupted,
+                interruptionFailure);
         }
 
         public void Initialize()
@@ -187,7 +208,8 @@ namespace ValorChronicle.Battle.Board.Presentation
             swapActionResolver = actionResolver;
             actionTimings = timings;
             initialized = true;
-            StartCoroutine(RenderInitialBoard(initialDrop));
+            int version = ++initializationVersion;
+            StartCoroutine(RenderInitialBoard(initialDrop, version));
         }
 
         public bool TryExecuteSwap(BoardSwap swap)
@@ -224,15 +246,17 @@ namespace ValorChronicle.Battle.Board.Presentation
             IsBoardReady = false;
             isActionInProgress = true;
             int version = ++actionVersion;
+            long actionId;
 
             try
             {
+                actionId = StartBoardAction(result);
                 activePresentationSequence =
                     boardView.PlaySwapActionSequence(
                         beforeBoard,
                         result,
                         actionTimings);
-                StartCoroutine(RunBoardAction(version));
+                StartCoroutine(RunBoardAction(version, actionId));
                 return true;
             }
             catch (Exception exception)
@@ -245,6 +269,10 @@ namespace ValorChronicle.Battle.Board.Presentation
                     this);
                 UpdateReadyStateAfterPresentation(
                     "The failed board presentation did not stabilize.");
+                TryCompleteBoardAction(
+                    activeActionId,
+                    BoardActionCompletionStatus.Failed,
+                    exception);
                 return false;
             }
         }
@@ -256,9 +284,16 @@ namespace ValorChronicle.Battle.Board.Presentation
             return TryExecuteSwap(new BoardSwap(first, second));
         }
 
-        private IEnumerator RenderInitialBoard(IEnumerator initialDrop)
+        private IEnumerator RenderInitialBoard(
+            IEnumerator initialDrop,
+            int version)
         {
             yield return initialDrop;
+            if (initializationVersion != version)
+            {
+                yield break;
+            }
+
             UpdateReadyStateAfterInitialDrop();
         }
 
@@ -299,9 +334,14 @@ namespace ValorChronicle.Battle.Board.Presentation
                     failureReason,
                     this);
             }
+            else if (!initialBoardReadyPublished)
+            {
+                initialBoardReadyPublished = true;
+                InitialBoardReady?.Invoke();
+            }
         }
 
-        private IEnumerator RunBoardAction(int version)
+        private IEnumerator RunBoardAction(int version, long actionId)
         {
             Exception failure = null;
             while (actionVersion == version
@@ -348,6 +388,48 @@ namespace ValorChronicle.Battle.Board.Presentation
 
             UpdateReadyStateAfterPresentation(
                 "The completed board View does not match CurrentBoard.");
+            TryCompleteBoardAction(
+                actionId,
+                failure == null
+                    ? BoardActionCompletionStatus.Completed
+                    : BoardActionCompletionStatus.Failed,
+                failure);
+        }
+
+        private long StartBoardAction(BoardSwapActionResult result)
+        {
+            long actionId = checked(++nextActionId);
+            activeActionId = actionId;
+            activeActionResult = result;
+            activeActionStarted = true;
+            BoardActionStarted?.Invoke(new BoardActionExecution(
+                actionId,
+                result));
+            return actionId;
+        }
+
+        private bool TryCompleteBoardAction(
+            long actionId,
+            BoardActionCompletionStatus status,
+            Exception failure)
+        {
+            if (!activeActionStarted
+                || activeActionResult == null
+                || activeActionId != actionId)
+            {
+                return false;
+            }
+
+            BoardSwapActionResult result = activeActionResult;
+            activeActionStarted = false;
+            activeActionId = 0;
+            activeActionResult = null;
+            BoardActionFinished?.Invoke(new BoardActionCompletion(
+                actionId,
+                result,
+                status,
+                failure));
+            return true;
         }
 
         private void UpdateReadyStateAfterPresentation(string failureMessage)
