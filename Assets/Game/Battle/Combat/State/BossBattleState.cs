@@ -51,6 +51,8 @@ namespace ValorChronicle.Battle.Combat.State
             CurrentHp = maxHp;
             Attack = attack;
             Effects = new EffectCollection();
+            Resources = new ResourceCollection();
+            Marks = new MarkCollection();
         }
 
         public string BossId { get; }
@@ -59,6 +61,8 @@ namespace ValorChronicle.Battle.Combat.State
         public long CurrentHp { get; private set; }
         public double Attack { get; }
         public EffectCollection Effects { get; }
+        public ResourceCollection Resources { get; }
+        public MarkCollection Marks { get; }
         public bool IsDefeated => CurrentHp == 0;
 
         internal long ApplyDamage(long damage)

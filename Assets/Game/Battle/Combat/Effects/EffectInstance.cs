@@ -1,4 +1,5 @@
 using System;
+using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Battle.Combat.Effects
@@ -20,7 +21,9 @@ namespace ValorChronicle.Battle.Combat.Effects
                 EffectStackPolicy.RefreshDuration,
             int stackCount = 1,
             int maxStackCount = 1,
-            ElementType? elementFilter = null)
+            ElementType? elementFilter = null,
+            AttackTypeMask attackTypeMask = AttackTypeMask.None,
+            AttackTag requiredAttackTags = AttackTag.None)
         {
             if (runtimeId <= 0)
             {
@@ -35,12 +38,6 @@ namespace ValorChronicle.Battle.Combat.Effects
             ValidateEnum(category, nameof(category));
             ValidateEnum(modifierType, nameof(modifierType));
             ValidateEnum(stackPolicy, nameof(stackPolicy));
-            if (modifierType == EffectModifierType.AttackTypeDamageIncrease)
-            {
-                throw new NotSupportedException(
-                    "Attack type modifiers require a confirmed AttackType.");
-            }
-
             if (double.IsNaN(magnitude)
                 || double.IsInfinity(magnitude)
                 || magnitude < 0d)
@@ -73,6 +70,10 @@ namespace ValorChronicle.Battle.Combat.Effects
                 stackCount,
                 maxStackCount);
             ValidateElementFilter(modifierType, elementFilter);
+            ValidateAttackFilters(
+                modifierType,
+                attackTypeMask,
+                requiredAttackTags);
 
             RuntimeId = runtimeId;
             EffectId = effectId;
@@ -86,6 +87,8 @@ namespace ValorChronicle.Battle.Combat.Effects
             MaxStackCount = maxStackCount;
             CreationOrder = creationOrder;
             ElementFilter = elementFilter;
+            AttackTypeMask = attackTypeMask;
+            RequiredAttackTags = requiredAttackTags;
         }
 
         public long RuntimeId { get; }
@@ -100,6 +103,8 @@ namespace ValorChronicle.Battle.Combat.Effects
         public int MaxStackCount { get; }
         public long CreationOrder { get; }
         public ElementType? ElementFilter { get; }
+        public AttackTypeMask AttackTypeMask { get; }
+        public AttackTag RequiredAttackTags { get; }
         public bool IsExpired =>
             RemainingTurns.HasValue && RemainingTurns.Value == 0;
         public double EffectiveMagnitude => Magnitude * StackCount;
@@ -234,6 +239,58 @@ namespace ValorChronicle.Battle.Combat.Effects
                     nameof(elementFilter),
                     elementFilter,
                     "Element filter must be a defined value.");
+            }
+        }
+
+        private static void ValidateAttackFilters(
+            EffectModifierType modifierType,
+            AttackTypeMask attackTypeMask,
+            AttackTag requiredAttackTags)
+        {
+            const AttackTag allAttackTags =
+                AttackTag.Match3
+                | AttackTag.Match4
+                | AttackTag.Match5Plus
+                | AttackTag.Heavy
+                | AttackTag.MultiHit
+                | AttackTag.Elemental
+                | AttackTag.FixedDamage
+                | AttackTag.MaxHpRatio;
+
+            if ((attackTypeMask & ~AttackTypeMask.All) != 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(attackTypeMask),
+                    attackTypeMask,
+                    "Attack type mask contains undefined flags.");
+            }
+
+            if ((requiredAttackTags & ~allAttackTags) != 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(requiredAttackTags),
+                    requiredAttackTags,
+                    "Required attack tags contain undefined flags.");
+            }
+
+            if (modifierType
+                == EffectModifierType.AttackTypeDamageIncrease)
+            {
+                if (attackTypeMask == AttackTypeMask.None)
+                {
+                    throw new ArgumentException(
+                        "Attack type damage effects require a non-empty mask.",
+                        nameof(attackTypeMask));
+                }
+
+                return;
+            }
+
+            if (attackTypeMask != AttackTypeMask.None
+                || requiredAttackTags != AttackTag.None)
+            {
+                throw new ArgumentException(
+                    "Only attack type damage effects can use attack filters.");
             }
         }
 

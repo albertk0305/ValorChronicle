@@ -235,6 +235,9 @@ namespace ValorChronicle.Battle.Combat.Effects
                 || existing.ModifierType != incoming.ModifierType
                 || existing.StackPolicy != incoming.StackPolicy
                 || existing.ElementFilter != incoming.ElementFilter
+                || existing.AttackTypeMask != incoming.AttackTypeMask
+                || existing.RequiredAttackTags
+                    != incoming.RequiredAttackTags
                 || existing.MaxStackCount != incoming.MaxStackCount)
             {
                 throw new InvalidOperationException(

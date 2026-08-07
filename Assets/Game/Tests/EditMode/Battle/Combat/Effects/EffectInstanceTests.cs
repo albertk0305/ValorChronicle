@@ -1,5 +1,6 @@
 using System;
 using NUnit.Framework;
+using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Data.Definitions;
 
@@ -113,12 +114,29 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Effects
         }
 
         [Test]
-        public void Constructor_ExplicitlyRejectsUnconfirmedAttackType()
+        public void Constructor_ValidatesConfirmedAttackTypeFilters()
         {
-            Assert.Throws<NotSupportedException>(() =>
+            Assert.Throws<ArgumentException>(() =>
                 Effect(
                     modifierType:
                         EffectModifierType.AttackTypeDamageIncrease));
+            Assert.Throws<ArgumentException>(() =>
+                Effect(attackTypeMask: AttackTypeMask.Match));
+
+            EffectInstance effect = Effect(
+                modifierType:
+                    EffectModifierType.AttackTypeDamageIncrease,
+                attackTypeMask:
+                    AttackTypeMask.Additional | AttackTypeMask.Chase,
+                requiredAttackTags: AttackTag.Heavy);
+
+            Assert.That(
+                effect.AttackTypeMask,
+                Is.EqualTo(
+                    AttackTypeMask.Additional | AttackTypeMask.Chase));
+            Assert.That(
+                effect.RequiredAttackTags,
+                Is.EqualTo(AttackTag.Heavy));
         }
 
         private static EffectInstance Effect(
@@ -134,7 +152,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Effects
                 EffectStackPolicy.RefreshDuration,
             int stackCount = 1,
             int maxStackCount = 1,
-            ElementType? elementFilter = null)
+            ElementType? elementFilter = null,
+            AttackTypeMask attackTypeMask = AttackTypeMask.None,
+            AttackTag requiredAttackTags = AttackTag.None)
         {
             return new EffectInstance(
                 runtimeId,
@@ -148,7 +168,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Effects
                 stackPolicy,
                 stackCount,
                 maxStackCount,
-                elementFilter);
+                elementFilter,
+                attackTypeMask,
+                requiredAttackTags);
         }
     }
 }
