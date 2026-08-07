@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using ValorChronicle.Battle.Combat.Effects;
 
 namespace ValorChronicle.Battle.Combat.State
 {
@@ -70,12 +71,14 @@ namespace ValorChronicle.Battle.Combat.State
             MaxHp = maximumHp;
             CurrentHp = maximumHp;
             Shields = new ShieldCollection();
+            Effects = new EffectCollection();
         }
 
         public IReadOnlyList<CharacterBattleState> Characters => characters;
         public long MaxHp { get; }
         public long CurrentHp { get; private set; }
         public ShieldCollection Shields { get; }
+        public EffectCollection Effects { get; }
         public bool IsIncapacitated => CurrentHp == 0;
 
         internal long ApplyHpDamage(long damage)

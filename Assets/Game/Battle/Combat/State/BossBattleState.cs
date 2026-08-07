@@ -1,4 +1,5 @@
 using System;
+using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Battle.Combat.State
@@ -49,6 +50,7 @@ namespace ValorChronicle.Battle.Combat.State
             MaxHp = maxHp;
             CurrentHp = maxHp;
             Attack = attack;
+            Effects = new EffectCollection();
         }
 
         public string BossId { get; }
@@ -56,6 +58,7 @@ namespace ValorChronicle.Battle.Combat.State
         public long MaxHp { get; }
         public long CurrentHp { get; private set; }
         public double Attack { get; }
+        public EffectCollection Effects { get; }
         public bool IsDefeated => CurrentHp == 0;
 
         internal long ApplyDamage(long damage)

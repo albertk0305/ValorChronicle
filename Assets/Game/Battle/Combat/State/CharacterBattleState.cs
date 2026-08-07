@@ -1,4 +1,5 @@
 using System;
+using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Battle.Combat.State
@@ -57,6 +58,7 @@ namespace ValorChronicle.Battle.Combat.State
             Element = element;
             MaxHp = maxHp;
             Attack = attack;
+            Effects = new EffectCollection();
         }
 
         public string CharacterId { get; }
@@ -64,6 +66,7 @@ namespace ValorChronicle.Battle.Combat.State
         public ElementType Element { get; }
         public long MaxHp { get; }
         public double Attack { get; }
+        public EffectCollection Effects { get; }
 
         private static void ValidateElement(ElementType element)
         {
