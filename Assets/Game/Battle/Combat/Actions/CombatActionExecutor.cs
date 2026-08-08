@@ -14,11 +14,26 @@ namespace ValorChronicle.Battle.Combat.Actions
         private readonly BossBattleState boss;
         private readonly PartyBattleState party;
         private readonly DamageContextFactory damageContextFactory;
+        private readonly CombatTriggerResolver triggerResolver;
 
         public CombatActionExecutor(
             BossBattleState boss,
             PartyBattleState party,
             DamageContextFactory damageContextFactory)
+            : this(
+                boss,
+                party,
+                damageContextFactory,
+                new CombatTriggerResolver(
+                    Array.Empty<ICombatTriggerRule>()))
+        {
+        }
+
+        public CombatActionExecutor(
+            BossBattleState boss,
+            PartyBattleState party,
+            DamageContextFactory damageContextFactory,
+            CombatTriggerResolver triggerResolver)
         {
             this.boss = boss
                 ?? throw new ArgumentNullException(nameof(boss));
@@ -26,6 +41,8 @@ namespace ValorChronicle.Battle.Combat.Actions
                 ?? throw new ArgumentNullException(nameof(party));
             this.damageContextFactory = damageContextFactory
                 ?? throw new ArgumentNullException(nameof(damageContextFactory));
+            this.triggerResolver = triggerResolver
+                ?? throw new ArgumentNullException(nameof(triggerResolver));
         }
 
         public CombatActionExecutionResult Execute(CombatActionQueue queue)
@@ -46,13 +63,25 @@ namespace ValorChronicle.Battle.Combat.Actions
             while (queue.TryDequeue(out CombatAction action))
             {
                 int executionOrder = results.Count + 1;
-                results.Add(ExecuteAction(action, executionOrder));
+                CombatActionResult completedResult =
+                    ExecuteAction(action, executionOrder);
+                results.Add(completedResult);
                 if (boss.IsDefeated || party.IsIncapacitated)
                 {
                     bool cleared = queue.Count > 0;
                     queue.Clear();
                     return BuildResult(results, true, cleared);
                 }
+
+                var history = new CombatActionExecutionHistory(results);
+                var triggerContext = new CombatActionTriggerContext(
+                    completedResult,
+                    boss,
+                    party,
+                    history);
+                IReadOnlyList<CombatAction> derivedActions =
+                    triggerResolver.Resolve(triggerContext);
+                queue.EnqueueNextRange(derivedActions);
             }
 
             return BuildResult(results, false, false);
