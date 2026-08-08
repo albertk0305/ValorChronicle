@@ -236,6 +236,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             SendCompletedAction(1, result);
 
             Assert.That(boardController.IsExternalInputEnabled, Is.False);
+            Assert.That(executed, Has.Count.EqualTo(1));
+            Assert.That(flowController.Coordinator.HasMatchEventInFlight,
+                Is.True);
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.MatchEventResolving));
+            Assert.That(bossActionCount, Is.Zero);
 
             yield return WaitUntil(
                 () => executed.Count == 2
@@ -321,9 +327,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             int matchCount = 0;
             int bossCount = 0;
             int resultCount = 0;
+            long interruptedExecutionId = 0;
             flowController.Coordinator.MatchEventExecuting += matchEvent =>
             {
                 matchCount++;
+                interruptedExecutionId = flowController.Coordinator
+                    .CurrentMatchEventExecution.ExecutionId;
                 flowController.NotifyBossDefeated();
             };
             flowController.Coordinator.BossActionStarted += () => bossCount++;
@@ -345,6 +354,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Is.EqualTo(BattleResultKind.Victory));
             Assert.That(flowController.Coordinator.PendingMatchEventCount,
                 Is.Zero);
+            Assert.That(flowController.Coordinator.HasMatchEventInFlight,
+                Is.False);
+            Assert.That(
+                flowController.Coordinator.CompleteCurrentMatchEvent(
+                    interruptedExecutionId),
+                Is.False);
             Assert.That(boardController.IsExternalInputEnabled, Is.False);
 
             InvokePrivate(

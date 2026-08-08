@@ -71,7 +71,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
                 coordinator.NotifyBoardActionResolved(null, true),
                 Is.False);
             Assert.That(
-                coordinator.TryExecuteNextMatchEvent(out _),
+                coordinator.TryBeginNextMatchEvent(out _),
                 Is.False);
             Assert.That(coordinator.CompleteBossAction(), Is.False);
             Assert.That(coordinator.TryUseActiveAbility(0), Is.False);
@@ -80,7 +80,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
         }
 
         [Test]
-        public void ExecuteNextMatchEvent_AdvancesOneEventAtATime()
+        public void BeginAndComplete_AdvanceOneEventAtATime()
         {
             BoardCascadeResult cascade = CreateTwoMatchCascade();
             var executed = new List<MatchEvent>();
@@ -89,20 +89,152 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
             coordinator.NotifyBoardActionResolved(cascade, true);
 
             Assert.That(
-                coordinator.TryExecuteNextMatchEvent(out MatchEvent first),
+                coordinator.TryBeginNextMatchEvent(
+                    out MatchEventExecution first),
                 Is.True);
-            Assert.That(first.SequenceIndex, Is.Zero);
+            Assert.That(first.MatchEvent.SequenceIndex, Is.Zero);
             Assert.That(executed, Has.Count.EqualTo(1));
+            Assert.That(coordinator.Context.Phase,
+                Is.EqualTo(BattlePhase.MatchEventResolving));
+            Assert.That(coordinator.HasMatchEventInFlight, Is.True);
+            Assert.That(coordinator.CurrentMatchEventExecution,
+                Is.SameAs(first));
+
+            Assert.That(
+                coordinator.TryBeginNextMatchEvent(out _),
+                Is.False);
+            Assert.That(executed, Has.Count.EqualTo(1));
+
+            Assert.That(
+                coordinator.CompleteCurrentMatchEvent(first.ExecutionId),
+                Is.True);
+            Assert.That(coordinator.Context.Phase,
+                Is.EqualTo(BattlePhase.MatchEventResolving));
+            Assert.That(coordinator.HasMatchEventInFlight, Is.False);
+
+            Assert.That(
+                coordinator.TryBeginNextMatchEvent(
+                    out MatchEventExecution second),
+                Is.True);
+            Assert.That(second.MatchEvent.SequenceIndex, Is.EqualTo(1));
+            Assert.That(executed, Has.Count.EqualTo(2));
             Assert.That(coordinator.Context.Phase,
                 Is.EqualTo(BattlePhase.MatchEventResolving));
 
             Assert.That(
-                coordinator.TryExecuteNextMatchEvent(out MatchEvent second),
+                coordinator.CompleteCurrentMatchEvent(second.ExecutionId),
                 Is.True);
-            Assert.That(second.SequenceIndex, Is.EqualTo(1));
-            Assert.That(executed, Has.Count.EqualTo(2));
             Assert.That(coordinator.Context.Phase,
                 Is.EqualTo(BattlePhase.BossActing));
+        }
+
+        [Test]
+        public void LastMatchBeginsWithoutStartingBossUntilCompletion()
+        {
+            int matchStartCount = 0;
+            int bossStartCount = 0;
+            var coordinator = StartBoardResolution(25);
+            coordinator.MatchEventExecuting += _ => matchStartCount++;
+            coordinator.BossActionStarted += () => bossStartCount++;
+            coordinator.NotifyBoardActionResolved(
+                BattleFlowTestSupport.CreateCascade(
+                    new[]
+                    {
+                        BattleFlowTestSupport.Match(
+                            ElementType.Fire,
+                            new BoardPosition(0, 0),
+                            new BoardPosition(1, 0),
+                            new BoardPosition(2, 0))
+                    }),
+                true);
+
+            Assert.That(
+                coordinator.TryBeginNextMatchEvent(
+                    out MatchEventExecution execution),
+                Is.True);
+
+            Assert.That(matchStartCount, Is.EqualTo(1));
+            Assert.That(bossStartCount, Is.Zero);
+            Assert.That(coordinator.PendingMatchEventCount, Is.Zero);
+            Assert.That(coordinator.Context.Phase,
+                Is.EqualTo(BattlePhase.MatchEventResolving));
+
+            Assert.That(
+                coordinator.CompleteCurrentMatchEvent(execution.ExecutionId),
+                Is.True);
+            Assert.That(bossStartCount, Is.EqualTo(1));
+            Assert.That(coordinator.Context.Phase,
+                Is.EqualTo(BattlePhase.BossActing));
+        }
+
+        [Test]
+        public void CompletionRejectsWrongStaleDuplicateAndMissingTokens()
+        {
+            var coordinator = StartBoardResolution(25);
+            coordinator.NotifyBoardActionResolved(
+                CreateTwoMatchCascade(),
+                true);
+
+            Assert.That(
+                coordinator.CompleteCurrentMatchEvent(1),
+                Is.False);
+            coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution first);
+
+            Assert.That(
+                coordinator.CompleteCurrentMatchEvent(
+                    first.ExecutionId + 100),
+                Is.False);
+            Assert.That(coordinator.HasMatchEventInFlight, Is.True);
+            Assert.That(
+                coordinator.CompleteCurrentMatchEvent(first.ExecutionId),
+                Is.True);
+            Assert.That(
+                coordinator.CompleteCurrentMatchEvent(first.ExecutionId),
+                Is.False);
+
+            coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution second);
+            Assert.That(
+                coordinator.CompleteCurrentMatchEvent(first.ExecutionId),
+                Is.False);
+            Assert.That(coordinator.HasMatchEventInFlight, Is.True);
+            Assert.That(
+                coordinator.CompleteCurrentMatchEvent(second.ExecutionId),
+                Is.True);
+            Assert.That(
+                coordinator.CompleteCurrentMatchEvent(second.ExecutionId),
+                Is.False);
+        }
+
+        [TestCase(BattleResultKind.Victory)]
+        [TestCase(BattleResultKind.Defeat)]
+        public void TerminalResultCancelsInFlightAndRejectsLateCompletion(
+            BattleResultKind result)
+        {
+            int bossActionCount = 0;
+            var coordinator = StartBoardResolution(25);
+            coordinator.BossActionStarted += () => bossActionCount++;
+            coordinator.NotifyBoardActionResolved(
+                CreateTwoMatchCascade(),
+                true);
+            coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution);
+
+            bool ended = result == BattleResultKind.Victory
+                ? coordinator.NotifyBossDefeated()
+                : coordinator.NotifyPartyIncapacitated();
+
+            Assert.That(ended, Is.True);
+            Assert.That(coordinator.Context.Result, Is.EqualTo(result));
+            Assert.That(coordinator.Context.Phase,
+                Is.EqualTo(BattlePhase.Result));
+            Assert.That(coordinator.PendingMatchEventCount, Is.Zero);
+            Assert.That(coordinator.HasMatchEventInFlight, Is.False);
+            Assert.That(bossActionCount, Is.Zero);
+            Assert.That(
+                coordinator.CompleteCurrentMatchEvent(execution.ExecutionId),
+                Is.False);
         }
 
         [Test]

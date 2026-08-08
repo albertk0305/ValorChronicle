@@ -422,11 +422,11 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     version,
                     BattlePhase.MatchEventResolving))
                 {
-                    MatchEvent matchEvent;
+                    MatchEventExecution execution;
                     isExecutingFlowStep = true;
                     try
                     {
-                        coordinator.TryExecuteNextMatchEvent(out matchEvent);
+                        coordinator.TryBeginNextMatchEvent(out execution);
                     }
                     finally
                     {
@@ -439,7 +439,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
                         yield break;
                     }
 
-                    if (matchEvent != null)
+                    if (execution != null)
                     {
                         yield return null;
 
@@ -447,6 +447,33 @@ namespace ValorChronicle.Battle.Flow.Presentation
                         {
                             yield break;
                         }
+
+                        bool matchCompleted;
+                        isExecutingFlowStep = true;
+                        try
+                        {
+                            matchCompleted =
+                                coordinator.CompleteCurrentMatchEvent(
+                                    execution.ExecutionId);
+                        }
+                        finally
+                        {
+                            isExecutingFlowStep = false;
+                        }
+
+                        if (!matchCompleted)
+                        {
+                            GameLogger.Error(
+                                $"[BattleFlow] Placeholder MatchEvent could " +
+                                $"not be completed. " +
+                                $"ExecutionId={execution.ExecutionId}; " +
+                                $"Turn={coordinator.Context.CurrentTurn}; " +
+                                $"Phase={coordinator.Context.Phase}.",
+                                this);
+                            yield break;
+                        }
+
+                        UpdateBoardInputGate();
                     }
 
                     if (coordinator.Context.Phase == BattlePhase.BossActing)
@@ -454,7 +481,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
                         break;
                     }
 
-                    if (matchEvent == null)
+                    if (execution == null)
                     {
                         yield break;
                     }

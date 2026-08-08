@@ -7,6 +7,8 @@ namespace ValorChronicle.Battle.Flow
     public sealed class BattleFlowCoordinator
     {
         private readonly MatchEventQueue matchEventQueue;
+        private long nextMatchEventExecutionId;
+        private MatchEventExecution currentMatchEventExecution;
 
         public BattleFlowCoordinator(int turnLimit)
             : this(turnLimit, Array.Empty<int>())
@@ -24,12 +26,20 @@ namespace ValorChronicle.Battle.Flow
         }
 
         public event Action<BattlePhase> PhaseChanged;
+        /// <summary>
+        /// Notifies listeners that a MatchEvent has begun. Returning from an
+        /// event handler does not complete the MatchEvent.
+        /// </summary>
         public event Action<MatchEvent> MatchEventExecuting;
         public event Action BossActionStarted;
         public event Action<BattleResultKind> ResultReached;
 
         public BattleContext Context { get; }
         public int PendingMatchEventCount => matchEventQueue.Count;
+        public bool HasMatchEventInFlight =>
+            currentMatchEventExecution != null;
+        public MatchEventExecution CurrentMatchEventExecution =>
+            currentMatchEventExecution;
 
         public bool StartBattle()
         {
@@ -120,26 +130,52 @@ namespace ValorChronicle.Battle.Flow
             return true;
         }
 
-        public bool TryExecuteNextMatchEvent(out MatchEvent matchEvent)
+        public bool TryBeginNextMatchEvent(
+            out MatchEventExecution execution)
         {
-            matchEvent = null;
+            execution = null;
             if (!CanExecuteInPhase(BattlePhase.MatchEventResolving))
             {
                 return false;
             }
 
-            if (!matchEventQueue.TryDequeue(out matchEvent))
+            if (currentMatchEventExecution != null)
+            {
+                return false;
+            }
+
+            if (!matchEventQueue.TryDequeue(out MatchEvent matchEvent))
             {
                 BeginBossAction();
                 return false;
             }
 
+            execution = new MatchEventExecution(
+                checked(++nextMatchEventExecutionId),
+                matchEvent);
+            currentMatchEventExecution = execution;
             MatchEventExecuting?.Invoke(matchEvent);
-            if (Context.Result != BattleResultKind.None)
+            return true;
+        }
+
+        public bool TryExecuteNextMatchEvent(out MatchEvent matchEvent)
+        {
+            bool began = TryBeginNextMatchEvent(
+                out MatchEventExecution execution);
+            matchEvent = execution?.MatchEvent;
+            return began;
+        }
+
+        public bool CompleteCurrentMatchEvent(long executionId)
+        {
+            if (!CanExecuteInPhase(BattlePhase.MatchEventResolving)
+                || currentMatchEventExecution == null
+                || currentMatchEventExecution.ExecutionId != executionId)
             {
-                return true;
+                return false;
             }
 
+            currentMatchEventExecution = null;
             if (matchEventQueue.Count == 0)
             {
                 BeginBossAction();
@@ -159,13 +195,11 @@ namespace ValorChronicle.Battle.Flow
             while (Context.Phase == BattlePhase.MatchEventResolving
                 && Context.Result == BattleResultKind.None)
             {
-                if (TryExecuteNextMatchEvent(out MatchEvent matchEvent))
+                if (TryBeginNextMatchEvent(
+                    out MatchEventExecution execution))
                 {
-                    if (matchEvent != null)
-                    {
-                        executedCount++;
-                    }
-
+                    executedCount++;
+                    CompleteCurrentMatchEvent(execution.ExecutionId);
                     continue;
                 }
 
@@ -280,6 +314,7 @@ namespace ValorChronicle.Battle.Flow
             }
 
             matchEventQueue.Clear();
+            currentMatchEventExecution = null;
             Context.Result = result;
             TransitionTo(BattlePhase.Result);
             ResultReached?.Invoke(result);
