@@ -92,5 +92,18 @@ namespace ValorChronicle.Battle.Combat.State
             CurrentHp -= appliedDamage;
             return appliedDamage;
         }
+
+        internal long ApplyHpHealing(long healing)
+        {
+            if (healing < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(healing));
+            }
+
+            long missingHp = MaxHp - CurrentHp;
+            long appliedHealing = Math.Min(healing, missingHp);
+            CurrentHp += appliedHealing;
+            return appliedHealing;
+        }
     }
 }
