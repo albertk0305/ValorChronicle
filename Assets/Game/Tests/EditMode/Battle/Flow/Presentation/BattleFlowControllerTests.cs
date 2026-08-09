@@ -8,8 +8,13 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Board.Presentation;
+using ValorChronicle.Battle.Combat.Actions;
+using ValorChronicle.Battle.Combat.Damage;
+using ValorChronicle.Battle.Combat.Integration;
+using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
+using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
@@ -265,6 +270,57 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Context.Phase,
                 Is.EqualTo(BattlePhase.ActiveInput));
             Assert.That(boardController.IsExternalInputEnabled, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator AttachedBridgeExecutesMatchCombatBeforeBossCompletes()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var character = new CharacterBattleState(
+                "fire",
+                0,
+                ElementType.Fire,
+                1000,
+                100d);
+            var party = new PartyBattleState(new[] { character });
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Fire,
+                1000,
+                0d);
+            var actionIds = new CombatActionIdSequence();
+            var matchProvider =
+                new ControllerMatchActionProvider();
+            var bossProvider = new ControllerBossActionProvider();
+            var executor = new CombatActionExecutor(
+                boss,
+                party,
+                new DamageContextFactory(new SeededRandomSource(1)));
+            var bridge = new BattleFlowCombatBridge(
+                flowController.Coordinator,
+                party,
+                boss,
+                executor,
+                matchProvider,
+                bossProvider,
+                actionIds);
+            flowController.AttachCombatBridge(bridge);
+            flowController.CompleteActiveInput();
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+
+            yield return WaitUntil(
+                () => flowController.Context.CurrentTurn == 2
+                    && flowController.Context.Phase
+                        == BattlePhase.ActiveInput,
+                "The combat bridge did not complete the integrated turn.");
+
+            Assert.That(matchProvider.CallCount, Is.EqualTo(1));
+            Assert.That(bossProvider.CallCount, Is.EqualTo(1));
+            Assert.That(boss.CurrentHp, Is.EqualTo(900));
+            Assert.That(actionIds.LastIssuedId, Is.EqualTo(1));
         }
 
         [UnityTest]
@@ -704,6 +760,48 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         private static T GetField<T>(object target, string fieldName)
         {
             return (T)GetField(target, fieldName);
+        }
+
+        private sealed class ControllerMatchActionProvider
+            : IMatchEventActionProvider
+        {
+            public int CallCount { get; private set; }
+
+            public IReadOnlyList<CombatAction> CreateRootActions(
+                MatchEventActionContext context)
+            {
+                CallCount++;
+                return new CombatAction[]
+                {
+                    new DamageAction(
+                        context.ActionIds.Next(),
+                        ActionOrigin.Match,
+                        new DamageContextBuildRequest(
+                            context.Character,
+                            context.Party,
+                            context.Boss,
+                            context.Character.Element,
+                            ValorChronicle.Battle.Combat.Attacks.AttackType.Match,
+                            context.MatchAttackTag,
+                            1d,
+                            true,
+                            context.FinalComboCount,
+                            false))
+                };
+            }
+        }
+
+        private sealed class ControllerBossActionProvider
+            : IBossCombatActionProvider
+        {
+            public int CallCount { get; private set; }
+
+            public IReadOnlyList<CombatAction> CreateRootActions(
+                BossCombatActionContext context)
+            {
+                CallCount++;
+                return Array.Empty<CombatAction>();
+            }
         }
     }
 }

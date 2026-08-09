@@ -9,6 +9,7 @@ namespace ValorChronicle.Battle.Flow
         private readonly MatchEventQueue matchEventQueue;
         private long nextMatchEventExecutionId;
         private MatchEventExecution currentMatchEventExecution;
+        private int resolvedMatchEventCount;
 
         public BattleFlowCoordinator(int turnLimit)
             : this(turnLimit, Array.Empty<int>())
@@ -50,6 +51,7 @@ namespace ValorChronicle.Battle.Flow
             }
 
             matchEventQueue.Clear();
+            resolvedMatchEventCount = 0;
             BeginNextTurn();
             return true;
         }
@@ -115,15 +117,19 @@ namespace ValorChronicle.Battle.Flow
                         nameof(cascade));
                 }
 
+                resolvedMatchEventCount = 0;
                 TransitionTo(BattlePhase.PuzzleInput);
                 return true;
             }
 
             matchEventQueue.Clear();
+            resolvedMatchEventCount = 0;
             if (cascade != null)
             {
-                matchEventQueue.EnqueueRange(
-                    MatchEventFactory.Create(cascade));
+                IReadOnlyList<MatchEvent> matchEvents =
+                    MatchEventFactory.Create(cascade);
+                matchEventQueue.EnqueueRange(matchEvents);
+                resolvedMatchEventCount = matchEvents.Count;
             }
 
             TransitionTo(BattlePhase.MatchEventResolving);
@@ -152,7 +158,8 @@ namespace ValorChronicle.Battle.Flow
 
             execution = new MatchEventExecution(
                 checked(++nextMatchEventExecutionId),
-                matchEvent);
+                matchEvent,
+                resolvedMatchEventCount);
             currentMatchEventExecution = execution;
             MatchEventExecuting?.Invoke(matchEvent);
             return true;
@@ -178,6 +185,7 @@ namespace ValorChronicle.Battle.Flow
             currentMatchEventExecution = null;
             if (matchEventQueue.Count == 0)
             {
+                resolvedMatchEventCount = 0;
                 BeginBossAction();
             }
 
@@ -315,6 +323,7 @@ namespace ValorChronicle.Battle.Flow
 
             matchEventQueue.Clear();
             currentMatchEventExecution = null;
+            resolvedMatchEventCount = 0;
             Context.Result = result;
             TransitionTo(BattlePhase.Result);
             ResultReached?.Invoke(result);

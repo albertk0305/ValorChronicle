@@ -3,6 +3,7 @@ using System.Collections;
 using UnityEngine;
 using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Board.Presentation;
+using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Core.Logging;
 
 namespace ValorChronicle.Battle.Flow.Presentation
@@ -24,6 +25,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private Coroutine flowCoroutine;
         private BattleFlowSetup setup;
         private BattleFlowCoordinator coordinator;
+        private BattleFlowCombatBridge combatBridge;
 
         public BattleFlowSetup Setup => setup;
         public BattleFlowCoordinator Coordinator => coordinator;
@@ -99,6 +101,34 @@ namespace ValorChronicle.Battle.Flow.Presentation
             bool completed = coordinator.CompleteActiveInput();
             UpdateBoardInputGate();
             return completed;
+        }
+
+        public void AttachCombatBridge(BattleFlowCombatBridge bridge)
+        {
+            if (bridge == null)
+            {
+                throw new ArgumentNullException(nameof(bridge));
+            }
+
+            if (coordinator == null)
+            {
+                throw new InvalidOperationException(
+                    "BattleFlowController must be initialized first.");
+            }
+
+            if (!ReferenceEquals(bridge.Coordinator, coordinator))
+            {
+                throw new InvalidOperationException(
+                    "Combat bridge must use this controller's coordinator.");
+            }
+
+            if (combatBridge != null || isAdvancingFlow)
+            {
+                throw new InvalidOperationException(
+                    "Combat bridge cannot be replaced during battle flow.");
+            }
+
+            combatBridge = bridge;
         }
 
         public bool TryUseActive(int activeIndex)
@@ -452,8 +482,9 @@ namespace ValorChronicle.Battle.Flow.Presentation
                         isExecutingFlowStep = true;
                         try
                         {
-                            matchCompleted =
-                                coordinator.CompleteCurrentMatchEvent(
+                            matchCompleted = combatBridge != null
+                                ? combatBridge.ResolveMatchEvent(execution)
+                                : coordinator.CompleteCurrentMatchEvent(
                                     execution.ExecutionId);
                         }
                         finally
@@ -464,7 +495,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
                         if (!matchCompleted)
                         {
                             GameLogger.Error(
-                                $"[BattleFlow] Placeholder MatchEvent could " +
+                                $"[BattleFlow] MatchEvent could " +
                                 $"not be completed. " +
                                 $"ExecutionId={execution.ExecutionId}; " +
                                 $"Turn={coordinator.Context.CurrentTurn}; " +
@@ -474,6 +505,10 @@ namespace ValorChronicle.Battle.Flow.Presentation
                         }
 
                         UpdateBoardInputGate();
+                        if (!IsFlowProgressionCurrent(version))
+                        {
+                            yield break;
+                        }
                     }
 
                     if (coordinator.Context.Phase == BattlePhase.BossActing)
@@ -507,7 +542,10 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 isExecutingFlowStep = true;
                 try
                 {
-                    completed = coordinator.CompleteBossAction();
+                    completed = combatBridge != null
+                        ? combatBridge.ResolveBossAction(
+                            coordinator.Context.CurrentTurn)
+                        : coordinator.CompleteBossAction();
                 }
                 finally
                 {
@@ -517,7 +555,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 if (!completed)
                 {
                     GameLogger.Error(
-                        $"[BattleFlow] Placeholder boss action could not " +
+                        $"[BattleFlow] Boss action could not " +
                         $"be completed. " +
                         $"Turn={coordinator.Context.CurrentTurn}; " +
                         $"Phase={coordinator.Context.Phase}.",
