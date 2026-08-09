@@ -4,6 +4,8 @@ namespace ValorChronicle.Battle.Combat.Damage
 {
     public static class DamageCalculator
     {
+        private const int IntegralBoundaryToleranceInUlps = 4;
+
         public static DamageResult Calculate(DamageContext context)
         {
             if (context == null)
@@ -70,7 +72,43 @@ namespace ValorChronicle.Battle.Combat.Damage
                     "Calculated damage must be finite and non-negative.");
             }
 
-            return checked((long)Math.Floor(rawDamage));
+            double flooredDamage = Math.Floor(rawDamage);
+            if (IsJustBelowIntegralBoundary(rawDamage, flooredDamage))
+            {
+                flooredDamage += 1d;
+            }
+
+            return checked((long)flooredDamage);
+        }
+
+        private static bool IsJustBelowIntegralBoundary(
+            double rawDamage,
+            double flooredDamage)
+        {
+            if (rawDamage == flooredDamage)
+            {
+                return false;
+            }
+
+            double upperInteger = flooredDamage + 1d;
+            if (upperInteger == flooredDamage
+                || double.IsInfinity(upperInteger))
+            {
+                return false;
+            }
+
+            long upperBits = BitConverter.DoubleToInt64Bits(upperInteger);
+            double previousRepresentable =
+                BitConverter.Int64BitsToDouble(upperBits - 1L);
+            double ulpBelowUpperInteger =
+                upperInteger - previousRepresentable;
+            double distanceToUpperInteger = upperInteger - rawDamage;
+
+            // A short multiplication chain can land a few representable
+            // values below an exact integer. Bound correction to that scale
+            // so meaningful fractional damage still follows Math.Floor.
+            return distanceToUpperInteger
+                <= ulpBelowUpperInteger * IntegralBoundaryToleranceInUlps;
         }
     }
 }

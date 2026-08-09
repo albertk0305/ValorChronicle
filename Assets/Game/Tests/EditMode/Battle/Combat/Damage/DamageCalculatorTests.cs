@@ -147,6 +147,77 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Damage
             Assert.That(result.FinalDamage, Is.EqualTo(2L));
         }
 
+        [TestCase(5.20d, 5980L)]
+        [TestCase(6.60d, 7590L)]
+        public void Calculate_PreservesIntegralResultBelowBoundaryArtifact(
+            double skillCoefficient,
+            long expectedDamage)
+        {
+            DamageResult result = DamageCalculator.Calculate(
+                CreateContext(
+                    baseAttack: 1000d,
+                    skillCoefficient: skillCoefficient,
+                    dealtDamageIncreaseRateSum: 0.15d));
+
+            Assert.That(result.RawDamage, Is.LessThan(expectedDamage));
+            Assert.That(result.RawDamage,
+                Is.EqualTo((double)expectedDamage).Within(0.000000001d));
+            Assert.That(result.FinalDamage, Is.EqualTo(expectedDamage));
+        }
+
+        [Test]
+        public void Calculate_ContinuesToFloorMeaningfulFraction()
+        {
+            DamageResult result = DamageCalculator.Calculate(
+                CreateContext(
+                    baseAttack: 5800d,
+                    skillCoefficient: 0.08d,
+                    appliesCombo: true,
+                    finalComboCount: 3));
+
+            Assert.That(result.RawDamage,
+                Is.EqualTo(519.68d).Within(0.000000001d));
+            Assert.That(result.FinalDamage, Is.EqualTo(519L));
+        }
+
+        [Test]
+        public void Calculate_DoesNotRaiseMeaningfulValueBelowInteger()
+        {
+            DamageResult result = DamageCalculator.Calculate(
+                CreateContext(
+                    baseAttack: 1000d,
+                    skillCoefficient: 0.999999d));
+
+            Assert.That(result.RawDamage,
+                Is.EqualTo(999.999d).Within(0.000000001d));
+            Assert.That(result.FinalDamage, Is.EqualTo(999L));
+        }
+
+        [TestCase(0d, 0L)]
+        [TestCase(1000d, 1000L)]
+        public void Calculate_PreservesZeroAndExactInteger(
+            double baseAttack,
+            long expectedDamage)
+        {
+            DamageResult result = DamageCalculator.Calculate(
+                CreateContext(baseAttack: baseAttack));
+
+            Assert.That(result.FinalDamage, Is.EqualTo(expectedDamage));
+        }
+
+        [Test]
+        public void Calculate_DoesNotRaiseLargeMeaningfulFraction()
+        {
+            DamageResult result = DamageCalculator.Calculate(
+                CreateContext(
+                    baseAttack: 1000000000000d,
+                    skillCoefficient: 1.0000000000005d));
+
+            Assert.That(result.RawDamage,
+                Is.EqualTo(1000000000000.5d).Within(0.001d));
+            Assert.That(result.FinalDamage, Is.EqualTo(1000000000000L));
+        }
+
         [Test]
         public void Context_RejectsInvalidInputsAndNegativeMultipliers()
         {

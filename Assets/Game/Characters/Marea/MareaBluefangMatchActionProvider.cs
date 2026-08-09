@@ -1,0 +1,204 @@
+using System;
+using System.Collections.Generic;
+using ValorChronicle.Battle.Board;
+using ValorChronicle.Battle.Combat.Actions;
+using ValorChronicle.Battle.Combat.Attacks;
+using ValorChronicle.Battle.Combat.Damage;
+using ValorChronicle.Battle.Combat.Integration;
+using ValorChronicle.Battle.Combat.State;
+using ValorChronicle.Data.Definitions;
+
+namespace ValorChronicle.Characters.Marea
+{
+    public sealed class MareaBluefangMatchActionProvider
+    {
+        /// <summary>
+        /// Creates one attack sequence and snapshots WaterElement at this
+        /// invocation boundary. Call when Marea's attack begins.
+        /// </summary>
+        public IReadOnlyList<CombatAction> CreateActions(
+            CharacterBattleState attacker,
+            PartyBattleState party,
+            BossBattleState boss,
+            BoardMatchTier matchTier,
+            int finalComboCount,
+            CombatActionIdSequence actionIds)
+        {
+            ValidateInputs(
+                attacker,
+                party,
+                boss,
+                matchTier,
+                finalComboCount,
+                actionIds);
+
+            ResourceState water = boss.Resources.Get(
+                WaterElementResource.Id);
+            if (water.MaxAmount != WaterElementResource.MaxAmount)
+            {
+                throw new InvalidOperationException(
+                    "WaterElement must use the shared maximum amount.");
+            }
+
+            int waterAtAttackStart = water.CurrentAmount;
+            bool hasWaterAtAttackStart = waterAtAttackStart > 0;
+            double localDealtDamageIncrease = hasWaterAtAttackStart
+                ? MareaBluefangRules.PassiveDealtDamageIncreaseRate
+                : 0d;
+            AttackTag matchTag = ResolveMatchTag(matchTier);
+            double skillCoefficient = ResolveSkillCoefficient(
+                matchTier,
+                waterAtAttackStart);
+
+            long damageActionId = actionIds.Next();
+            var damageAction = new DamageAction(
+                damageActionId,
+                ActionOrigin.Match,
+                new DamageContextBuildRequest(
+                    attacker,
+                    party,
+                    boss,
+                    ElementType.Water,
+                    AttackType.Match,
+                    matchTag,
+                    skillCoefficient,
+                    true,
+                    finalComboCount,
+                    true,
+                    actionLocalDealtDamageIncreaseRate:
+                        localDealtDamageIncrease));
+
+            if (matchTier == BoardMatchTier.FiveOrMore)
+            {
+                if (waterAtAttackStart == 0)
+                {
+                    return new CombatAction[] { damageAction };
+                }
+
+                return new CombatAction[]
+                {
+                    damageAction,
+                    new ConsumeResourceAction(
+                        actionIds.Next(),
+                        ActionOrigin.System,
+                        boss,
+                        WaterElementResource.Id,
+                        attacker.CharacterId,
+                        ResourceConsumptionMode.Amount,
+                        waterAtAttackStart,
+                        damageActionId,
+                        damageActionId)
+                };
+            }
+
+            return new CombatAction[]
+            {
+                damageAction,
+                new AddResourceAction(
+                    actionIds.Next(),
+                    ActionOrigin.System,
+                    boss,
+                    WaterElementResource.Id,
+                    1,
+                    damageActionId,
+                    damageActionId)
+            };
+        }
+
+        private static double ResolveSkillCoefficient(
+            BoardMatchTier matchTier,
+            int waterAtAttackStart)
+        {
+            switch (matchTier)
+            {
+                case BoardMatchTier.Three:
+                    return MareaBluefangRules.Match3Coefficient;
+                case BoardMatchTier.Four:
+                    return MareaBluefangRules.Match4BaseCoefficient
+                        + (waterAtAttackStart > 0
+                            ? MareaBluefangRules
+                                .Match4WaterElementBonusCoefficient
+                            : 0d);
+                case BoardMatchTier.FiveOrMore:
+                    return MareaBluefangRules.Match5BaseCoefficient
+                        + MareaBluefangRules
+                            .Match5CoefficientPerWaterElement
+                        * waterAtAttackStart;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(matchTier),
+                        matchTier,
+                        "Match tier must be defined.");
+            }
+        }
+
+        private static AttackTag ResolveMatchTag(BoardMatchTier matchTier)
+        {
+            switch (matchTier)
+            {
+                case BoardMatchTier.Three:
+                    return AttackTag.Match3;
+                case BoardMatchTier.Four:
+                    return AttackTag.Match4;
+                case BoardMatchTier.FiveOrMore:
+                    return AttackTag.Match5Plus;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(matchTier),
+                        matchTier,
+                        "Match tier must be defined.");
+            }
+        }
+
+        private static void ValidateInputs(
+            CharacterBattleState attacker,
+            PartyBattleState party,
+            BossBattleState boss,
+            BoardMatchTier matchTier,
+            int finalComboCount,
+            CombatActionIdSequence actionIds)
+        {
+            if (attacker == null)
+            {
+                throw new ArgumentNullException(nameof(attacker));
+            }
+
+            if (!string.Equals(
+                    attacker.CharacterId,
+                    MareaBluefangRules.CharacterId,
+                    StringComparison.Ordinal)
+                || attacker.Element != ElementType.Water)
+            {
+                throw new ArgumentException(
+                    "Attacker must be Marea Bluefang with Water element.",
+                    nameof(attacker));
+            }
+
+            if (party == null)
+            {
+                throw new ArgumentNullException(nameof(party));
+            }
+
+            if (boss == null)
+            {
+                throw new ArgumentNullException(nameof(boss));
+            }
+
+            if (!Enum.IsDefined(typeof(BoardMatchTier), matchTier))
+            {
+                throw new ArgumentOutOfRangeException(nameof(matchTier));
+            }
+
+            if (finalComboCount <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(finalComboCount));
+            }
+
+            if (actionIds == null)
+            {
+                throw new ArgumentNullException(nameof(actionIds));
+            }
+        }
+    }
+}
