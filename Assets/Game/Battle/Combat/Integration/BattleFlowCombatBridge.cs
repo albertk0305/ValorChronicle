@@ -15,6 +15,7 @@ namespace ValorChronicle.Battle.Combat.Integration
         private readonly MatchEventCombatActionFactory matchActionFactory;
         private readonly IBossCombatActionProvider bossActionProvider;
         private readonly CombatActionIdSequence actionIds;
+        private readonly BattleTurnEndProcessor turnEndProcessor;
         private readonly HashSet<long> executedActionIds =
             new HashSet<long>();
 
@@ -44,12 +45,15 @@ namespace ValorChronicle.Battle.Combat.Integration
                 boss,
                 matchActionProvider,
                 actionIds);
+            turnEndProcessor = new BattleTurnEndProcessor(party, boss);
         }
 
         public BattleFlowCoordinator Coordinator => coordinator;
         public PartyBattleState Party => party;
         public BossBattleState Boss => boss;
         public CombatActionIdSequence ActionIds => actionIds;
+        public int ProcessedTurnEndCount =>
+            turnEndProcessor.ProcessedTurnCount;
         public CombatActionExecutionResult LastMatchExecutionResult
         {
             get;
@@ -134,6 +138,7 @@ namespace ValorChronicle.Battle.Combat.Integration
                 return coordinator.NotifyBossDefeated();
             }
 
+            turnEndProcessor.ProcessTurnEnd();
             return coordinator.CompleteBossAction();
         }
 
