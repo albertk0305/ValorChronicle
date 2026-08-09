@@ -200,12 +200,127 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Damage
             Assert.That(result.FinalDamage, Is.EqualTo(4066L));
         }
 
+        [Test]
+        public void ActionLocalZeroPreservesExistingDamageResult()
+        {
+            CreateStates(
+                1000d,
+                out CharacterBattleState attacker,
+                out PartyBattleState party,
+                out BossBattleState boss);
+            var factory = new DamageContextFactory(
+                new SequenceRandomSource());
+
+            DamageContext defaultContext = factory.Build(Request(
+                attacker,
+                party,
+                boss,
+                AttackType.Match,
+                false));
+            DamageContext explicitZeroContext = factory.Build(Request(
+                attacker,
+                party,
+                boss,
+                AttackType.Match,
+                false,
+                0d));
+
+            Assert.That(explicitZeroContext.DealtDamageIncreaseRateSum,
+                Is.EqualTo(defaultContext.DealtDamageIncreaseRateSum));
+            Assert.That(
+                DamageCalculator.Calculate(explicitZeroContext).FinalDamage,
+                Is.EqualTo(
+                    DamageCalculator.Calculate(defaultContext).FinalDamage));
+        }
+
+        [Test]
+        public void ActionLocalIncreaseAddsWithEffectAndDoesNotLeak()
+        {
+            CreateStates(
+                1000d,
+                out CharacterBattleState attacker,
+                out PartyBattleState party,
+                out BossBattleState boss);
+            attacker.Effects.ApplyEffect(Effect(
+                1,
+                "existing_dealt_damage",
+                EffectModifierType.DealtDamageIncrease,
+                0.10d));
+            int effectCountBefore = attacker.Effects.Count;
+            var factory = new DamageContextFactory(
+                new SequenceRandomSource());
+
+            DamageContext localContext = factory.Build(Request(
+                attacker,
+                party,
+                boss,
+                AttackType.Match,
+                false,
+                0.15d));
+            DamageContext nextContext = factory.Build(Request(
+                attacker,
+                party,
+                boss,
+                AttackType.Match,
+                false));
+
+            Assert.That(localContext.DealtDamageIncreaseRateSum,
+                Is.EqualTo(0.25d).Within(0.000000001d));
+            Assert.That(
+                DamageCalculator.Calculate(localContext).FinalDamage,
+                Is.EqualTo(1250L));
+            Assert.That(nextContext.DealtDamageIncreaseRateSum,
+                Is.EqualTo(0.10d).Within(0.000000001d));
+            Assert.That(
+                DamageCalculator.Calculate(nextContext).FinalDamage,
+                Is.EqualTo(1100L));
+            Assert.That(attacker.Effects.Count, Is.EqualTo(effectCountBefore));
+        }
+
+        [Test]
+        public void ActionLocalAndElementIncreaseRemainSeparateMultipliers()
+        {
+            CreateStates(
+                1000d,
+                out CharacterBattleState attacker,
+                out PartyBattleState party,
+                out BossBattleState boss);
+            attacker.Effects.ApplyEffect(ElementEffect(
+                1,
+                "water_damage",
+                0.25d));
+            var factory = new DamageContextFactory(
+                new SequenceRandomSource());
+
+            DamageContext context = factory.Build(Request(
+                attacker,
+                party,
+                boss,
+                AttackType.Match,
+                false,
+                0.15d));
+            DamageResult result = DamageCalculator.Calculate(context);
+
+            Assert.That(context.ElementDamageIncreaseRateSum,
+                Is.EqualTo(0.25d).Within(0.000000001d));
+            Assert.That(context.DealtDamageIncreaseRateSum,
+                Is.EqualTo(0.15d).Within(0.000000001d));
+            Assert.That(result.ElementDamageMultiplier,
+                Is.EqualTo(1.25d).Within(0.000000001d));
+            Assert.That(result.DealtDamageMultiplier,
+                Is.EqualTo(1.15d).Within(0.000000001d));
+            Assert.That(result.RawDamage,
+                Is.EqualTo(1437.5d).Within(0.000000001d));
+            Assert.That(result.FinalDamage, Is.EqualTo(1437L));
+        }
+
         private static DamageContextBuildRequest Request(
             CharacterBattleState attacker,
             PartyBattleState party,
             BossBattleState boss,
             AttackType attackType,
-            bool canCritical)
+            bool canCritical,
+            double actionLocalDealtDamageIncreaseRate = 0d)
         {
             return new DamageContextBuildRequest(
                 attacker,
@@ -217,7 +332,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Damage
                 1d,
                 false,
                 0,
-                canCritical);
+                canCritical,
+                actionLocalDealtDamageIncreaseRate:
+                    actionLocalDealtDamageIncreaseRate);
         }
 
         private static EffectInstance Effect(
