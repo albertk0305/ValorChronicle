@@ -75,7 +75,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(bridge.ResolveMatchEvent(first), Is.True);
             Assert.That(
                 ActionIds(bridge.LastMatchExecutionResult),
-                Is.EqualTo(new long[] { 1, 4, 2, 3 }));
+                Is.EqualTo(new long[] { 1, 2, 3, 4 }));
             Assert.That(coordinator.Context.Phase,
                 Is.EqualTo(BattlePhase.MatchEventResolving));
 
@@ -84,7 +84,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(bridge.ResolveMatchEvent(second), Is.True);
             Assert.That(
                 ActionIds(bridge.LastMatchExecutionResult),
-                Is.EqualTo(new long[] { 5, 8, 6, 7 }));
+                Is.EqualTo(new long[] { 5, 6, 7, 8 }));
             Assert.That(coordinator.Context.Phase,
                 Is.EqualTo(BattlePhase.BossActing));
             Assert.That(bossCalls, Is.Empty);

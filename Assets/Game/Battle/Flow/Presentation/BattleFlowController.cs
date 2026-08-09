@@ -133,8 +133,14 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         public bool TryUseActive(int activeIndex)
         {
-            return coordinator != null
-                && coordinator.TryUseActiveAbility(activeIndex);
+            if (coordinator == null)
+            {
+                return false;
+            }
+
+            return combatBridge != null
+                ? combatBridge.TryUseActive(activeIndex)
+                : coordinator.TryUseActiveAbility(activeIndex);
         }
 
         public bool NotifyBossDefeated()

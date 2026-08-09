@@ -14,7 +14,7 @@ namespace ValorChronicle.Battle.Combat.Integration
         private readonly BossBattleState boss;
         private readonly IMatchEventActionProvider provider;
         private readonly CombatActionIdSequence actionIds;
-        private readonly HashSet<long> createdRootActionIds =
+        private readonly HashSet<long> createdActionIds =
             new HashSet<long>();
 
         public MatchEventCombatActionFactory(
@@ -41,8 +41,6 @@ namespace ValorChronicle.Battle.Combat.Integration
                 throw new ArgumentNullException(nameof(execution));
             }
 
-            AttackTag matchAttackTag = ResolveAttackTag(
-                execution.MatchEvent.Tier);
             var rootActions = new List<CombatAction>();
             for (int characterIndex = 0;
                 characterIndex < party.Characters.Count;
@@ -55,20 +53,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                     continue;
                 }
 
-                var context = new MatchEventActionContext(
-                    character,
-                    execution,
-                    matchAttackTag,
-                    party,
-                    boss,
-                    actionIds);
-                long idBeforeProvider = actionIds.LastIssuedId;
                 IReadOnlyList<CombatAction> characterActions =
-                    provider.CreateRootActions(context);
-                ValidateProviderActions(
-                    characterActions,
-                    context,
-                    idBeforeProvider);
+                    CreateCharacterRootActions(execution, character);
                 for (int actionIndex = 0;
                     actionIndex < characterActions.Count;
                     actionIndex++)
@@ -78,6 +64,57 @@ namespace ValorChronicle.Battle.Combat.Integration
             }
 
             return rootActions.AsReadOnly();
+        }
+
+        public IReadOnlyList<CombatAction> CreateCharacterRootActions(
+            MatchEventExecution execution,
+            CharacterBattleState character)
+        {
+            if (execution == null)
+            {
+                throw new ArgumentNullException(nameof(execution));
+            }
+
+            if (character == null)
+            {
+                throw new ArgumentNullException(nameof(character));
+            }
+
+            ValidatePartyCharacter(character);
+            if (character.Element != execution.MatchEvent.Element)
+            {
+                return Array.Empty<CombatAction>();
+            }
+
+            var context = new MatchEventActionContext(
+                character,
+                execution,
+                ResolveAttackTag(execution.MatchEvent.Tier),
+                party,
+                boss,
+                actionIds);
+            long idBeforeProvider = actionIds.LastIssuedId;
+            IReadOnlyList<CombatAction> characterActions =
+                provider.CreateRootActions(context);
+            ValidateProviderActions(
+                characterActions,
+                context,
+                idBeforeProvider);
+            return characterActions;
+        }
+
+        private void ValidatePartyCharacter(CharacterBattleState character)
+        {
+            for (int index = 0; index < party.Characters.Count; index++)
+            {
+                if (ReferenceEquals(party.Characters[index], character))
+                {
+                    return;
+                }
+            }
+
+            throw new InvalidOperationException(
+                "Match character must belong to the battle party.");
         }
 
         private void ValidateProviderActions(
@@ -108,14 +145,22 @@ namespace ValorChronicle.Battle.Combat.Integration
                         "Match action providers cannot return null actions.");
                 long expectedActionId = checked(
                     idBeforeProvider + actionIndex + 1);
+                bool isRoot = action.RootActionId == action.ActionId
+                    && !action.SourceActionId.HasValue;
+                bool isDerivedFromEarlierSequenceAction =
+                    action.RootActionId > idBeforeProvider
+                    && action.RootActionId < action.ActionId
+                    && action.SourceActionId.HasValue
+                    && action.SourceActionId.Value > idBeforeProvider
+                    && action.SourceActionId.Value < action.ActionId;
                 if (action.ActionId != expectedActionId
-                    || action.RootActionId != action.ActionId
-                    || action.SourceActionId.HasValue
-                    || !createdRootActionIds.Add(action.ActionId))
+                    || (!isRoot && !isDerivedFromEarlierSequenceAction)
+                    || !createdActionIds.Add(action.ActionId))
                 {
                     throw new InvalidOperationException(
-                        "Match root actions must preserve provider order, use "
-                            + "new battle-scoped IDs, and have no source.");
+                        "Match action sequences must preserve provider order, "
+                            + "use new battle-scoped IDs, and use only root "
+                            + "or earlier in-sequence lineage.");
                 }
 
                 ValidateMatchDamageAction(action, context);

@@ -21,7 +21,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
         {
             TestBattle battle = CreateBattle(BoardMatchTier.Three, 0);
 
-            Assert.That(battle.Actions, Has.Count.EqualTo(2));
+            Assert.That(battle.Actions.Count, Is.EqualTo(2));
             DamageAction damage = AssertDamage(
                 battle,
                 0.90d,
@@ -81,7 +81,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
                 expectedPassive,
                 AttackTag.Match4);
 
-            Assert.That(battle.Actions, Has.Count.EqualTo(2));
+            Assert.That(battle.Actions.Count, Is.EqualTo(2));
             Assert.That(battle.Actions.OfType<DamageAction>().Count(),
                 Is.EqualTo(1));
             Assert.That(battle.Actions.Any(action =>
@@ -129,13 +129,13 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
 
             if (initialWater == 0)
             {
-                Assert.That(battle.Actions, Has.Count.EqualTo(1));
+                Assert.That(battle.Actions.Count, Is.EqualTo(1));
                 Assert.That(battle.Actions.OfType<ConsumeResourceAction>(),
                     Is.Empty);
             }
             else
             {
-                Assert.That(battle.Actions, Has.Count.EqualTo(2));
+                Assert.That(battle.Actions.Count, Is.EqualTo(2));
                 ConsumeResourceAction consume =
                     battle.Actions[1] as ConsumeResourceAction;
                 Assert.That(consume, Is.Not.Null);

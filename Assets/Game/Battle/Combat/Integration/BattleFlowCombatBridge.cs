@@ -12,10 +12,12 @@ namespace ValorChronicle.Battle.Combat.Integration
         private readonly PartyBattleState party;
         private readonly BossBattleState boss;
         private readonly CombatActionExecutor executor;
-        private readonly MatchEventCombatActionFactory matchActionFactory;
+        private readonly MatchEventCharacterCombatExecutor
+            matchCharacterExecutor;
         private readonly IBossCombatActionProvider bossActionProvider;
         private readonly CombatActionIdSequence actionIds;
         private readonly BattleTurnEndProcessor turnEndProcessor;
+        private readonly ActiveAbilityCombatExecutor activeExecutor;
         private readonly HashSet<long> executedActionIds =
             new HashSet<long>();
 
@@ -27,6 +29,29 @@ namespace ValorChronicle.Battle.Combat.Integration
             IMatchEventActionProvider matchActionProvider,
             IBossCombatActionProvider bossActionProvider,
             CombatActionIdSequence actionIds)
+            : this(
+                coordinator,
+                party,
+                boss,
+                executor,
+                matchActionProvider,
+                bossActionProvider,
+                actionIds,
+                Array.Empty<ActiveAbilityBinding>(),
+                new ActiveAbilityActionProviderRegistry())
+        {
+        }
+
+        public BattleFlowCombatBridge(
+            BattleFlowCoordinator coordinator,
+            PartyBattleState party,
+            BossBattleState boss,
+            CombatActionExecutor executor,
+            IMatchEventActionProvider matchActionProvider,
+            IBossCombatActionProvider bossActionProvider,
+            CombatActionIdSequence actionIds,
+            IReadOnlyList<ActiveAbilityBinding> activeBindings,
+            ActiveAbilityActionProviderRegistry activeProviders)
         {
             this.coordinator = coordinator
                 ?? throw new ArgumentNullException(nameof(coordinator));
@@ -40,11 +65,24 @@ namespace ValorChronicle.Battle.Combat.Integration
                 ?? throw new ArgumentNullException(nameof(bossActionProvider));
             this.actionIds = actionIds
                 ?? throw new ArgumentNullException(nameof(actionIds));
-            matchActionFactory = new MatchEventCombatActionFactory(
+            var matchActionFactory = new MatchEventCombatActionFactory(
                 party,
                 boss,
                 matchActionProvider,
                 actionIds);
+            matchCharacterExecutor = new MatchEventCharacterCombatExecutor(
+                party,
+                boss,
+                executor,
+                matchActionFactory);
+            activeExecutor = new ActiveAbilityCombatExecutor(
+                coordinator,
+                party,
+                boss,
+                executor,
+                actionIds,
+                activeBindings,
+                activeProviders);
             turnEndProcessor = new BattleTurnEndProcessor(party, boss);
         }
 
@@ -64,6 +102,35 @@ namespace ValorChronicle.Battle.Combat.Integration
             get;
             private set;
         }
+        public CombatActionExecutionResult LastActiveExecutionResult
+        {
+            get;
+            private set;
+        }
+
+        public bool TryUseActive(int activeAbilityIndex)
+        {
+            if (!activeExecutor.TryExecute(
+                activeAbilityIndex,
+                out CombatActionExecutionResult result))
+            {
+                return false;
+            }
+
+            LastActiveExecutionResult = result;
+            ValidateExecutedActionIds(LastActiveExecutionResult);
+            if (boss.IsDefeated)
+            {
+                return coordinator.NotifyBossDefeated();
+            }
+
+            if (party.IsIncapacitated)
+            {
+                return coordinator.NotifyPartyIncapacitated();
+            }
+
+            return true;
+        }
 
         public bool ResolveMatchEvent(MatchEventExecution execution)
         {
@@ -82,9 +149,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 return false;
             }
 
-            IReadOnlyList<CombatAction> rootActions =
-                matchActionFactory.CreateRootActions(execution);
-            LastMatchExecutionResult = Execute(rootActions);
+            LastMatchExecutionResult =
+                matchCharacterExecutor.Execute(execution);
             if (LastMatchExecutionResult != null)
             {
                 ValidateExecutedActionIds(LastMatchExecutionResult);

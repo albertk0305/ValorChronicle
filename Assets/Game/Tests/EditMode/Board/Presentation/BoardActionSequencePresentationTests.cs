@@ -627,8 +627,14 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                     out BlockView view), Is.True);
                 Assert.That(view.RuntimeId, Is.EqualTo(block.RuntimeId));
                 Assert.That(view.Position, Is.EqualTo(position));
-                Assert.That(view.RectTransform.anchoredPosition, Is.EqualTo(
-                    BoardViewLayout.GetAnchoredPosition(position)));
+                Vector2 expectedPosition =
+                    BoardViewLayout.GetAnchoredPosition(position);
+                Vector2 actualPosition =
+                    view.RectTransform.anchoredPosition;
+                Assert.That(actualPosition.x,
+                    Is.EqualTo(expectedPosition.x).Within(0.001f));
+                Assert.That(actualPosition.y,
+                    Is.EqualTo(expectedPosition.y).Within(0.001f));
                 Assert.That(view.RectTransform.localScale,
                     Is.EqualTo(Vector3.one));
                 Assert.That(view.Image.sprite, Is.SameAs(

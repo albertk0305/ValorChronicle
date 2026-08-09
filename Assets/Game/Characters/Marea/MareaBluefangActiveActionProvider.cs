@@ -9,7 +9,19 @@ using ValorChronicle.Data.Definitions;
 namespace ValorChronicle.Characters.Marea
 {
     public sealed class MareaBluefangActiveActionProvider
+        : IActiveAbilityActionProvider
     {
+        public IReadOnlyList<CombatAction> CreateRootActions(
+            ActiveAbilityActionContext context)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            return CreateActions(context.Character, context.ActionIds);
+        }
+
         public IReadOnlyList<CombatAction> CreateActions(
             CharacterBattleState actor,
             CombatActionIdSequence actionIds)

@@ -11,7 +11,25 @@ using ValorChronicle.Data.Definitions;
 namespace ValorChronicle.Characters.Marea
 {
     public sealed class MareaBluefangMatchActionProvider
+        : IMatchEventActionProvider
     {
+        public IReadOnlyList<CombatAction> CreateRootActions(
+            MatchEventActionContext context)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            return CreateActions(
+                context.Character,
+                context.Party,
+                context.Boss,
+                context.MatchEvent.Tier,
+                context.FinalComboCount,
+                context.ActionIds);
+        }
+
         /// <summary>
         /// Creates one attack sequence and snapshots WaterElement at this
         /// invocation boundary. Call when Marea's attack begins.
