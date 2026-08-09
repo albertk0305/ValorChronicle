@@ -1,22 +1,14 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
-using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Logging;
-using ValorChronicle.Data.Database;
-using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Battle.Flow.Presentation
 {
     public sealed class BattleFlowDebugPanel : MonoBehaviour
     {
-        private const string DevelopmentBossId = "kragmor";
-
         [SerializeField]
         private BattleFlowController battleFlowController = null;
-
-        [SerializeField]
-        private BossDefinition fallbackBossDefinition = null;
 
         private GameObject panelRoot;
         private Text statusLabel;
@@ -25,9 +17,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private Button partyDefeatedButton;
         private Button abortBattleButton;
         private BattleFlowCoordinator subscribedCoordinator;
-        private bool initializationAttempted;
-
-        public bool HasInitializedFlow { get; private set; }
         public string StatusText { get; private set; } = string.Empty;
         public bool CompleteActivePhaseInteractable { get; private set; }
         public bool EndBattleButtonsInteractable { get; private set; }
@@ -35,7 +24,13 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private void Awake()
         {
             BuildPanelIfNeeded();
-            InitializeFlowOnce();
+            if (battleFlowController == null)
+            {
+                GameLogger.Error(
+                    "[BattleFlowDebugPanel] BattleFlowController is not "
+                        + "assigned.",
+                    this);
+            }
         }
 
         private void OnEnable()
@@ -45,7 +40,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 panelRoot.SetActive(true);
             }
 
-            InitializeFlowOnce();
             SubscribeToFlow();
             RefreshState();
         }
@@ -86,77 +80,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
         {
             battleFlowController?.AbortBattle();
             RefreshState();
-        }
-
-        private void InitializeFlowOnce()
-        {
-            if (initializationAttempted)
-            {
-                return;
-            }
-
-            if (battleFlowController == null)
-            {
-                initializationAttempted = true;
-                GameLogger.Error(
-                    "[BattleFlowDebugPanel] BattleFlowController is not assigned.",
-                    this);
-                return;
-            }
-
-            if (battleFlowController.Context != null)
-            {
-                initializationAttempted = true;
-                HasInitializedFlow = true;
-                SubscribeToFlow();
-                RefreshState();
-                return;
-            }
-
-            BossDefinition selectedBoss = ResolveBossDefinition();
-            if (selectedBoss == null)
-            {
-                initializationAttempted = true;
-                GameLogger.Error(
-                    "[BattleFlowDebugPanel] No BossDefinition is available.",
-                    this);
-                return;
-            }
-
-            initializationAttempted = true;
-            try
-            {
-                battleFlowController.Initialize(
-                    new BattleFlowSetup(
-                        selectedBoss.TurnLimit,
-                        Array.Empty<int>()));
-                HasInitializedFlow = true;
-                SubscribeToFlow();
-                RefreshState();
-            }
-            catch (Exception exception)
-            {
-                GameLogger.Exception(exception, this);
-                GameLogger.Error(
-                    "[BattleFlowDebugPanel] Battle Flow initialization failed.",
-                    this);
-            }
-        }
-
-        private BossDefinition ResolveBossDefinition()
-        {
-            GameBootstrapper bootstrapper = GameBootstrapper.Instance;
-            DefinitionDatabase database = bootstrapper?.DefinitionDatabase;
-            if (database != null
-                && database.IsInitialized
-                && database.TryGetBoss(
-                    DevelopmentBossId,
-                    out BossDefinition databaseBoss))
-            {
-                return databaseBoss;
-            }
-
-            return fallbackBossDefinition;
         }
 
         private void SubscribeToFlow()
@@ -201,7 +124,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             BattleContext context = battleFlowController?.Context;
             int currentTurn = context?.CurrentTurn ?? 0;
             int turnLimit = context?.TurnLimit
-                ?? fallbackBossDefinition?.TurnLimit
+                ?? battleFlowController?.Setup?.TurnLimit
                 ?? 0;
             BattlePhase phase = context?.Phase ?? BattlePhase.NotStarted;
             BattleResultKind result =

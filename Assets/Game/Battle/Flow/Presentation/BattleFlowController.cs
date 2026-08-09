@@ -13,6 +13,9 @@ namespace ValorChronicle.Battle.Flow.Presentation
         [SerializeField]
         private BattleBoardController boardController = null;
 
+        [SerializeField]
+        private bool requireCombatBridge;
+
         private bool connectionEnabled;
         private bool boardEventsSubscribed;
         private bool coordinatorEventsSubscribed;
@@ -30,6 +33,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         public BattleFlowSetup Setup => setup;
         public BattleFlowCoordinator Coordinator => coordinator;
         public BattleContext Context => coordinator?.Context;
+        public BattleFlowCombatBridge CombatBridge => combatBridge;
+        public bool RequiresCombatBridge => requireCombatBridge;
 
         private void OnEnable()
         {
@@ -61,6 +66,14 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         public void Initialize(BattleFlowSetup battleSetup)
         {
+            Initialize(battleSetup, null);
+        }
+
+        public void Initialize(
+            BattleFlowSetup battleSetup,
+            Func<BattleFlowCoordinator, BattleFlowCombatBridge>
+                combatBridgeFactory)
+        {
             if (battleSetup == null)
             {
                 throw new ArgumentNullException(nameof(battleSetup));
@@ -78,10 +91,34 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     "A BattleBoardController must be assigned.");
             }
 
-            setup = battleSetup;
-            coordinator = new BattleFlowCoordinator(
+            if (requireCombatBridge && combatBridgeFactory == null)
+            {
+                throw new InvalidOperationException(
+                    "This BattleFlowController requires a combat bridge.");
+            }
+
+            var createdCoordinator = new BattleFlowCoordinator(
                 battleSetup.TurnLimit,
                 battleSetup.ActiveAbilityCooldowns);
+            BattleFlowCombatBridge createdBridge = null;
+            if (combatBridgeFactory != null)
+            {
+                createdBridge = combatBridgeFactory(createdCoordinator)
+                    ?? throw new InvalidOperationException(
+                        "Combat bridge factory returned null.");
+                if (!ReferenceEquals(
+                        createdBridge.Coordinator,
+                        createdCoordinator))
+                {
+                    throw new InvalidOperationException(
+                        "Combat bridge factory must use the supplied "
+                            + "coordinator.");
+                }
+            }
+
+            setup = battleSetup;
+            coordinator = createdCoordinator;
+            combatBridge = createdBridge;
             SetBoardInputGate(false);
             if (connectionEnabled)
             {
@@ -224,6 +261,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void TryStartBattleFromReadyBoard()
         {
+            if (requireCombatBridge
+                && coordinator != null
+                && combatBridge == null)
+            {
+                GameLogger.Error(
+                    "[BattleFlow] Required combat bridge is not attached.",
+                    this);
+                SetBoardInputGate(false);
+                return;
+            }
+
             if (!connectionEnabled
                 || coordinator == null
                 || boardController == null

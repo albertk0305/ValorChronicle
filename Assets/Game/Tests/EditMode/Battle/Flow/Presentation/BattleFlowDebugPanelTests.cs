@@ -7,7 +7,6 @@ using UnityEngine.UI;
 using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
-using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 {
@@ -19,7 +18,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         private BattleBoardController boardController;
         private BattleFlowController flowController;
         private BattleFlowDebugPanel debugPanel;
-        private BossDefinition bossDefinition;
 
         [SetUp]
         public void SetUp()
@@ -33,20 +31,11 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             flowController = root.AddComponent<BattleFlowController>();
             SetField(flowController, "boardController", boardController);
 
-            bossDefinition =
-                ScriptableObject.CreateInstance<BossDefinition>();
-            createdObjects.Add(bossDefinition);
-            SetField(bossDefinition, "turnLimit", 7);
-
             debugPanel = root.AddComponent<BattleFlowDebugPanel>();
             SetField(
                 debugPanel,
                 "battleFlowController",
                 flowController);
-            SetField(
-                debugPanel,
-                "fallbackBossDefinition",
-                bossDefinition);
         }
 
         [TearDown]
@@ -65,17 +54,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         }
 
         [Test]
-        public void InitializationUsesBossTurnLimitAndEmptyActiveListOnce()
+        public void PanelDoesNotInitializeBattleFlow()
         {
-            InvokePrivate(debugPanel, "InitializeFlowOnce");
-            InvokePrivate(debugPanel, "InitializeFlowOnce");
+            InvokePrivate(debugPanel, "Awake");
 
-            Assert.That(debugPanel.HasInitializedFlow, Is.True);
-            Assert.That(flowController.Setup.TurnLimit, Is.EqualTo(7));
-            Assert.That(flowController.Setup.ActiveAbilityCooldowns, Is.Empty);
-            Assert.That(flowController.Context, Is.Not.Null);
-            Assert.That(flowController.Context.Phase,
-                Is.EqualTo(BattlePhase.NotStarted));
+            Assert.That(flowController.Context, Is.Null);
+            Assert.That(flowController.CombatBridge, Is.Null);
         }
 
         [Test]
@@ -88,7 +72,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 panelRoot.GetComponent<Image>().raycastTarget,
                 Is.False);
             SetField(boardController, "initialBoardReadyPublished", true);
-            InvokePrivate(debugPanel, "InitializeFlowOnce");
+            InitializeFlow();
             InvokePrivate(flowController, "OnEnable");
             InvokePrivate(debugPanel, "RefreshState");
 
@@ -127,7 +111,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         public void ResultDisablesEveryButtonAndRefreshesText()
         {
             SetField(boardController, "initialBoardReadyPublished", true);
-            InvokePrivate(debugPanel, "InitializeFlowOnce");
+            InitializeFlow();
             InvokePrivate(flowController, "OnEnable");
 
             debugPanel.NotifyBossDefeated();
@@ -146,7 +130,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         public void DisablingPanelDoesNotChangeBattleState()
         {
             SetField(boardController, "initialBoardReadyPublished", true);
-            InvokePrivate(debugPanel, "InitializeFlowOnce");
+            InitializeFlow();
             InvokePrivate(flowController, "OnEnable");
             BattlePhase phase = flowController.Context.Phase;
             BattleResultKind result = flowController.Context.Result;
@@ -156,6 +140,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Context.Phase, Is.EqualTo(phase));
             Assert.That(flowController.Context.Result, Is.EqualTo(result));
             InvokePrivate(flowController, "OnDisable");
+        }
+
+        private void InitializeFlow()
+        {
+            flowController.Initialize(
+                new BattleFlowSetup(7, new[] { 8 }));
         }
 
         private static object InvokePrivate(

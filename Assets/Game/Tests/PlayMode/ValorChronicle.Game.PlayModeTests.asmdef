@@ -1,0 +1,19 @@
+{
+    "name": "ValorChronicle.Game.PlayModeTests",
+    "rootNamespace": "ValorChronicle.Tests.PlayMode",
+    "references": [
+        "ValorChronicle.Game"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

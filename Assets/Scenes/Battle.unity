@@ -5425,6 +5425,7 @@ GameObject:
   m_Component:
   - component: {fileID: 907370525}
   - component: {fileID: 910000005}
+  - component: {fileID: 910000007}
   - component: {fileID: 910000006}
   m_Layer: 5
   m_Name: GameContent
@@ -5577,6 +5578,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Flow.Presentation.BattleFlowController
   boardController: {fileID: 910000003}
+  requireCombatBridge: 1
 --- !u!114 &910000006
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5590,7 +5592,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Flow.Presentation.BattleFlowDebugPanel
   battleFlowController: {fileID: 910000005}
+--- !u!114 &910000007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 907370524}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d4876e9ad8a4c7fa750acbbc5f1a2f0, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Flow.Presentation.BattleSceneCombatBootstrap
+  battleFlowController: {fileID: 910000005}
   fallbackBossDefinition: {fileID: 11400000, guid: c9740748b1c32254788603fedb0a224b, type: 2}
+  fallbackMareaDefinition: {fileID: 11400000, guid: 215b927139a0b284db55387800956e46, type: 2}
+  developmentMareaLevel: 1
+  developmentBossMaxHp: 100000
+  developmentBossAttack: 0
 --- !u!1 &914691423
 GameObject:
   m_ObjectHideFlags: 0

@@ -14,7 +14,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         private const string BattleScenePath = "Assets/Scenes/Battle.unity";
 
         [Test]
-        public void BattleSceneHasConnectedFlowPanelAndNoMissingScripts()
+        public void BattleSceneHasConnectedCombatBootstrapAndNoMissingScripts()
         {
             var previousSetup = EditorSceneManager.GetSceneManagerSetup();
             Scene scene = default;
@@ -39,17 +39,26 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     Object.FindObjectsByType<BattleFlowDebugPanel>(
                         FindObjectsInactive.Include,
                         FindObjectsSortMode.None);
+                BattleSceneCombatBootstrap[] combatBootstraps =
+                    Object.FindObjectsByType<BattleSceneCombatBootstrap>(
+                        FindObjectsInactive.Include,
+                        FindObjectsSortMode.None);
 
                 Assert.That(boardControllers, Has.Length.EqualTo(1));
                 Assert.That(flowControllers, Has.Length.EqualTo(1));
                 Assert.That(debugPanels, Has.Length.EqualTo(1));
+                Assert.That(combatBootstraps, Has.Length.EqualTo(1));
 
                 BattleBoardController boardController = boardControllers[0];
                 BattleFlowController flowController = flowControllers[0];
                 BattleFlowDebugPanel debugPanel = debugPanels[0];
+                BattleSceneCombatBootstrap combatBootstrap =
+                    combatBootstraps[0];
                 Assert.That(flowController.gameObject.name,
                     Is.EqualTo("GameContent"));
                 Assert.That(debugPanel.gameObject,
+                    Is.SameAs(flowController.gameObject));
+                Assert.That(combatBootstrap.gameObject,
                     Is.SameAs(flowController.gameObject));
                 Assert.That(IsBelowSafeArea(debugPanel.transform), Is.True);
 
@@ -58,18 +67,48 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     flowObject.FindProperty("boardController")
                         .objectReferenceValue,
                     Is.SameAs(boardController));
+                Assert.That(
+                    flowObject.FindProperty("requireCombatBridge").boolValue,
+                    Is.True);
 
                 var panelObject = new SerializedObject(debugPanel);
                 Assert.That(
                     panelObject.FindProperty("battleFlowController")
                         .objectReferenceValue,
                     Is.SameAs(flowController));
-                BossDefinition fallbackBoss = panelObject.FindProperty(
+                Assert.That(
+                    panelObject.FindProperty("fallbackBossDefinition"),
+                    Is.Null);
+
+                var bootstrapObject =
+                    new SerializedObject(combatBootstrap);
+                Assert.That(
+                    bootstrapObject.FindProperty("battleFlowController")
+                        .objectReferenceValue,
+                    Is.SameAs(flowController));
+                BossDefinition fallbackBoss = bootstrapObject.FindProperty(
                     "fallbackBossDefinition").objectReferenceValue
                     as BossDefinition;
                 Assert.That(fallbackBoss, Is.Not.Null);
                 Assert.That(fallbackBoss.name, Is.EqualTo("boss_kragmor"));
                 Assert.That(fallbackBoss.TurnLimit, Is.EqualTo(25));
+                CharacterDefinition fallbackMarea =
+                    bootstrapObject.FindProperty(
+                    "fallbackMareaDefinition").objectReferenceValue
+                    as CharacterDefinition;
+                Assert.That(fallbackMarea, Is.Not.Null);
+                Assert.That(fallbackMarea.Id,
+                    Is.EqualTo("character_marea_bluefang"));
+                Assert.That(fallbackMarea.Element,
+                    Is.EqualTo(ElementType.Water));
+                Assert.That(
+                    bootstrapObject.FindProperty("developmentMareaLevel")
+                        .intValue,
+                    Is.EqualTo(1));
+                Assert.That(
+                    bootstrapObject.FindProperty("developmentBossMaxHp")
+                        .longValue,
+                    Is.EqualTo(100000L));
 
                 foreach (GameObject root in scene.GetRootGameObjects())
                 {

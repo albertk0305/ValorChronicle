@@ -85,6 +85,21 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         }
 
         [Test]
+        public void RequiredCombatConfigurationRejectsBridgeLessInitialization()
+        {
+            SetField(flowController, "requireCombatBridge", true);
+
+            InvalidOperationException exception =
+                Assert.Throws<InvalidOperationException>(() =>
+                    flowController.Initialize(new BattleFlowSetup(25)));
+
+            Assert.That(exception.Message,
+                Does.Contain("requires a combat bridge"));
+            Assert.That(flowController.Context, Is.Null);
+            Assert.That(flowController.CombatBridge, Is.Null);
+        }
+
+        [Test]
         public void InitializationWaitsForBoardAndCatchesMissedReadyOnce()
         {
             Assert.That(boardController.HasInitialBoardReady, Is.False);
