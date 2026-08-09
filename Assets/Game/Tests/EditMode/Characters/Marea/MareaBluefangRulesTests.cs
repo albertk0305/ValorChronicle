@@ -15,6 +15,8 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
         {
             Assert.That(MareaBluefangRules.CharacterId,
                 Is.EqualTo("character_marea_bluefang"));
+            Assert.That(MareaBluefangRules.ActiveEffectId,
+                Is.EqualTo("effect_marea_charge_order"));
             Assert.That(MareaBluefangRules.Match3Coefficient,
                 Is.EqualTo(0.90d));
             Assert.That(MareaBluefangRules.Match4BaseCoefficient,

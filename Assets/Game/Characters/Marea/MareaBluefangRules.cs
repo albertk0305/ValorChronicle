@@ -5,6 +5,7 @@ namespace ValorChronicle.Characters.Marea
     public static class MareaBluefangRules
     {
         public const string CharacterId = "character_marea_bluefang";
+        public const string ActiveEffectId = "effect_marea_charge_order";
         public const double Match3Coefficient = 0.90d;
         public const double Match4BaseCoefficient = 1.50d;
         public const double Match4WaterElementBonusCoefficient = 0.40d;
