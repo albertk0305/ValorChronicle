@@ -5608,8 +5608,7 @@ MonoBehaviour:
   fallbackBossDefinition: {fileID: 11400000, guid: c9740748b1c32254788603fedb0a224b, type: 2}
   fallbackMareaDefinition: {fileID: 11400000, guid: 215b927139a0b284db55387800956e46, type: 2}
   developmentMareaLevel: 1
-  developmentBossMaxHp: 100000
-  developmentBossAttack: 0
+  developmentDifficultyId: difficulty_normal
 --- !u!1 &914691423
 GameObject:
   m_ObjectHideFlags: 0

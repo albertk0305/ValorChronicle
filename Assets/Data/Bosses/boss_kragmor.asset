@@ -17,3 +17,19 @@ MonoBehaviour:
   element: 0
   turnLimit: 25
   actionOrSkillIds: []
+  difficultyStats:
+  - difficultyId: difficulty_intro
+    maxHp: 33000
+    attack: 500
+  - difficultyId: difficulty_normal
+    maxHp: 66000
+    attack: 850
+  - difficultyId: difficulty_advanced
+    maxHp: 99000
+    attack: 1200
+  - difficultyId: difficulty_hard
+    maxHp: 138000
+    attack: 1550
+  - difficultyId: difficulty_challenge
+    maxHp: 198000
+    attack: 2100

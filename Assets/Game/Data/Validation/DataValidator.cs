@@ -163,6 +163,8 @@ namespace ValorChronicle.Data.Validation
                     AddError(report, definition, "Turn limit must be greater than zero");
                 }
 
+                ValidateBossDifficulties(definition, report);
+
                 ValidateReferences(
                     definition.ActionOrSkillIds,
                     skillIds,
@@ -173,6 +175,71 @@ namespace ValorChronicle.Data.Validation
                 if (definition.ActionOrSkillIds.Count == 0)
                 {
                     AddWarning(report, definition, "Action or skill ID list is empty");
+                }
+            }
+        }
+
+        private static void ValidateBossDifficulties(
+            BossDefinition definition,
+            ValidationReport report)
+        {
+            var difficultyIds = new HashSet<string>(StringComparer.Ordinal);
+            IReadOnlyList<BossDifficultyStats> stats =
+                definition.DifficultyStats;
+
+            for (int index = 0; index < stats.Count; index++)
+            {
+                BossDifficultyStats entry = stats[index];
+                if (entry == null)
+                {
+                    AddError(
+                        report,
+                        definition,
+                        $"Difficulty stat at index {index} is null");
+                    continue;
+                }
+
+                if (!ContentIdValidator.TryValidate(
+                    entry.DifficultyId,
+                    out string idError))
+                {
+                    string displayedId = string.IsNullOrEmpty(
+                        entry.DifficultyId)
+                        ? "<empty>"
+                        : entry.DifficultyId;
+                    AddError(
+                        report,
+                        definition,
+                        $"Invalid difficulty ID {displayedId}. {idError}");
+                }
+
+                if (!string.IsNullOrEmpty(entry.DifficultyId)
+                    && !difficultyIds.Add(entry.DifficultyId))
+                {
+                    AddError(
+                        report,
+                        definition,
+                        $"Duplicate difficulty ID {entry.DifficultyId}");
+                }
+
+                if (entry.MaxHp <= 0)
+                {
+                    AddError(
+                        report,
+                        definition,
+                        $"Difficulty Max HP must be greater than zero "
+                            + $"({entry.DifficultyId})");
+                }
+
+                if (double.IsNaN(entry.Attack)
+                    || double.IsInfinity(entry.Attack)
+                    || entry.Attack < 0d)
+                {
+                    AddError(
+                        report,
+                        definition,
+                        $"Difficulty ATK must be finite and non-negative "
+                            + $"({entry.DifficultyId})");
                 }
             }
         }

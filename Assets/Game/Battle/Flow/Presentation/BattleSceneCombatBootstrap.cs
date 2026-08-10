@@ -12,6 +12,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
     public sealed class BattleSceneCombatBootstrap : MonoBehaviour
     {
         private const string DevelopmentBossId = "kragmor";
+        private const string DefaultDevelopmentDifficultyId =
+            "difficulty_normal";
 
         [SerializeField]
         private BattleFlowController battleFlowController = null;
@@ -25,11 +27,9 @@ namespace ValorChronicle.Battle.Flow.Presentation
         [SerializeField, Min(1)]
         private int developmentMareaLevel = 1;
 
-        [SerializeField, Min(1)]
-        private long developmentBossMaxHp = 100000;
-
-        [SerializeField, Min(0f)]
-        private double developmentBossAttack;
+        [SerializeField]
+        private string developmentDifficultyId =
+            DefaultDevelopmentDifficultyId;
 
         private bool initializationAttempted;
 
@@ -79,6 +79,18 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
+            if (!selectedBoss.TryGetDifficultyStats(
+                developmentDifficultyId,
+                out BossDifficultyStats selectedDifficulty))
+            {
+                GameLogger.Error(
+                    $"[BattleSceneCombatBootstrap] Boss difficulty is not "
+                        + $"available. BossId={selectedBoss.Id}; "
+                        + $"DifficultyId={developmentDifficultyId}.",
+                    this);
+                return;
+            }
+
             CharacterDefinition selectedMarea = ResolveMareaDefinition();
             if (selectedMarea == null)
             {
@@ -98,8 +110,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     selectedMarea,
                     developmentMareaLevel,
                     selectedBoss,
-                    developmentBossMaxHp,
-                    developmentBossAttack,
+                    selectedDifficulty,
                     randomSource);
                 battleFlowController.Initialize(
                     CombatComposition.FlowSetup,

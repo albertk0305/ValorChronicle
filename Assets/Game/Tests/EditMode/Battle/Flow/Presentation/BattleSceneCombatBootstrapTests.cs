@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
+using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
@@ -38,6 +41,16 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             SetField(bossDefinition, "id", "kragmor");
             SetField(bossDefinition, "element", ElementType.Fire);
             SetField(bossDefinition, "turnLimit", 7);
+            SetField(
+                bossDefinition,
+                "difficultyStats",
+                new[]
+                {
+                    new BossDifficultyStats(
+                        "difficulty_normal",
+                        66000,
+                        850d)
+                });
 
             CharacterDefinition mareaDefinition =
                 ScriptableObject.CreateInstance<CharacterDefinition>();
@@ -109,8 +122,47 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Is.EqualTo("character_marea_bluefang"));
             Assert.That(composition.Marea.MaxHp, Is.EqualTo(900));
             Assert.That(composition.Marea.Attack, Is.EqualTo(180d));
+            Assert.That(composition.Boss.MaxHp, Is.EqualTo(66000));
+            Assert.That(composition.Boss.CurrentHp, Is.EqualTo(66000));
+            Assert.That(composition.Boss.Attack, Is.EqualTo(850d));
+            Assert.That(composition.BossActionProvider, Is.Not.Null);
+            Assert.That(composition.BossActionProvider.RuntimeState,
+                Is.SameAs(composition.KragmorRuntimeState));
+            Assert.That(composition.KragmorRuntimeState.PatternIndex, Is.Zero);
+            Assert.That(composition.KragmorRuntimeState.NextActionKind,
+                Is.EqualTo(KragmorActionKind.ColossusIronFist));
+            Assert.That(composition.KragmorRuntimeState.CurrentDefenseState,
+                Is.EqualTo(KragmorDefenseState.VolcanicCarapace));
+            Assert.That(
+                KragmorDefenseEffectFactory.CountActiveDefenseEffects(
+                    composition.Boss),
+                Is.EqualTo(1));
+            Assert.That(composition.Boss.Effects.FindByEffectId(
+                    KragmorRules.VolcanicCarapaceEffectId),
+                Has.Count.EqualTo(1));
             Assert.That(composition.WaterElement.MaxAmount, Is.EqualTo(5));
             Assert.That(composition.WaterElement.CurrentAmount, Is.Zero);
+        }
+
+        [Test]
+        public void UnknownDifficultyDoesNotInitializeOrUseFallbackStats()
+        {
+            SetField(
+                combatBootstrap,
+                "developmentDifficultyId",
+                "difficulty_unknown");
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex(
+                    "Boss difficulty is not available.*"
+                        + "DifficultyId=difficulty_unknown"));
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            Assert.That(combatBootstrap.HasInitializedFlow, Is.False);
+            Assert.That(combatBootstrap.HasInitializedCombat, Is.False);
+            Assert.That(combatBootstrap.CombatComposition, Is.Null);
+            Assert.That(flowController.Context, Is.Null);
         }
 
         private static object InvokePrivate(

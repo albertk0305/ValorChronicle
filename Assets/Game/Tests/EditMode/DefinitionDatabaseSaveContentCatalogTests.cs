@@ -52,11 +52,41 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
+        public void BossDifficultyLookup_DistinguishesExistingAndMissingIds()
+        {
+            BossDefinition boss = CreateDefinition<BossDefinition>(
+                "boss_test");
+            SetDifficultyStats(
+                boss,
+                new BossDifficultyStats(
+                    "difficulty_normal",
+                    66000,
+                    850d));
+            DefinitionDatabaseSaveContentCatalog catalog = CreateCatalog(
+                bosses: new[] { boss });
+
+            Assert.That(
+                catalog.LookupBossDifficulty(
+                    "boss_test",
+                    "difficulty_normal"),
+                Is.EqualTo(SaveContentLookupResult.Exists));
+            Assert.That(
+                catalog.LookupBossDifficulty(
+                    "boss_test",
+                    "difficulty_missing"),
+                Is.EqualTo(SaveContentLookupResult.Missing));
+            Assert.That(
+                catalog.LookupBossDifficulty(
+                    "boss_missing",
+                    "difficulty_normal"),
+                Is.EqualTo(SaveContentLookupResult.Missing));
+        }
+
+        [Test]
         public void UnsupportedProductionDefinitions_ReturnUnavailable()
         {
             DefinitionDatabaseSaveContentCatalog catalog = CreateCatalog();
 
-            Assert.That(catalog.LookupBossDifficulty("boss", "difficulty"), Is.EqualTo(SaveContentLookupResult.Unavailable));
             Assert.That(catalog.LookupGacha("gacha"), Is.EqualTo(SaveContentLookupResult.Unavailable));
             Assert.That(catalog.LookupRewardGrade("boss", "difficulty", "grade"), Is.EqualTo(SaveContentLookupResult.Unavailable));
         }
@@ -95,6 +125,29 @@ namespace ValorChronicle.Tests.EditMode
             serialized.FindProperty("id").stringValue = id;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             return definition;
+        }
+
+        private static void SetDifficultyStats(
+            BossDefinition boss,
+            params BossDifficultyStats[] stats)
+        {
+            var serialized = new SerializedObject(boss);
+            SerializedProperty property =
+                serialized.FindProperty("difficultyStats");
+            property.arraySize = stats.Length;
+            for (int index = 0; index < stats.Length; index++)
+            {
+                SerializedProperty entry =
+                    property.GetArrayElementAtIndex(index);
+                entry.FindPropertyRelative("difficultyId").stringValue =
+                    stats[index].DifficultyId;
+                entry.FindPropertyRelative("maxHp").longValue =
+                    stats[index].MaxHp;
+                entry.FindPropertyRelative("attack").doubleValue =
+                    stats[index].Attack;
+            }
+
+            serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static void SetObjects<T>(SerializedProperty property, T[] values)

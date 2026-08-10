@@ -106,9 +106,15 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                         .intValue,
                     Is.EqualTo(1));
                 Assert.That(
-                    bootstrapObject.FindProperty("developmentBossMaxHp")
-                        .longValue,
-                    Is.EqualTo(100000L));
+                    bootstrapObject.FindProperty("developmentDifficultyId")
+                        .stringValue,
+                    Is.EqualTo("difficulty_normal"));
+                Assert.That(
+                    bootstrapObject.FindProperty("developmentBossMaxHp"),
+                    Is.Null);
+                Assert.That(
+                    bootstrapObject.FindProperty("developmentBossAttack"),
+                    Is.Null);
 
                 foreach (GameObject root in scene.GetRootGameObjects())
                 {

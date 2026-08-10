@@ -4,6 +4,7 @@ using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Damage;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
+using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Characters.Stats;
 using ValorChronicle.Core.Random;
@@ -19,8 +20,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             CharacterDefinition mareaDefinition,
             int mareaLevel,
             BossDefinition bossDefinition,
-            long bossMaxHp,
-            double bossAttack,
+            BossDifficultyStats bossDifficultyStats,
             IRandomSource randomSource)
         {
             if (mareaDefinition == null)
@@ -44,6 +44,12 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 throw new ArgumentNullException(nameof(bossDefinition));
             }
 
+            if (bossDifficultyStats == null)
+            {
+                throw new ArgumentNullException(
+                    nameof(bossDifficultyStats));
+            }
+
             if (randomSource == null)
             {
                 throw new ArgumentNullException(nameof(randomSource));
@@ -56,12 +62,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
             Boss = new BossBattleState(
                 bossDefinition.Id,
                 bossDefinition.Element,
-                bossMaxHp,
-                bossAttack);
+                bossDifficultyStats.MaxHp,
+                bossDifficultyStats.Attack);
             WaterElement = WaterElementResource.Register(Boss.Resources);
             Party = new PartyBattleState(new[] { Marea });
 
             ActionIds = new CombatActionIdSequence();
+            KragmorRuntimeState = new KragmorBattleRuntimeState();
+            KragmorDefenseEffectFactory.InitializeBattle(
+                Boss,
+                KragmorRuntimeState,
+                ActionIds);
             TriggerResolver = new CombatTriggerResolver(
                 Array.Empty<ICombatTriggerRule>());
             Executor = new CombatActionExecutor(
@@ -72,6 +83,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
             MatchProviders = new MatchEventActionProviderRegistry();
             ActiveProviders = new ActiveAbilityActionProviderRegistry();
+            BossActionProvider = new KragmorBossCombatActionProvider(
+                KragmorRuntimeState);
             MareaBluefangCombatProviderRegistration.Register(
                 MatchProviders,
                 ActiveProviders);
@@ -98,6 +111,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         public CombatActionExecutor Executor { get; }
         public MatchEventActionProviderRegistry MatchProviders { get; }
         public ActiveAbilityActionProviderRegistry ActiveProviders { get; }
+        public KragmorBattleRuntimeState KragmorRuntimeState { get; }
+        public KragmorBossCombatActionProvider BossActionProvider { get; }
         public IReadOnlyList<ActiveAbilityBinding> ActiveBindings =>
             activeBindings;
         public BattleFlowCombatBridge Bridge { get; private set; }
@@ -122,29 +137,11 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 Boss,
                 Executor,
                 MatchProviders,
-                EmptyBossCombatActionProvider.Instance,
+                BossActionProvider,
                 ActionIds,
                 activeBindings,
                 ActiveProviders);
             return Bridge;
-        }
-
-        private sealed class EmptyBossCombatActionProvider
-            : IBossCombatActionProvider
-        {
-            public static readonly EmptyBossCombatActionProvider Instance =
-                new EmptyBossCombatActionProvider();
-
-            public IReadOnlyList<CombatAction> CreateRootActions(
-                BossCombatActionContext context)
-            {
-                if (context == null)
-                {
-                    throw new ArgumentNullException(nameof(context));
-                }
-
-                return Array.Empty<CombatAction>();
-            }
         }
     }
 }

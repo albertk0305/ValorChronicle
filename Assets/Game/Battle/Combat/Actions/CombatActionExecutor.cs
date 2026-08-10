@@ -116,6 +116,13 @@ namespace ValorChronicle.Battle.Combat.Actions
                 return ExecuteApplyEffect(effectAction, executionOrder);
             }
 
+            if (action is RemoveEffectAction removeEffectAction)
+            {
+                return ExecuteRemoveEffect(
+                    removeEffectAction,
+                    executionOrder);
+            }
+
             if (action is AddResourceAction addResourceAction)
             {
                 return ExecuteAddResource(
@@ -233,6 +240,19 @@ namespace ValorChronicle.Battle.Combat.Actions
                 appliedEffect);
         }
 
+        private RemoveEffectActionResult ExecuteRemoveEffect(
+            RemoveEffectAction action,
+            int executionOrder)
+        {
+            ValidateEffectTarget(action);
+            bool wasRemoved = action.TargetEffects.RemoveEffect(
+                action.EffectRuntimeId);
+            return new RemoveEffectActionResult(
+                action,
+                executionOrder,
+                wasRemoved);
+        }
+
         private AddResourceActionResult ExecuteAddResource(
             AddResourceAction action,
             int executionOrder)
@@ -273,6 +293,27 @@ namespace ValorChronicle.Battle.Combat.Actions
         }
 
         private void ValidateEffectTarget(ApplyEffectAction action)
+        {
+            switch (action.TargetType)
+            {
+                case CombatEffectTargetType.Character:
+                    ValidatePartyCharacter(action.TargetCharacter);
+                    break;
+                case CombatEffectTargetType.Party:
+                    ValidatePartyReference(action.TargetParty);
+                    break;
+                case CombatEffectTargetType.Boss:
+                    ValidateBossReference(action.TargetBoss);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(action),
+                        action.TargetType,
+                        "Effect target type must be defined.");
+            }
+        }
+
+        private void ValidateEffectTarget(RemoveEffectAction action)
         {
             switch (action.TargetType)
             {

@@ -13,6 +13,7 @@ using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
+using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Random;
@@ -95,6 +96,9 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(combat.Marea.MaxHp, Is.EqualTo(900));
             Assert.That(combat.Marea.Attack, Is.EqualTo(180d));
             Assert.That(combat.Boss.BossId, Is.EqualTo("kragmor"));
+            Assert.That(combat.Boss.MaxHp, Is.EqualTo(66000));
+            Assert.That(combat.Boss.CurrentHp, Is.EqualTo(66000));
+            Assert.That(combat.Boss.Attack, Is.EqualTo(850d));
             Assert.That(combat.WaterElement.MaxAmount, Is.EqualTo(5));
             Assert.That(combat.WaterElement.CurrentAmount, Is.Zero);
             Assert.That(combat.MatchProviders.TryResolve(
@@ -159,6 +163,15 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(threeMatch.ActionResults[1],
                 Is.TypeOf<AddResourceActionResult>());
             Assert.That(combat.WaterElement.CurrentAmount, Is.EqualTo(1));
+            BossDamageActionResult firstBossAction = combat.Bridge
+                .LastBossExecutionResult.ActionResults
+                .OfType<BossDamageActionResult>()
+                .Single();
+            Assert.That(firstBossAction.DamageResult.FinalDamageBeforeShield,
+                Is.EqualTo(637));
+            Assert.That(combat.KragmorRuntimeState.PatternIndex,
+                Is.EqualTo(1));
+            RestorePartyHpForSnapshotTest();
 
             CombatActionExecutionResult fourMatch =
                 ResolveWaterMatch(blockCount: 4);
@@ -170,6 +183,15 @@ namespace ValorChronicle.Tests.PlayMode
                 fourDamage.ContextRequest.ActionLocalDealtDamageIncreaseRate,
                 Is.EqualTo(0.15d));
             Assert.That(combat.WaterElement.CurrentAmount, Is.EqualTo(2));
+            BossDamageActionResult secondBossAction = combat.Bridge
+                .LastBossExecutionResult.ActionResults
+                .OfType<BossDamageActionResult>()
+                .Single();
+            Assert.That(secondBossAction.DamageResult.FinalDamageBeforeShield,
+                Is.EqualTo(552));
+            Assert.That(combat.KragmorRuntimeState.PatternIndex,
+                Is.EqualTo(2));
+            RestorePartyHpForSnapshotTest();
 
             CombatActionExecutionResult fiveMatch =
                 ResolveWaterMatch(blockCount: 5);
@@ -184,6 +206,16 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(consumption.ConsumptionRecord.ConsumerId,
                 Is.EqualTo(MareaBluefangRules.CharacterId));
             Assert.That(combat.WaterElement.CurrentAmount, Is.Zero);
+            Assert.That(combat.Bridge.LastBossExecutionResult.ActionResults
+                    .Select(result => result.GetType()),
+                Is.EqualTo(new[]
+                {
+                    typeof(RemoveEffectActionResult),
+                    typeof(ApplyEffectActionResult)
+                }));
+            Assert.That(combat.KragmorRuntimeState.PatternIndex,
+                Is.EqualTo(3));
+            AssertDefense(KragmorDefenseState.CoreCompression);
 
             SetBossHpForTerminalTest(1);
             int turnBeforeLethal = flow.Context.CurrentTurn;
@@ -196,6 +228,58 @@ namespace ValorChronicle.Tests.PlayMode
                 Is.EqualTo(BattleResultKind.Victory));
             Assert.That(flow.Context.Phase, Is.EqualTo(BattlePhase.Result));
             Assert.That(flow.Context.CurrentTurn, Is.EqualTo(turnBeforeLethal));
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator SceneRuntimeTransitionsKragmorDefenseAcrossCycle()
+        {
+            AssertDefense(KragmorDefenseState.VolcanicCarapace);
+            combat.Party.Shields.Add(new ShieldInstance(
+                runtimeId: 900001,
+                sourceId: "test_kragmor_cycle_survival",
+                initialAmount: 10000,
+                createdTurn: 1,
+                remainingTurns: null,
+                creationOrder: 900001));
+
+            ResolveWaterMatch(blockCount: 3);
+            AssertDefense(KragmorDefenseState.VolcanicCarapace);
+
+            ResolveWaterMatch(blockCount: 3);
+            AssertDefense(KragmorDefenseState.VolcanicCarapace);
+
+            ResolveWaterMatch(blockCount: 3);
+            AssertDefense(KragmorDefenseState.CoreCompression);
+            Assert.That(combat.Bridge.LastBossExecutionResult.ActionResults
+                    .Select(result => result.GetType()),
+                Is.EqualTo(new[]
+                {
+                    typeof(RemoveEffectActionResult),
+                    typeof(ApplyEffectActionResult)
+                }));
+
+            ResolveWaterMatch(blockCount: 3);
+            AssertDefense(KragmorDefenseState.CoreExposure);
+            Assert.That(combat.Bridge.LastBossExecutionResult.ActionResults
+                    .Select(result => result.GetType()),
+                Is.EqualTo(new[]
+                {
+                    typeof(BossDamageActionResult),
+                    typeof(RemoveEffectActionResult),
+                    typeof(ApplyEffectActionResult)
+                }));
+
+            CombatActionExecutionResult exposedPlayerAction =
+                ResolveWaterMatch(blockCount: 3);
+            DamageActionResult exposedDamage = exposedPlayerAction
+                .ActionResults.OfType<DamageActionResult>().Single();
+            Assert.That(exposedDamage.DamageResult
+                    .TargetTakenDamageMultiplier,
+                Is.EqualTo(1.30d).Within(0.000000001d));
+            AssertDefense(KragmorDefenseState.VolcanicCarapace);
+            Assert.That(combat.KragmorRuntimeState.PatternIndex,
+                Is.EqualTo(1));
             yield return null;
         }
 
@@ -303,6 +387,32 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(applyDamage, Is.Not.Null);
             applyDamage.Invoke(combat.Boss, new object[] { damage });
             Assert.That(combat.Boss.CurrentHp, Is.EqualTo(currentHp));
+        }
+
+        private void RestorePartyHpForSnapshotTest()
+        {
+            MethodInfo applyHealing = typeof(PartyBattleState).GetMethod(
+                "ApplyHpHealing",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(applyHealing, Is.Not.Null);
+            applyHealing.Invoke(
+                combat.Party,
+                new object[] { combat.Party.MaxHp });
+            Assert.That(combat.Party.CurrentHp,
+                Is.EqualTo(combat.Party.MaxHp));
+        }
+
+        private void AssertDefense(KragmorDefenseState expectedState)
+        {
+            Assert.That(combat.KragmorRuntimeState.CurrentDefenseState,
+                Is.EqualTo(expectedState));
+            Assert.That(
+                KragmorDefenseEffectFactory.CountActiveDefenseEffects(
+                    combat.Boss),
+                Is.EqualTo(1));
+            Assert.That(combat.Boss.Effects.FindByEffectId(
+                    KragmorDefenseEffectFactory.GetEffectId(expectedState)),
+                Has.Count.EqualTo(1));
         }
 
         private void InstallTestBootstrapper()

@@ -40,8 +40,19 @@ namespace ValorChronicle.Save.Validation
                 : SaveContentLookupResult.Missing;
 
         /// <inheritdoc />
-        public SaveContentLookupResult LookupBossDifficulty(string bossId, string difficultyId) =>
-            SaveContentLookupResult.Unavailable;
+        public SaveContentLookupResult LookupBossDifficulty(
+            string bossId,
+            string difficultyId)
+        {
+            if (!database.TryGetBoss(bossId, out var boss))
+            {
+                return SaveContentLookupResult.Missing;
+            }
+
+            return boss.TryGetDifficultyStats(difficultyId, out _)
+                ? SaveContentLookupResult.Exists
+                : SaveContentLookupResult.Missing;
+        }
 
         /// <inheritdoc />
         public SaveContentLookupResult LookupGacha(string gachaId) =>

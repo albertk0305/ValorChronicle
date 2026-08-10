@@ -205,7 +205,20 @@ namespace ValorChronicle.Battle.Combat.Integration
             }
 
             turnEndProcessor.ProcessTurnEnd();
+            CommitBossActionProvider();
             return coordinator.CompleteBossAction();
+        }
+
+        private void CommitBossActionProvider()
+        {
+            if (bossActionProvider
+                    is IBossCombatActionCompletionHandler completionHandler
+                && !completionHandler.TryCommitCompletedAction())
+            {
+                throw new InvalidOperationException(
+                    "The boss action provider could not commit its "
+                        + "completed action.");
+            }
         }
 
         private CombatActionExecutionResult Execute(
