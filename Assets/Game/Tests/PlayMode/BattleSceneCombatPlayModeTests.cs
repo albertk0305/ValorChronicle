@@ -113,6 +113,12 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(combat.Boss.MaxHp, Is.EqualTo(66000));
             Assert.That(combat.Boss.CurrentHp, Is.EqualTo(66000));
             Assert.That(combat.Boss.Attack, Is.EqualTo(850d));
+            Assert.That(combatBootstrap.BossIntentSource,
+                Is.SameAs(combat.BossIntentSource));
+            Assert.That(combat.BossIntentSource.NextIntent.ActionKind,
+                Is.EqualTo(KragmorActionKind.ColossusIronFist));
+            Assert.That(panel.BossIntentText,
+                Does.Contain("ColossusIronFist"));
             Assert.That(combat.WaterElement.MaxAmount, Is.EqualTo(5));
             Assert.That(combat.WaterElement.CurrentAmount, Is.Zero);
             Assert.That(combat.MatchProviders.TryResolve(
@@ -185,6 +191,8 @@ namespace ValorChronicle.Tests.PlayMode
                 Is.EqualTo(637));
             Assert.That(combat.KragmorRuntimeState.PatternIndex,
                 Is.EqualTo(1));
+            Assert.That(panel.BossIntentText,
+                Does.Contain("RockshardEruption"));
             Assert.That(CountRocks(boardController.CurrentBoard), Is.Zero);
             RestorePartyHpForSnapshotTest();
 
@@ -209,6 +217,8 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(combat.KragmorRuntimeState.NextActionKind,
                 Is.EqualTo(KragmorActionKind.CoreCompression));
             AssertRockshardPresentation(expectedRockCount: 3);
+            Assert.That(panel.BossIntentText,
+                Does.Contain("CoreCompression"));
             RestorePartyHpForSnapshotTest();
 
             CombatActionExecutionResult fiveMatch =
@@ -234,6 +244,9 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(combat.KragmorRuntimeState.PatternIndex,
                 Is.EqualTo(3));
             AssertDefense(KragmorDefenseState.CoreCompression);
+            Assert.That(panel.BossIntentText, Is.EqualTo(
+                "Boss Intent: EarthCollapse | Direct: true | "
+                    + "Heavy: true | Coefficient: 2.40"));
 
             SetBossHpForTerminalTest(1);
             int turnBeforeLethal = flow.Context.CurrentTurn;

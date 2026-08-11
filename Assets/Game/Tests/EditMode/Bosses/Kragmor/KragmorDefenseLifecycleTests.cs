@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Battle.Combat.Damage;
@@ -113,6 +116,10 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
                 KragmorDefenseState.CoreCompression);
             Assert.That(battle.Runtime.NextActionKind,
                 Is.EqualTo(KragmorActionKind.EarthCollapse));
+            Assert.That(battle.Provider.NextIntent.HasDirectDamage, Is.True);
+            Assert.That(battle.Provider.NextIntent.IsHeavy, Is.True);
+            Assert.That(battle.Provider.NextIntent.DamageCoefficient,
+                Is.EqualTo(KragmorRules.EarthCollapseCoefficient));
             Assert.That(PlayerDamageMultiplier(battle.Boss),
                 Is.EqualTo(0.95d).Within(0.000000001d));
 
@@ -166,6 +173,87 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
                 KragmorDefenseState.VolcanicCarapace);
             Assert.That(battle.Boss.Effects.FindByEffectId(
                 ExternalEffectId), Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void RockshardIntentAdvancesOnlyAfterBoardCompletion()
+        {
+            var sink = new RecordingBoardMutationSink();
+            BattleHarness battle = CreateBattle(
+                partyHp: 100000,
+                includeExternalEffect: false,
+                boardMutationSink: sink);
+            Assert.That(battle.Provider.NextIntent.ActionKind,
+                Is.EqualTo(KragmorActionKind.ColossusIronFist));
+            ResolveBossAction(battle, expectedTurn: 1);
+            Assert.That(battle.Provider.NextIntent.ActionKind,
+                Is.EqualTo(KragmorActionKind.RockshardEruption));
+
+            EnterBossActing(battle.Coordinator);
+            Assert.That(battle.Bridge.ResolveBossAction(2), Is.True);
+
+            Assert.That(battle.Bridge.HasPendingBossBoardMutation, Is.True);
+            Assert.That(battle.Runtime.PatternIndex, Is.EqualTo(1));
+            Assert.That(battle.Provider.NextIntent.ActionKind,
+                Is.EqualTo(KragmorActionKind.RockshardEruption));
+
+            sink.Complete(CombatIntegrationTestSupport
+                .CreateSuccessfulBoardMutation(sink.LastCommand));
+
+            Assert.That(battle.Bridge.HasPendingBossBoardMutation, Is.False);
+            Assert.That(battle.Runtime.PatternIndex, Is.EqualTo(2));
+            Assert.That(battle.Provider.NextIntent.ActionKind,
+                Is.EqualTo(KragmorActionKind.CoreCompression));
+        }
+
+        [Test]
+        public void RockshardFailureDoesNotAdvanceIntent()
+        {
+            var sink = new RecordingBoardMutationSink();
+            BattleHarness battle = CreateBattle(
+                partyHp: 100000,
+                includeExternalEffect: false,
+                boardMutationSink: sink);
+            ResolveBossAction(battle, expectedTurn: 1);
+            EnterBossActing(battle.Coordinator);
+            Assert.That(battle.Bridge.ResolveBossAction(2), Is.True);
+            LogAssert.Expect(
+                LogType.Error,
+                "[BattleFlowCombatBridge] Boss Board mutation failed; "
+                    + "the battle will be aborted without committing "
+                    + "the boss pattern.");
+
+            sink.Complete(new BattleBoardMutationCompletion(
+                sink.LastCommand,
+                result: null,
+                status: BattleBoardMutationCompletionStatus.Failed));
+
+            Assert.That(battle.Coordinator.Context.Result,
+                Is.EqualTo(BattleResultKind.Aborted));
+            Assert.That(battle.Runtime.PatternIndex, Is.EqualTo(1));
+            Assert.That(battle.Provider.NextIntent.ActionKind,
+                Is.EqualTo(KragmorActionKind.RockshardEruption));
+        }
+
+        [Test]
+        public void LethalRockshardDoesNotRequestBoardOrAdvanceIntent()
+        {
+            var sink = new RecordingBoardMutationSink();
+            BattleHarness battle = CreateBattle(
+                partyHp: 700,
+                includeExternalEffect: false,
+                boardMutationSink: sink);
+            ResolveBossAction(battle, expectedTurn: 1);
+            Assert.That(battle.Party.IsIncapacitated, Is.False);
+
+            EnterBossActing(battle.Coordinator);
+            Assert.That(battle.Bridge.ResolveBossAction(2), Is.True);
+
+            Assert.That(battle.Party.IsIncapacitated, Is.True);
+            Assert.That(sink.RequestCount, Is.Zero);
+            Assert.That(battle.Runtime.PatternIndex, Is.EqualTo(1));
+            Assert.That(battle.Provider.NextIntent.ActionKind,
+                Is.EqualTo(KragmorActionKind.RockshardEruption));
         }
 
         [Test]
@@ -226,7 +314,8 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
 
         private static BattleHarness CreateBattle(
             long partyHp,
-            bool includeExternalEffect)
+            bool includeExternalEffect,
+            IBattleBoardMutationSink boardMutationSink = null)
         {
             CharacterBattleState character = Character(partyHp);
             var party = new PartyBattleState(new[] { character });
@@ -262,7 +351,8 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
                 new EmptyMatchEventActionProvider(),
                 provider,
                 actionIds,
-                new ImmediateSuccessfulBoardMutationSink());
+                boardMutationSink
+                    ?? new ImmediateSuccessfulBoardMutationSink());
             coordinator.StartBattle();
             return new BattleHarness(
                 coordinator,

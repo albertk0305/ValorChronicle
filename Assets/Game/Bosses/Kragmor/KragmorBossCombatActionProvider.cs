@@ -14,7 +14,8 @@ namespace ValorChronicle.Bosses.Kragmor
     public sealed class KragmorBossCombatActionProvider
         : IBossCombatActionProvider,
             IBossCombatActionPlanProvider,
-            IBossCombatActionCompletionHandler
+            IBossCombatActionCompletionHandler,
+            IKragmorBossIntentSource
     {
         private readonly KragmorBattleRuntimeState runtimeState;
         private bool hasPendingAction;
@@ -30,6 +31,7 @@ namespace ValorChronicle.Bosses.Kragmor
         }
 
         public KragmorBattleRuntimeState RuntimeState => runtimeState;
+        public KragmorBossIntent NextIntent => runtimeState.NextIntent;
 
         public IReadOnlyList<CombatAction> CreateRootActions(
             BossCombatActionContext context)

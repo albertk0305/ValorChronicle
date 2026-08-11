@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using ValorChronicle.Characters.Marea;
+using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Logging;
 using ValorChronicle.Core.Random;
@@ -35,6 +36,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         public bool HasInitializedFlow { get; private set; }
         public bool HasInitializedCombat => CombatComposition?.Bridge != null;
+        public IKragmorBossIntentSource BossIntentSource =>
+            CombatComposition?.BossIntentSource;
         public BattleSceneCombatComposition CombatComposition
         {
             get;

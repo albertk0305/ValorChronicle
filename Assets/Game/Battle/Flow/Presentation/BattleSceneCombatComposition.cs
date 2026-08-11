@@ -114,6 +114,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         public ActiveAbilityActionProviderRegistry ActiveProviders { get; }
         public KragmorBattleRuntimeState KragmorRuntimeState { get; }
         public KragmorBossCombatActionProvider BossActionProvider { get; }
+        public IKragmorBossIntentSource BossIntentSource =>
+            BossActionProvider;
         public IReadOnlyList<ActiveAbilityBinding> ActiveBindings =>
             activeBindings;
         public BattleFlowCombatBridge Bridge { get; private set; }

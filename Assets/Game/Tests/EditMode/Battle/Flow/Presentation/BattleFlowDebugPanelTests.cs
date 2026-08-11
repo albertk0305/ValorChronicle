@@ -7,6 +7,7 @@ using UnityEngine.UI;
 using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
+using ValorChronicle.Bosses.Kragmor;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 {
@@ -77,7 +78,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             InvokePrivate(debugPanel, "RefreshState");
 
             Assert.That(debugPanel.StatusText, Is.EqualTo(
-                "Turn: 1 / 7\nPhase: ActiveInput\nResult: None"));
+                "Turn: 1 / 7\nPhase: ActiveInput\nResult: None\n"
+                    + "Boss Intent: Unavailable"));
             Assert.That(
                 debugPanel.CompleteActivePhaseInteractable,
                 Is.True);
@@ -118,7 +120,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 
             Assert.That(flowController.Context.Result,
                 Is.EqualTo(BattleResultKind.Victory));
-            Assert.That(debugPanel.StatusText, Does.EndWith("Result: Victory"));
+            Assert.That(debugPanel.StatusText,
+                Does.Contain("Result: Victory"));
             Assert.That(
                 debugPanel.CompleteActivePhaseInteractable,
                 Is.False);
@@ -140,6 +143,54 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Context.Phase, Is.EqualTo(phase));
             Assert.That(flowController.Context.Result, Is.EqualTo(result));
             InvokePrivate(flowController, "OnDisable");
+        }
+
+        [Test]
+        public void StartRetriesSubscriptionAfterFlowInitialization()
+        {
+            InvokePrivate(debugPanel, "Awake");
+            InvokePrivate(debugPanel, "OnEnable");
+            Assert.That(
+                GetField<BattleFlowCoordinator>(
+                    debugPanel,
+                    "subscribedCoordinator"),
+                Is.Null);
+
+            SetField(boardController, "initialBoardReadyPublished", true);
+            InitializeFlow();
+            InvokePrivate(flowController, "OnEnable");
+            InvokePrivate(debugPanel, "Start");
+
+            Assert.That(
+                GetField<BattleFlowCoordinator>(
+                    debugPanel,
+                    "subscribedCoordinator"),
+                Is.SameAs(flowController.Coordinator));
+            Assert.That(debugPanel.StatusText,
+                Does.Contain("Phase: ActiveInput"));
+            Assert.That(debugPanel.BossIntentText,
+                Is.EqualTo("Boss Intent: Unavailable"));
+            InvokePrivate(flowController, "OnDisable");
+        }
+
+        [Test]
+        public void FormatShowsReadonlyBossIntentDetails()
+        {
+            MethodInfo formatBossIntent = typeof(BattleFlowDebugPanel)
+                .GetMethod(
+                    "FormatBossIntent",
+                    BindingFlags.Static | BindingFlags.NonPublic);
+
+            string formatted = (string)formatBossIntent.Invoke(
+                null,
+                new object[]
+                {
+                    KragmorRules.GetIntent(KragmorActionKind.EarthCollapse)
+                });
+
+            Assert.That(formatted, Is.EqualTo(
+                "Boss Intent: EarthCollapse | Direct: true | "
+                    + "Heavy: true | Coefficient: 2.40"));
         }
 
         private void InitializeFlow()

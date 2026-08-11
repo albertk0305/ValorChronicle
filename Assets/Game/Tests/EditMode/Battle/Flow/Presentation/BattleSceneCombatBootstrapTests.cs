@@ -126,6 +126,13 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(composition.Boss.CurrentHp, Is.EqualTo(66000));
             Assert.That(composition.Boss.Attack, Is.EqualTo(850d));
             Assert.That(composition.BossActionProvider, Is.Not.Null);
+            Assert.That(composition.BossIntentSource,
+                Is.SameAs(composition.BossActionProvider));
+            Assert.That(combatBootstrap.BossIntentSource,
+                Is.SameAs(composition.BossIntentSource));
+            Assert.That(
+                combatBootstrap.BossIntentSource.NextIntent.ActionKind,
+                Is.EqualTo(KragmorActionKind.ColossusIronFist));
             Assert.That(composition.BossActionProvider.RuntimeState,
                 Is.SameAs(composition.KragmorRuntimeState));
             Assert.That(composition.KragmorRuntimeState.PatternIndex, Is.Zero);

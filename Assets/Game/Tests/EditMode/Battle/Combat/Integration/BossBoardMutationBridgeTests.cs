@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -121,6 +122,67 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(battle.Bridge.ProcessedTurnEndCount, Is.EqualTo(1));
             Assert.That(battle.Coordinator.Context.CurrentTurn,
                 Is.EqualTo(2));
+        }
+
+        [Test]
+        public void RejectedMutationAbortsWithoutCommit()
+        {
+            Harness battle = CreateBattle(partyHp: 1000);
+            battle.Sink.AcceptRequests = false;
+            LogAssert.Expect(
+                LogType.Error,
+                "[BattleFlowCombatBridge] Boss Board mutation request "
+                    + "was rejected.");
+
+            Assert.That(battle.Bridge.ResolveBossAction(1), Is.False);
+
+            Assert.That(battle.Provider.CommitCount, Is.Zero);
+            Assert.That(battle.Bridge.ProcessedTurnEndCount, Is.Zero);
+            Assert.That(battle.Coordinator.Context.Result,
+                Is.EqualTo(BattleResultKind.Aborted));
+        }
+
+        [Test]
+        public void ThrowingMutationSinkAbortsWithoutCommit()
+        {
+            Harness battle = CreateBattle(partyHp: 1000);
+            battle.Sink.RequestException =
+                new InvalidOperationException("Injected sink failure.");
+            LogAssert.Expect(
+                LogType.Exception,
+                new Regex("Injected sink failure\\."));
+            LogAssert.Expect(
+                LogType.Error,
+                "[BattleFlowCombatBridge] Boss Board mutation request "
+                    + "threw an exception.");
+
+            Assert.That(battle.Bridge.ResolveBossAction(1), Is.False);
+
+            Assert.That(battle.Provider.CommitCount, Is.Zero);
+            Assert.That(battle.Bridge.ProcessedTurnEndCount, Is.Zero);
+            Assert.That(battle.Coordinator.Context.Result,
+                Is.EqualTo(BattleResultKind.Aborted));
+        }
+
+        [Test]
+        public void TerminalBeforeCallbackIgnoresCompletionWithoutCommit()
+        {
+            Harness battle = CreateBattle(partyHp: 1000);
+            Assert.That(battle.Bridge.ResolveBossAction(1), Is.True);
+            Assert.That(battle.Coordinator.AbortBattle(), Is.True);
+            LogAssert.Expect(
+                LogType.Warning,
+                "[BattleFlowCombatBridge] Ignored boss Board mutation "
+                    + "completion outside its originating boss action.");
+
+            battle.Sink.Complete(Success(
+                battle.Sink.LastCommand,
+                existingRockCount: 0));
+
+            Assert.That(battle.Provider.CommitCount, Is.Zero);
+            Assert.That(battle.Bridge.ProcessedTurnEndCount, Is.Zero);
+            Assert.That(battle.Coordinator.Context.Result,
+                Is.EqualTo(BattleResultKind.Aborted));
         }
 
         private static Harness CreateBattle(long partyHp)

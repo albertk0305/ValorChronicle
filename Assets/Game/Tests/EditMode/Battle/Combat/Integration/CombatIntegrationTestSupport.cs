@@ -83,6 +83,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         private Action<BattleBoardMutationCompletion> lastCompletion;
 
         public bool AcceptRequests { get; set; } = true;
+        public Exception RequestException { get; set; }
         public int RequestCount { get; private set; }
         public BattleBoardMutationCommand LastCommand { get; private set; }
 
@@ -92,6 +93,11 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         {
             RequestCount++;
             LastCommand = command;
+            if (RequestException != null)
+            {
+                throw RequestException;
+            }
+
             if (!AcceptRequests)
             {
                 return false;
@@ -127,6 +133,18 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         {
             RequestCount++;
             LastCommand = command;
+            completion(CombatIntegrationTestSupport
+                .CreateSuccessfulBoardMutation(command));
+            return true;
+        }
+    }
+
+    internal static class CombatIntegrationTestSupport
+    {
+        public static BattleBoardMutationCompletion
+            CreateSuccessfulBoardMutation(
+                BattleBoardMutationCommand command)
+        {
             var result = (BoardRockMutationResult)Activator.CreateInstance(
                 typeof(BoardRockMutationResult),
                 BindingFlags.Instance
@@ -143,16 +161,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                     BoardRockMutationFailure.None
                 },
                 culture: null);
-            completion(new BattleBoardMutationCompletion(
+            return new BattleBoardMutationCompletion(
                 command,
                 result,
-                BattleBoardMutationCompletionStatus.Completed));
-            return true;
+                BattleBoardMutationCompletionStatus.Completed);
         }
-    }
 
-    internal static class CombatIntegrationTestSupport
-    {
         public static DamageAction MatchDamage(
             MatchEventActionContext context,
             double coefficient = 1d)

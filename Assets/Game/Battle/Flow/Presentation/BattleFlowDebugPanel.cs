@@ -1,6 +1,8 @@
 using System;
+using System.Globalization;
 using UnityEngine;
 using UnityEngine.UI;
+using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Core.Logging;
 
 namespace ValorChronicle.Battle.Flow.Presentation
@@ -17,12 +19,15 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private Button partyDefeatedButton;
         private Button abortBattleButton;
         private BattleFlowCoordinator subscribedCoordinator;
+        private BattleSceneCombatBootstrap combatBootstrap;
         public string StatusText { get; private set; } = string.Empty;
+        public string BossIntentText { get; private set; } = string.Empty;
         public bool CompleteActivePhaseInteractable { get; private set; }
         public bool EndBattleButtonsInteractable { get; private set; }
 
         private void Awake()
         {
+            combatBootstrap = GetComponent<BattleSceneCombatBootstrap>();
             BuildPanelIfNeeded();
             if (battleFlowController == null)
             {
@@ -31,6 +36,12 @@ namespace ValorChronicle.Battle.Flow.Presentation
                         + "assigned.",
                     this);
             }
+        }
+
+        private void Start()
+        {
+            SubscribeToFlow();
+            RefreshState();
         }
 
         private void OnEnable()
@@ -129,11 +140,13 @@ namespace ValorChronicle.Battle.Flow.Presentation
             BattlePhase phase = context?.Phase ?? BattlePhase.NotStarted;
             BattleResultKind result =
                 context?.Result ?? BattleResultKind.None;
+            BossIntentText = FormatBossIntent(ResolveBossIntent());
 
             StatusText =
                 $"Turn: {currentTurn} / {turnLimit}\n" +
                 $"Phase: {phase}\n" +
-                $"Result: {result}";
+                $"Result: {result}\n" +
+                BossIntentText;
             CompleteActivePhaseInteractable =
                 result == BattleResultKind.None
                 && phase == BattlePhase.ActiveInput;
@@ -157,6 +170,32 @@ namespace ValorChronicle.Battle.Flow.Presentation
             SetButtonInteractable(
                 abortBattleButton,
                 EndBattleButtonsInteractable);
+        }
+
+        private KragmorBossIntent ResolveBossIntent()
+        {
+            if (combatBootstrap == null)
+            {
+                combatBootstrap = GetComponent<BattleSceneCombatBootstrap>();
+            }
+
+            return combatBootstrap?.BossIntentSource?.NextIntent;
+        }
+
+        private static string FormatBossIntent(KragmorBossIntent intent)
+        {
+            if (intent == null)
+            {
+                return "Boss Intent: Unavailable";
+            }
+
+            return $"Boss Intent: {intent.ActionKind} | "
+                + $"Direct: {intent.HasDirectDamage.ToString().ToLowerInvariant()} | "
+                + $"Heavy: {intent.IsHeavy.ToString().ToLowerInvariant()} | "
+                + "Coefficient: "
+                + intent.DamageCoefficient.ToString(
+                    "0.00",
+                    CultureInfo.InvariantCulture);
         }
 
         private void BuildPanelIfNeeded()
