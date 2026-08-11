@@ -154,6 +154,82 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         }
 
         [Test]
+        public void CombatActionsAppliedFiresAfterMatchAndBossStateChanges()
+        {
+            CharacterBattleState character = Character("fire", 0, 100d);
+            var party = new PartyBattleState(new[] { character });
+            BossBattleState boss = Boss(10000, 100d);
+            BattleFlowCoordinator coordinator = StartMatchResolution(
+                2,
+                SingleFireMatchCascade());
+            var actionIds = new CombatActionIdSequence();
+            BattleFlowCombatBridge bridge = Bridge(
+                coordinator,
+                party,
+                boss,
+                actionIds,
+                new DelegateMatchEventActionProvider(context =>
+                    new CombatAction[]
+                    {
+                        CombatIntegrationTestSupport.MatchDamage(context)
+                    }),
+                new DelegateBossCombatActionProvider(context =>
+                    new CombatAction[]
+                    {
+                        CombatIntegrationTestSupport.BossDamage(context)
+                    }));
+            var observedBossHp = new List<long>();
+            var observedPartyHp = new List<long>();
+            bridge.CombatActionsApplied += () =>
+            {
+                observedBossHp.Add(boss.CurrentHp);
+                observedPartyHp.Add(party.CurrentHp);
+            };
+
+            coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution);
+            Assert.That(bridge.ResolveMatchEvent(execution), Is.True);
+            Assert.That(observedBossHp, Has.Count.EqualTo(1));
+            Assert.That(observedBossHp[0], Is.LessThan(boss.MaxHp));
+            Assert.That(observedPartyHp[0], Is.EqualTo(party.MaxHp));
+
+            Assert.That(bridge.ResolveBossAction(1), Is.True);
+            Assert.That(observedBossHp, Has.Count.EqualTo(2));
+            Assert.That(observedPartyHp[1], Is.LessThan(party.MaxHp));
+        }
+
+        [Test]
+        public void CombatActionsAppliedSkipsRejectedAndEmptyRequests()
+        {
+            CharacterBattleState character = Character("fire", 0, 100d);
+            var party = new PartyBattleState(new[] { character });
+            BossBattleState boss = Boss(10000, 100d);
+            BattleFlowCoordinator coordinator = StartMatchResolution(
+                2,
+                SingleFireMatchCascade());
+            BattleFlowCombatBridge bridge = Bridge(
+                coordinator,
+                party,
+                boss,
+                new CombatActionIdSequence(),
+                EmptyMatchProvider(),
+                EmptyBossProvider());
+            int notificationCount = 0;
+            bridge.CombatActionsApplied += () => notificationCount++;
+
+            Assert.That(bridge.TryUseActive(0), Is.False);
+            Assert.That(bridge.ResolveBossAction(1), Is.False);
+            Assert.That(notificationCount, Is.Zero);
+
+            coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution);
+            Assert.That(bridge.ResolveMatchEvent(execution), Is.True);
+            Assert.That(notificationCount, Is.Zero);
+            Assert.That(bridge.ResolveBossAction(1), Is.True);
+            Assert.That(notificationCount, Is.Zero);
+        }
+
+        [Test]
         public void BossDefeatStopsCurrentAndRemainingEventsAndSkipsBoss()
         {
             PartyBattleState party = PartyWithFireSlots();

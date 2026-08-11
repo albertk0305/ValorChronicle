@@ -33,6 +33,12 @@ namespace ValorChronicle.Bosses.Kragmor
         public KragmorBattleRuntimeState RuntimeState => runtimeState;
         public KragmorBossIntent NextIntent => runtimeState.NextIntent;
 
+        public IReadOnlyList<KragmorBossIntentPreview> GetIntentForecast(
+            int count)
+        {
+            return runtimeState.GetIntentForecast(count);
+        }
+
         public IReadOnlyList<CombatAction> CreateRootActions(
             BossCombatActionContext context)
         {

@@ -322,6 +322,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                 new ActiveAbilityActionProviderRegistry());
             coordinator.StartBattle();
 
+            int notificationCount = 0;
+            bridge.CombatActionsApplied += () => notificationCount++;
+            Assert.That(bridge.CanUseActive(0), Is.False);
             Assert.That(bridge.TryUseActive(0), Is.False);
 
             ActiveAbilityRuntimeState runtime =
@@ -331,6 +334,83 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(actionIds.LastIssuedId, Is.Zero);
             Assert.That(marea.Effects.Count, Is.Zero);
             Assert.That(bridge.LastActiveExecutionResult, Is.Null);
+            Assert.That(notificationCount, Is.Zero);
+        }
+
+        [Test]
+        public void ActiveAvailabilityQueryIsSideEffectFreeAndSharedWithUse()
+        {
+            IntegratedBattle battle = CreateIntegratedMareaBattle(2);
+            Assert.That(battle.Bridge.CanUseActive(0), Is.False);
+            battle.Coordinator.StartBattle();
+
+            ActiveAbilityRuntimeState runtime =
+                battle.Coordinator.Context.ActiveAbilities[0];
+            long actionIdBefore = battle.ActionIds.LastIssuedId;
+            Assert.That(battle.Bridge.CanUseActive(0), Is.True);
+            Assert.That(battle.Bridge.CanUseActive(0), Is.True);
+            Assert.That(runtime.RemainingCooldown, Is.Zero);
+            Assert.That(runtime.UsedThisTurn, Is.False);
+            Assert.That(battle.Marea.Effects.Count, Is.Zero);
+            Assert.That(battle.ActionIds.LastIssuedId,
+                Is.EqualTo(actionIdBefore));
+
+            int notificationCount = 0;
+            battle.Bridge.CombatActionsApplied += () =>
+            {
+                notificationCount++;
+                Assert.That(runtime.RemainingCooldown, Is.EqualTo(8));
+                Assert.That(runtime.UsedThisTurn, Is.True);
+                Assert.That(battle.Marea.Effects.Count, Is.EqualTo(1));
+            };
+
+            Assert.That(battle.Bridge.TryUseActive(0), Is.True);
+            Assert.That(notificationCount, Is.EqualTo(1));
+            Assert.That(battle.Bridge.CanUseActive(0), Is.False);
+            Assert.That(battle.Bridge.TryUseActive(0), Is.False);
+            Assert.That(notificationCount, Is.EqualTo(1));
+
+            Assert.That(battle.Coordinator.CompleteActiveInput(), Is.True);
+            Assert.That(battle.Bridge.CanUseActive(0), Is.False);
+        }
+
+        [Test]
+        public void ActiveAvailabilityRejectsMissingBindingAndInvalidIndex()
+        {
+            CharacterBattleState marea = Marea(0);
+            var party = new PartyBattleState(new[] { marea });
+            BossBattleState boss = Boss();
+            var coordinator = new BattleFlowCoordinator(
+                25,
+                new[]
+                {
+                    MareaBluefangRules.ActiveCooldownTurns,
+                    MareaBluefangRules.ActiveCooldownTurns
+                });
+            var activeProviders = new ActiveAbilityActionProviderRegistry();
+            activeProviders.Register(
+                MareaBluefangRules.CharacterId,
+                MareaBluefangRules.ActiveAbilityId,
+                new MareaBluefangActiveActionProvider());
+            BattleFlowCombatBridge bridge = CreateBridge(
+                coordinator,
+                party,
+                boss,
+                new MatchEventActionProviderRegistry(),
+                new CombatActionIdSequence(),
+                Array.Empty<ICombatTriggerRule>(),
+                MareaBinding(),
+                activeProviders);
+            coordinator.StartBattle();
+
+            Assert.That(bridge.CanUseActive(0), Is.True);
+            Assert.That(bridge.CanUseActive(1), Is.False);
+            Assert.That(bridge.CanUseActive(-1), Is.False);
+            Assert.That(bridge.CanUseActive(2), Is.False);
+            Assert.That(coordinator.Context.ActiveAbilities[1]
+                .RemainingCooldown, Is.Zero);
+            Assert.That(coordinator.Context.ActiveAbilities[1]
+                .UsedThisTurn, Is.False);
         }
 
         [Test]

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace ValorChronicle.Bosses.Kragmor
 {
@@ -13,6 +14,28 @@ namespace ValorChronicle.Bosses.Kragmor
             (KragmorActionKind)PatternIndex;
         public KragmorBossIntent NextIntent =>
             KragmorRules.GetIntent(NextActionKind);
+
+        public IReadOnlyList<KragmorBossIntentPreview> GetIntentForecast(
+            int count)
+        {
+            if (count <= 0)
+            {
+                return Array.Empty<KragmorBossIntentPreview>();
+            }
+
+            var forecast = new KragmorBossIntentPreview[count];
+            for (int offset = 0; offset < forecast.Length; offset++)
+            {
+                int patternIndex =
+                    (PatternIndex + offset) % KragmorRules.PatternCount;
+                var actionKind = (KragmorActionKind)patternIndex;
+                forecast[offset] = new KragmorBossIntentPreview(
+                    offset + 1,
+                    KragmorRules.GetIntent(actionKind));
+            }
+
+            return Array.AsReadOnly(forecast);
+        }
 
         public void CommitAction(
             KragmorDefenseState completedDefenseState)

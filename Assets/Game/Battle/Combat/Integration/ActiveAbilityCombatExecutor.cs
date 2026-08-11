@@ -45,31 +45,11 @@ namespace ValorChronicle.Battle.Combat.Integration
             out CombatActionExecutionResult result)
         {
             result = null;
-            if (coordinator.Context.Result != BattleResultKind.None
-                || coordinator.Context.Phase != BattlePhase.ActiveInput
-                || activeAbilityIndex < 0
-                || activeAbilityIndex >= bindingsByIndex.Length)
-            {
-                return false;
-            }
-
-            ActiveAbilityBinding binding =
-                bindingsByIndex[activeAbilityIndex];
-            CharacterBattleState character = binding != null
-                ? FindBoundCharacter(binding)
-                : null;
-            if (character == null
-                || !providers.TryResolve(
-                    binding.CharacterId,
-                    binding.ActiveAbilityId,
-                    out IActiveAbilityActionProvider provider))
-            {
-                return false;
-            }
-
-            ActiveAbilityRuntimeState runtime =
-                coordinator.Context.ActiveAbilities[activeAbilityIndex];
-            if (!runtime.CanUse)
+            if (!TryResolveAvailableActive(
+                activeAbilityIndex,
+                out ActiveAbilityBinding binding,
+                out CharacterBattleState character,
+                out IActiveAbilityActionProvider provider))
             {
                 return false;
             }
@@ -92,6 +72,76 @@ namespace ValorChronicle.Battle.Combat.Integration
 
             result = executor.Execute(new CombatActionQueue(rootActions));
             return true;
+        }
+
+        public bool CanExecute(int activeAbilityIndex)
+        {
+            return TryResolveAvailableActive(
+                activeAbilityIndex,
+                out _,
+                out _,
+                out _);
+        }
+
+        public bool TryGetSingleBinding(
+            int partySlotIndex,
+            string characterId,
+            out ActiveAbilityBinding binding)
+        {
+            binding = null;
+            if (string.IsNullOrWhiteSpace(characterId))
+            {
+                return false;
+            }
+
+            for (int index = 0; index < bindingsByIndex.Length; index++)
+            {
+                ActiveAbilityBinding candidate = bindingsByIndex[index];
+                if (candidate == null
+                    || candidate.PartySlotIndex != partySlotIndex
+                    || !string.Equals(
+                        candidate.CharacterId,
+                        characterId,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (binding != null)
+                {
+                    binding = null;
+                    return false;
+                }
+
+                binding = candidate;
+            }
+
+            return binding != null;
+        }
+
+        private bool TryResolveAvailableActive(
+            int activeAbilityIndex,
+            out ActiveAbilityBinding binding,
+            out CharacterBattleState character,
+            out IActiveAbilityActionProvider provider)
+        {
+            binding = null;
+            character = null;
+            provider = null;
+            if (!coordinator.CanUseActiveAbility(activeAbilityIndex))
+            {
+                return false;
+            }
+
+            binding = bindingsByIndex[activeAbilityIndex];
+            character = binding != null
+                ? FindBoundCharacter(binding)
+                : null;
+            return character != null
+                && providers.TryResolve(
+                    binding.CharacterId,
+                    binding.ActiveAbilityId,
+                    out provider);
         }
 
         private ActiveAbilityBinding[] CreateBindings(

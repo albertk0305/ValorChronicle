@@ -39,6 +39,28 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
         }
 
         [Test]
+        public void PendingSnapshot_IsReadonlyIndependentAndPreservesOrder()
+        {
+            IReadOnlyList<MatchEvent> events = CreateEvents();
+            var queue = new MatchEventQueue();
+            queue.EnqueueRange(events);
+
+            IReadOnlyList<MatchEvent> snapshot =
+                queue.GetPendingSnapshot();
+
+            Assert.That(snapshot, Is.EqualTo(events));
+            Assert.Throws<NotSupportedException>(() =>
+                ((IList<MatchEvent>)snapshot).RemoveAt(0));
+
+            var mutableCopy = new List<MatchEvent>(snapshot);
+            mutableCopy.RemoveAt(0);
+            Assert.That(mutableCopy, Has.Count.EqualTo(1));
+            Assert.That(queue.Count, Is.EqualTo(2));
+            Assert.That(queue.TryDequeue(out MatchEvent first), Is.True);
+            Assert.That(first, Is.SameAs(events[0]));
+        }
+
+        [Test]
         public void EnqueueRange_RejectsNullWithoutChangingQueue()
         {
             var queue = new MatchEventQueue();

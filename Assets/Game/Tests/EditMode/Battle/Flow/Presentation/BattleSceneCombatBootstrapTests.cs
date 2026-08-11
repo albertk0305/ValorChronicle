@@ -100,6 +100,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         public void BootstrapComposesRequiredCombatRuntimeOnceWithoutDebugPanel()
         {
             Assert.That(root.GetComponent<BattleFlowDebugPanel>(), Is.Null);
+            Assert.That(root.GetComponent<BattleHudController>(), Is.Null);
 
             InvokePrivate(combatBootstrap, "InitializeFlowOnce");
             BattleSceneCombatComposition composition =
@@ -149,6 +150,29 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Has.Count.EqualTo(1));
             Assert.That(composition.WaterElement.MaxAmount, Is.EqualTo(5));
             Assert.That(composition.WaterElement.CurrentAmount, Is.Zero);
+        }
+
+        [Test]
+        public void HudPresenceDoesNotChangeProductionComposition()
+        {
+            BattleHudController hudController =
+                root.AddComponent<BattleHudController>();
+            SetField(
+                hudController,
+                "battleFlowController",
+                flowController);
+            InvokePrivate(hudController, "OnEnable");
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+            InvokePrivate(hudController, "Start");
+
+            Assert.That(combatBootstrap.HasInitializedCombat, Is.True);
+            Assert.That(hudController.IsRuntimeConnected, Is.True);
+            Assert.That(hudController.Coordinator,
+                Is.SameAs(flowController.Coordinator));
+            Assert.That(hudController.CombatBridge,
+                Is.SameAs(combatBootstrap.CombatComposition.Bridge));
+            InvokePrivate(hudController, "OnDisable");
         }
 
         [Test]

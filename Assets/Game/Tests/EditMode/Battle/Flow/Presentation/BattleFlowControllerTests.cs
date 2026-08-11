@@ -152,7 +152,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             InitializeStarted(new[] { 3 });
 
             Assert.That(flowController.Context.ActiveAbilities, Has.Count.EqualTo(1));
+            Assert.That(flowController.CanUseActive(0), Is.True);
             Assert.That(flowController.TryUseActive(0), Is.True);
+            Assert.That(flowController.CanUseActive(0), Is.False);
             Assert.That(flowController.Context.ActiveAbilities[0]
                 .RemainingCooldown, Is.EqualTo(3));
             Assert.That(boardController.IsExternalInputEnabled, Is.False);
@@ -160,6 +162,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.CompleteActiveInput(), Is.True);
             Assert.That(flowController.Context.Phase,
                 Is.EqualTo(BattlePhase.PuzzleInput));
+            Assert.That(flowController.CanUseActive(0), Is.False);
             Assert.That(boardController.IsExternalInputEnabled, Is.True);
             Assert.That(boardController.CanAcceptBoardInput, Is.False);
             Assert.That(flowController.CompleteActiveInput(), Is.False);

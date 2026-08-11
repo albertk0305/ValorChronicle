@@ -181,6 +181,18 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 : coordinator.TryUseActiveAbility(activeIndex);
         }
 
+        public bool CanUseActive(int activeIndex)
+        {
+            if (coordinator == null)
+            {
+                return false;
+            }
+
+            return combatBridge != null
+                ? combatBridge.CanUseActive(activeIndex)
+                : coordinator.CanUseActiveAbility(activeIndex);
+        }
+
         public bool NotifyBossDefeated()
         {
             return EndBattle(coordinator?.NotifyBossDefeated() ?? false);

@@ -10,6 +10,11 @@ namespace ValorChronicle.Battle.Flow
 
         public int Count => events.Count;
 
+        public IReadOnlyList<MatchEvent> GetPendingSnapshot()
+        {
+            return Array.AsReadOnly(events.ToArray());
+        }
+
         public void EnqueueRange(IReadOnlyList<MatchEvent> source)
         {
             if (source == null)

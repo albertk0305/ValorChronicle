@@ -41,4 +41,27 @@ namespace ValorChronicle.Bosses.Kragmor
         public bool IsHeavy { get; }
         public double DamageCoefficient { get; }
     }
+
+    public sealed class KragmorBossIntentPreview
+    {
+        internal KragmorBossIntentPreview(
+            int turnsUntilAction,
+            KragmorBossIntent intent)
+        {
+            if (turnsUntilAction <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(turnsUntilAction),
+                    turnsUntilAction,
+                    "Turns until action must be positive.");
+            }
+
+            TurnsUntilAction = turnsUntilAction;
+            Intent = intent
+                ?? throw new ArgumentNullException(nameof(intent));
+        }
+
+        public int TurnsUntilAction { get; }
+        public KragmorBossIntent Intent { get; }
+    }
 }

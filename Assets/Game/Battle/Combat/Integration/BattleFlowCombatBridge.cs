@@ -27,6 +27,8 @@ namespace ValorChronicle.Battle.Combat.Integration
         private int pendingBossTurn;
         private BattleBoardMutationCommand pendingBoardCommand;
 
+        public event Action CombatActionsApplied;
+
         public BattleFlowCombatBridge(
             BattleFlowCoordinator coordinator,
             PartyBattleState party,
@@ -168,6 +170,22 @@ namespace ValorChronicle.Battle.Combat.Integration
             private set;
         }
 
+        public bool CanUseActive(int activeAbilityIndex)
+        {
+            return activeExecutor.CanExecute(activeAbilityIndex);
+        }
+
+        public bool TryGetSingleActiveBinding(
+            int partySlotIndex,
+            string characterId,
+            out ActiveAbilityBinding binding)
+        {
+            return activeExecutor.TryGetSingleBinding(
+                partySlotIndex,
+                characterId,
+                out binding);
+        }
+
         public bool TryUseActive(int activeAbilityIndex)
         {
             if (!activeExecutor.TryExecute(
@@ -179,6 +197,7 @@ namespace ValorChronicle.Battle.Combat.Integration
 
             LastActiveExecutionResult = result;
             ValidateExecutedActionIds(LastActiveExecutionResult);
+            NotifyCombatActionsApplied(LastActiveExecutionResult);
             if (boss.IsDefeated)
             {
                 return coordinator.NotifyBossDefeated();
@@ -215,6 +234,8 @@ namespace ValorChronicle.Battle.Combat.Integration
             {
                 ValidateExecutedActionIds(LastMatchExecutionResult);
             }
+
+            NotifyCombatActionsApplied(LastMatchExecutionResult);
 
             if (boss.IsDefeated)
             {
@@ -254,6 +275,8 @@ namespace ValorChronicle.Battle.Combat.Integration
             {
                 ValidateExecutedActionIds(LastBossExecutionResult);
             }
+
+            NotifyCombatActionsApplied(LastBossExecutionResult);
 
             if (party.IsIncapacitated)
             {
@@ -494,6 +517,15 @@ namespace ValorChronicle.Battle.Combat.Integration
                         $"Combat action ID is not unique in this battle: "
                             + $"{actionId}.");
                 }
+            }
+        }
+
+        private void NotifyCombatActionsApplied(
+            CombatActionExecutionResult result)
+        {
+            if (result != null && result.CompletedActionCount > 0)
+            {
+                CombatActionsApplied?.Invoke();
             }
         }
     }

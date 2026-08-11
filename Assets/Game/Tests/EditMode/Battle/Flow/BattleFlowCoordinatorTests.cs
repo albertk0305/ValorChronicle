@@ -168,6 +168,55 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
         }
 
         [Test]
+        public void PendingSnapshotSlidesAfterEachEventBegins()
+        {
+            var coordinator = StartBoardResolution(25);
+            coordinator.NotifyBoardActionResolved(
+                CreateThirteenMatchCascade(),
+                true);
+
+            IReadOnlyList<MatchEvent> initial =
+                coordinator.GetPendingMatchEvents();
+            Assert.That(initial, Has.Count.EqualTo(13));
+            Assert.That(
+                SequenceIndices(initial),
+                Is.EqualTo(new[]
+                {
+                    0, 1, 2, 3, 4, 5, 6,
+                    7, 8, 9, 10, 11, 12
+                }));
+
+            Assert.That(
+                coordinator.TryBeginNextMatchEvent(
+                    out MatchEventExecution first),
+                Is.True);
+            Assert.That(first.MatchEvent, Is.SameAs(initial[0]));
+            Assert.That(
+                SequenceIndices(coordinator.GetPendingMatchEvents()),
+                Is.EqualTo(new[]
+                {
+                    1, 2, 3, 4, 5, 6,
+                    7, 8, 9, 10, 11, 12
+                }));
+
+            Assert.That(
+                coordinator.CompleteCurrentMatchEvent(first.ExecutionId),
+                Is.True);
+            Assert.That(
+                coordinator.TryBeginNextMatchEvent(
+                    out MatchEventExecution second),
+                Is.True);
+            Assert.That(second.MatchEvent.SequenceIndex, Is.EqualTo(1));
+            Assert.That(
+                SequenceIndices(coordinator.GetPendingMatchEvents()),
+                Is.EqualTo(new[]
+                {
+                    2, 3, 4, 5, 6,
+                    7, 8, 9, 10, 11, 12
+                }));
+        }
+
+        [Test]
         public void CompletionRejectsWrongStaleDuplicateAndMissingTokens()
         {
             var coordinator = StartBoardResolution(25);
@@ -402,6 +451,36 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
                         new BoardPosition(4, 1),
                         new BoardPosition(5, 1))
                 });
+        }
+
+        private static BoardCascadeResult CreateThirteenMatchCascade()
+        {
+            var steps = new BattleFlowTestSupport.MatchFixture[13][];
+            for (int index = 0; index < steps.Length; index++)
+            {
+                steps[index] = new[]
+                {
+                    BattleFlowTestSupport.Match(
+                        ElementType.Fire,
+                        new BoardPosition(0, 0),
+                        new BoardPosition(1, 0),
+                        new BoardPosition(2, 0))
+                };
+            }
+
+            return BattleFlowTestSupport.CreateCascade(steps);
+        }
+
+        private static int[] SequenceIndices(
+            IReadOnlyList<MatchEvent> matchEvents)
+        {
+            var indices = new int[matchEvents.Count];
+            for (int index = 0; index < indices.Length; index++)
+            {
+                indices[index] = matchEvents[index].SequenceIndex;
+            }
+
+            return indices;
         }
     }
 }

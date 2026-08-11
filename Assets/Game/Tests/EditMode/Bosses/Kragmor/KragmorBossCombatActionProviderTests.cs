@@ -58,6 +58,109 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
         }
 
         [Test]
+        public void ForecastReturnsTenWrappedIntentsWithOneBasedTurns()
+        {
+            var runtime = new KragmorBattleRuntimeState();
+            var provider = new KragmorBossCombatActionProvider(runtime);
+
+            IReadOnlyList<KragmorBossIntentPreview> forecast =
+                provider.GetIntentForecast(10);
+
+            Assert.That(
+                forecast.Select(item => item.Intent.ActionKind),
+                Is.EqualTo(new[]
+                {
+                    KragmorActionKind.ColossusIronFist,
+                    KragmorActionKind.RockshardEruption,
+                    KragmorActionKind.CoreCompression,
+                    KragmorActionKind.EarthCollapse,
+                    KragmorActionKind.ColossusIronFist,
+                    KragmorActionKind.RockshardEruption,
+                    KragmorActionKind.CoreCompression,
+                    KragmorActionKind.EarthCollapse,
+                    KragmorActionKind.ColossusIronFist,
+                    KragmorActionKind.RockshardEruption
+                }));
+            Assert.That(
+                forecast.Select(item => item.TurnsUntilAction),
+                Is.EqualTo(Enumerable.Range(1, 10)));
+            Assert.That(forecast[0].Intent, Is.SameAs(provider.NextIntent));
+        }
+
+        [Test]
+        public void ForecastQueryIsSideEffectFreeAndHandlesNonPositiveCount()
+        {
+            var runtime = new KragmorBattleRuntimeState();
+            var provider = new KragmorBossCombatActionProvider(runtime);
+            BossBattleState boss = Boss(850d);
+            PartyBattleState party = Party();
+            var actionIds = new CombatActionIdSequence();
+            int patternBefore = runtime.PatternIndex;
+            KragmorDefenseState defenseBefore =
+                runtime.CurrentDefenseState;
+            long bossHpBefore = boss.CurrentHp;
+            long partyHpBefore = party.CurrentHp;
+            long lastActionIdBefore = actionIds.LastIssuedId;
+
+            IReadOnlyList<KragmorBossIntentPreview> first =
+                provider.GetIntentForecast(10);
+            IReadOnlyList<KragmorBossIntentPreview> second =
+                provider.GetIntentForecast(10);
+
+            Assert.That(provider.GetIntentForecast(0), Is.Empty);
+            Assert.That(provider.GetIntentForecast(-1), Is.Empty);
+            Assert.That(runtime.PatternIndex, Is.EqualTo(patternBefore));
+            Assert.That(runtime.CurrentDefenseState,
+                Is.EqualTo(defenseBefore));
+            Assert.That(boss.CurrentHp, Is.EqualTo(bossHpBefore));
+            Assert.That(party.CurrentHp, Is.EqualTo(partyHpBefore));
+            Assert.That(actionIds.LastIssuedId,
+                Is.EqualTo(lastActionIdBefore));
+            Assert.That(
+                second.Select(item => item.Intent.ActionKind),
+                Is.EqualTo(first.Select(item => item.Intent.ActionKind)));
+        }
+
+        [Test]
+        public void ForecastSlidesOnlyAfterCommitAndWrapsAfterFullPattern()
+        {
+            var runtime = new KragmorBattleRuntimeState();
+            var provider = new KragmorBossCombatActionProvider(runtime);
+            BossBattleState boss = Boss(850d);
+            PartyBattleState party = Party();
+            var actionIds = new CombatActionIdSequence();
+            InitializeDefense(boss, runtime);
+            CombatActionExecutor executor = Executor(boss, party);
+
+            var expectedAfterCommit = new[]
+            {
+                KragmorActionKind.RockshardEruption,
+                KragmorActionKind.CoreCompression,
+                KragmorActionKind.EarthCollapse,
+                KragmorActionKind.ColossusIronFist
+            };
+            for (int index = 0; index < expectedAfterCommit.Length; index++)
+            {
+                KragmorActionKind before = provider.NextIntent.ActionKind;
+                IReadOnlyList<CombatAction> actions = provider.CreateActions(
+                    boss,
+                    party,
+                    actionIds);
+                Assert.That(provider.GetIntentForecast(1)[0].Intent.ActionKind,
+                    Is.EqualTo(before));
+                executor.Execute(new CombatActionQueue(actions));
+                Assert.That(provider.GetIntentForecast(1)[0].Intent.ActionKind,
+                    Is.EqualTo(before));
+
+                Assert.That(provider.TryCommitCompletedAction(), Is.True);
+                Assert.That(provider.GetIntentForecast(1)[0].Intent.ActionKind,
+                    Is.EqualTo(expectedAfterCommit[index]));
+                Assert.That(provider.GetIntentForecast(1)[0].Intent,
+                    Is.SameAs(provider.NextIntent));
+            }
+        }
+
+        [Test]
         public void QueryingAndPlanningDoNotAdvancePattern()
         {
             var runtime = new KragmorBattleRuntimeState();

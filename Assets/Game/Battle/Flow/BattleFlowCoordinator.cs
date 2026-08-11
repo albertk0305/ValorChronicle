@@ -42,6 +42,20 @@ namespace ValorChronicle.Battle.Flow
         public MatchEventExecution CurrentMatchEventExecution =>
             currentMatchEventExecution;
 
+        public IReadOnlyList<MatchEvent> GetPendingMatchEvents()
+        {
+            return matchEventQueue.GetPendingSnapshot();
+        }
+
+        public bool CanUseActiveAbility(int activeAbilityIndex)
+        {
+            return Context.Result == BattleResultKind.None
+                && Context.Phase == BattlePhase.ActiveInput
+                && activeAbilityIndex >= 0
+                && activeAbilityIndex < Context.ActiveAbilities.Count
+                && Context.ActiveAbilities[activeAbilityIndex].CanUse;
+        }
+
         public bool StartBattle()
         {
             if (Context.Phase != BattlePhase.NotStarted
@@ -71,6 +85,11 @@ namespace ValorChronicle.Battle.Flow
                     nameof(activeAbilityIndex),
                     activeAbilityIndex,
                     "Active ability index is outside the battle context.");
+            }
+
+            if (!CanUseActiveAbility(activeAbilityIndex))
+            {
+                return false;
             }
 
             return Context.ActiveAbilities[activeAbilityIndex].TryUse();

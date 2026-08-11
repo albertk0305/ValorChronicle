@@ -1,7 +1,9 @@
 {
     "name": "ValorChronicle.Game",
     "rootNamespace": "ValorChronicle",
-    "references": [],
+    "references": [
+        "Unity.TextMeshPro"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

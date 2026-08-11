@@ -10295,6 +10295,7 @@ GameObject:
   - component: {fileID: 910000005}
   - component: {fileID: 910000007}
   - component: {fileID: 910000006}
+  - component: {fileID: 910000008}
   m_Layer: 5
   m_Name: GameContent
   m_TagString: Untagged
@@ -10480,6 +10481,303 @@ MonoBehaviour:
   fallbackMareaDefinition: {fileID: 11400000, guid: 215b927139a0b284db55387800956e46, type: 2}
   developmentMareaLevel: 1
   developmentDifficultyId: difficulty_normal
+--- !u!114 &910000008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 907370524}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c508bb5cd7945b39d781c2501fd8023, type: 3}
+  m_Name: ""
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Flow.Presentation.BattleHudController
+  battleFlowController: {fileID: 910000005}
+  battleSceneCombatBootstrap: {fileID: 910000006}
+  turnText: {fileID: 1528520594}
+  scoreText: {fileID: 1113122128}
+  bossIntentSlots:
+  - root: {fileID: 859819529}
+    actionImage: {fileID: 1677577736}
+    remainingTurnText: {fileID: 810784485}
+  - root: {fileID: 1713377895}
+    actionImage: {fileID: 1231242190}
+    remainingTurnText: {fileID: 537843071}
+  - root: {fileID: 1644302491}
+    actionImage: {fileID: 1085617720}
+    remainingTurnText: {fileID: 1521684387}
+  - root: {fileID: 1526987595}
+    actionImage: {fileID: 1680856689}
+    remainingTurnText: {fileID: 449019478}
+  - root: {fileID: 1365340816}
+    actionImage: {fileID: 1029208396}
+    remainingTurnText: {fileID: 1104234265}
+  - root: {fileID: 587067190}
+    actionImage: {fileID: 501413521}
+    remainingTurnText: {fileID: 642463750}
+  - root: {fileID: 138087025}
+    actionImage: {fileID: 190187676}
+    remainingTurnText: {fileID: 988972433}
+  - root: {fileID: 110382712}
+    actionImage: {fileID: 1282391894}
+    remainingTurnText: {fileID: 634593574}
+  - root: {fileID: 558728484}
+    actionImage: {fileID: 585721735}
+    remainingTurnText: {fileID: 1905177221}
+  - root: {fileID: 1164972161}
+    actionImage: {fileID: 575553354}
+    remainingTurnText: {fileID: 1347195102}
+  colossusIronFistIcon: {fileID: 0}
+  rockshardEruptionIcon: {fileID: 0}
+  coreCompressionIntentIcon: {fileID: 0}
+  earthCollapseIcon: {fileID: 0}
+  bossImage: {fileID: 1041746698}
+  coreCompressionBossSprite: {fileID: 0}
+  coreExposureBossSprite: {fileID: -7487157830298141877, guid: a87414aac6d212a48bc857dfa8214261, type: 3}
+  bossStatusSlots:
+  - root: {fileID: 1732615078}
+    iconImage: {fileID: 1732615081}
+    valueText: {fileID: 326057645}
+  - root: {fileID: 1993694389}
+    iconImage: {fileID: 1993694392}
+    valueText: {fileID: 1351893308}
+  - root: {fileID: 1511711235}
+    iconImage: {fileID: 1511711238}
+    valueText: {fileID: 302750514}
+  - root: {fileID: 1237139924}
+    iconImage: {fileID: 1237139927}
+    valueText: {fileID: 1055004210}
+  - root: {fileID: 1057345681}
+    iconImage: {fileID: 1057345684}
+    valueText: {fileID: 1985392096}
+  - root: {fileID: 437706419}
+    iconImage: {fileID: 437706422}
+    valueText: {fileID: 2113398112}
+  - root: {fileID: 675769982}
+    iconImage: {fileID: 675769985}
+    valueText: {fileID: 1727612805}
+  - root: {fileID: 994685181}
+    iconImage: {fileID: 994685184}
+    valueText: {fileID: 1433641455}
+  - root: {fileID: 1646851019}
+    iconImage: {fileID: 1646851022}
+    valueText: {fileID: 134243653}
+  - root: {fileID: 747888131}
+    iconImage: {fileID: 747888134}
+    valueText: {fileID: 1544086443}
+  - root: {fileID: 1379415214}
+    iconImage: {fileID: 1379415217}
+    valueText: {fileID: 953253143}
+  - root: {fileID: 2072266644}
+    iconImage: {fileID: 2072266647}
+    valueText: {fileID: 1529926615}
+  - root: {fileID: 89748887}
+    iconImage: {fileID: 89748890}
+    valueText: {fileID: 2027258172}
+  - root: {fileID: 71257439}
+    iconImage: {fileID: 71257442}
+    valueText: {fileID: 756626564}
+  - root: {fileID: 1310515507}
+    iconImage: {fileID: 1310515510}
+    valueText: {fileID: 318648195}
+  - root: {fileID: 686475561}
+    iconImage: {fileID: 686475564}
+    valueText: {fileID: 1285417840}
+  bossHpSlider: {fileID: 1822124186}
+  bossHpText: {fileID: 1230122250}
+  bossShieldImage: {fileID: 634499371}
+  comboText: {fileID: 649504442}
+  matchEventSlots:
+  - root: {fileID: 821643558}
+    elementImage: {fileID: 145036899}
+    blockCountText: {fileID: 1394124835}
+  - root: {fileID: 1144365000}
+    elementImage: {fileID: 1907706467}
+    blockCountText: {fileID: 957732332}
+  - root: {fileID: 1082162575}
+    elementImage: {fileID: 430585947}
+    blockCountText: {fileID: 365790267}
+  - root: {fileID: 1454213840}
+    elementImage: {fileID: 893859214}
+    blockCountText: {fileID: 1021308813}
+  - root: {fileID: 803041103}
+    elementImage: {fileID: 326323282}
+    blockCountText: {fileID: 896847021}
+  - root: {fileID: 474133189}
+    elementImage: {fileID: 2006591332}
+    blockCountText: {fileID: 2005652118}
+  - root: {fileID: 773376832}
+    elementImage: {fileID: 872841967}
+    blockCountText: {fileID: 523816531}
+  - root: {fileID: 1563825007}
+    elementImage: {fileID: 25514499}
+    blockCountText: {fileID: 639404548}
+  - root: {fileID: 1265819382}
+    elementImage: {fileID: 1546609204}
+    blockCountText: {fileID: 1115025110}
+  - root: {fileID: 464535126}
+    elementImage: {fileID: 650580090}
+    blockCountText: {fileID: 1906644797}
+  characterSlots:
+  - root: {fileID: 1386056992}
+    activeButton: {fileID: 1059030899}
+    characterImage: {fileID: 1059030900}
+    typeImage: {fileID: 43481082}
+    cooldownText: {fileID: 1232809115}
+    statusSlots:
+    - root: {fileID: 1136662642}
+      iconImage: {fileID: 1136662645}
+      valueText: {fileID: 1889048422}
+    - root: {fileID: 2060556391}
+      iconImage: {fileID: 2060556394}
+      valueText: {fileID: 1266991176}
+    - root: {fileID: 295694401}
+      iconImage: {fileID: 295694404}
+      valueText: {fileID: 1202285014}
+    - root: {fileID: 1763815866}
+      iconImage: {fileID: 1763815869}
+      valueText: {fileID: 1025329878}
+  - root: {fileID: 908596807}
+    activeButton: {fileID: 1151109483}
+    characterImage: {fileID: 1151109484}
+    typeImage: {fileID: 1009468603}
+    cooldownText: {fileID: 26784710}
+    statusSlots:
+    - root: {fileID: 1370933035}
+      iconImage: {fileID: 1370933038}
+      valueText: {fileID: 2071570342}
+    - root: {fileID: 937317349}
+      iconImage: {fileID: 937317352}
+      valueText: {fileID: 971421929}
+    - root: {fileID: 1180856060}
+      iconImage: {fileID: 1180856063}
+      valueText: {fileID: 1071166171}
+    - root: {fileID: 1414149156}
+      iconImage: {fileID: 1414149159}
+      valueText: {fileID: 1130412129}
+  - root: {fileID: 835195053}
+    activeButton: {fileID: 520015592}
+    characterImage: {fileID: 520015593}
+    typeImage: {fileID: 1171004412}
+    cooldownText: {fileID: 2085495811}
+    statusSlots:
+    - root: {fileID: 546973533}
+      iconImage: {fileID: 546973536}
+      valueText: {fileID: 1114641852}
+    - root: {fileID: 86831049}
+      iconImage: {fileID: 86831052}
+      valueText: {fileID: 999798258}
+    - root: {fileID: 1433682165}
+      iconImage: {fileID: 1433682168}
+      valueText: {fileID: 1911666366}
+    - root: {fileID: 1192070861}
+      iconImage: {fileID: 1192070864}
+      valueText: {fileID: 267508753}
+  - root: {fileID: 2116408767}
+    activeButton: {fileID: 204590658}
+    characterImage: {fileID: 204590659}
+    typeImage: {fileID: 887253826}
+    cooldownText: {fileID: 1263408004}
+    statusSlots:
+    - root: {fileID: 914691423}
+      iconImage: {fileID: 914691426}
+      valueText: {fileID: 1284940051}
+    - root: {fileID: 295359559}
+      iconImage: {fileID: 295359562}
+      valueText: {fileID: 1533163989}
+    - root: {fileID: 1028033162}
+      iconImage: {fileID: 1028033165}
+      valueText: {fileID: 2026948042}
+    - root: {fileID: 1263008883}
+      iconImage: {fileID: 1263008886}
+      valueText: {fileID: 1377968334}
+  - root: {fileID: 2117749068}
+    activeButton: {fileID: 1954642806}
+    characterImage: {fileID: 1954642807}
+    typeImage: {fileID: 390499081}
+    cooldownText: {fileID: 653107190}
+    statusSlots:
+    - root: {fileID: 590871350}
+      iconImage: {fileID: 590871353}
+      valueText: {fileID: 1063588048}
+    - root: {fileID: 9066131}
+      iconImage: {fileID: 9066134}
+      valueText: {fileID: 348584677}
+    - root: {fileID: 1915456881}
+      iconImage: {fileID: 1915456884}
+      valueText: {fileID: 916688761}
+    - root: {fileID: 142893947}
+      iconImage: {fileID: 142893950}
+      valueText: {fileID: 1090881013}
+  elementSpriteSet: {fileID: 11400000, guid: 2ec94a39f3644900bc3a6deaeb61ab58, type: 2}
+  partyStatusSlots:
+  - root: {fileID: 2022924869}
+    iconImage: {fileID: 2022924872}
+    valueText: {fileID: 1618173853}
+  - root: {fileID: 630713191}
+    iconImage: {fileID: 630713194}
+    valueText: {fileID: 1545701855}
+  - root: {fileID: 477139209}
+    iconImage: {fileID: 477139212}
+    valueText: {fileID: 1047488993}
+  - root: {fileID: 50296328}
+    iconImage: {fileID: 50296331}
+    valueText: {fileID: 1489181250}
+  - root: {fileID: 2129369801}
+    iconImage: {fileID: 2129369804}
+    valueText: {fileID: 863103933}
+  - root: {fileID: 1043106129}
+    iconImage: {fileID: 1043106132}
+    valueText: {fileID: 658516439}
+  - root: {fileID: 1607614652}
+    iconImage: {fileID: 1607614655}
+    valueText: {fileID: 1249436956}
+  - root: {fileID: 1488468413}
+    iconImage: {fileID: 1488468416}
+    valueText: {fileID: 174997645}
+  - root: {fileID: 387994602}
+    iconImage: {fileID: 387994605}
+    valueText: {fileID: 1799306663}
+  - root: {fileID: 1344296087}
+    iconImage: {fileID: 1344296090}
+    valueText: {fileID: 302119497}
+  - root: {fileID: 1315328184}
+    iconImage: {fileID: 1315328187}
+    valueText: {fileID: 1641762803}
+  - root: {fileID: 735913935}
+    iconImage: {fileID: 735913938}
+    valueText: {fileID: 784224445}
+  - root: {fileID: 1675204979}
+    iconImage: {fileID: 1675204982}
+    valueText: {fileID: 1917256038}
+  - root: {fileID: 940031015}
+    iconImage: {fileID: 940031018}
+    valueText: {fileID: 1775538142}
+  - root: {fileID: 952445254}
+    iconImage: {fileID: 952445257}
+    valueText: {fileID: 55130213}
+  - root: {fileID: 2141574397}
+    iconImage: {fileID: 2141574400}
+    valueText: {fileID: 244054373}
+  - root: {fileID: 470083194}
+    iconImage: {fileID: 470083197}
+    valueText: {fileID: 1036528395}
+  - root: {fileID: 1631720380}
+    iconImage: {fileID: 1631720383}
+    valueText: {fileID: 412176778}
+  - root: {fileID: 387370861}
+    iconImage: {fileID: 387370864}
+    valueText: {fileID: 1409354481}
+  - root: {fileID: 2033189709}
+    iconImage: {fileID: 2033189712}
+    valueText: {fileID: 1273531413}
+  - root: {fileID: 567034633}
+    iconImage: {fileID: 567034636}
+    valueText: {fileID: 1322019360}
+  partyHpSlider: {fileID: 728902742}
+  partyHpText: {fileID: 1957738572}
+  partyShieldImage: {fileID: 325084843}
 --- !u!1 &914691423
 GameObject:
   m_ObjectHideFlags: 0
