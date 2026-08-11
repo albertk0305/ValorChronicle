@@ -628,8 +628,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                         continue;
                     }
 
-                    if (block.BlockType != BoardBlockType.Normal
-                        || !block.Element.HasValue)
+                    if (!IsSupportedBlock(block))
                     {
                         throw new NotSupportedException(
                             $"Board block type {block.BlockType} at " +
@@ -643,8 +642,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                             "once on the board.");
                     }
 
-                    Sprite sprite =
-                        spriteSet.GetSprite(block.Element.Value);
+                    Sprite sprite = spriteSet.GetSprite(block);
                     renderItems.Add(
                         new RenderItem(block, position, sprite));
                 }
@@ -862,7 +860,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                         return false;
                     }
 
-                    if (block.BlockType != BoardBlockType.Normal)
+                    if (!IsSupportedBlock(block))
                     {
                         failureReason = BuildBlockFailure(
                             context,
@@ -874,22 +872,9 @@ namespace ValorChronicle.Battle.Board.Presentation
                         return false;
                     }
 
-                    if (!block.Element.HasValue)
-                    {
-                        failureReason = BuildBlockFailure(
-                            context,
-                            "Element",
-                            block,
-                            position,
-                            view,
-                            occupiedCount);
-                        return false;
-                    }
-
                     Vector2 expectedAnchor =
                         BoardViewLayout.GetAnchoredPosition(position);
-                    Sprite expectedSprite =
-                        spriteSet.GetSprite(block.Element.Value);
+                    Sprite expectedSprite = spriteSet.GetSprite(block);
                     if (view.RuntimeId != block.RuntimeId)
                     {
                         failureReason = BuildBlockFailure(
@@ -1172,9 +1157,8 @@ namespace ValorChronicle.Battle.Board.Presentation
             string expectedElement = expectedBlock.Element.HasValue
                 ? expectedBlock.Element.Value.ToString()
                 : "<none>";
-            Sprite expectedSprite = expectedBlock.Element.HasValue
-                && expectedBlock.BlockType == BoardBlockType.Normal
-                ? spriteSet.GetSprite(expectedBlock.Element.Value)
+            Sprite expectedSprite = IsSupportedBlock(expectedBlock)
+                ? spriteSet.GetSprite(expectedBlock)
                 : null;
             var builder = new StringBuilder();
             builder.Append("Board view validation failed. Context=")
@@ -1720,7 +1704,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                 }
 
                 BlockView view = pool.Acquire();
-                Sprite sprite = spriteSet.GetSprite(spawn.Block.Element.Value);
+                Sprite sprite = spriteSet.GetSprite(spawn.Block);
                 view.Bind(spawn.Block, spawn.Target, sprite);
                 view.SetAnchoredPosition(BoardViewLayout.GetAnchoredPosition(
                     spawn.SourceX,
@@ -2131,6 +2115,15 @@ namespace ValorChronicle.Battle.Board.Presentation
                 $"{context}.DictionaryComplete",
                 true);
             ValidateCurrentViewLayout(board, context);
+        }
+
+        private static bool IsSupportedBlock(BoardBlock block)
+        {
+            return block != null
+                && ((block.BlockType == BoardBlockType.Normal
+                        && block.Element.HasValue)
+                    || (block.BlockType == BoardBlockType.Rock
+                        && !block.Element.HasValue));
         }
 
         private void CompleteCascadeStep()

@@ -8,10 +8,12 @@ using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Battle.Combat.Damage;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
+using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Tests.EditMode.Battle.Combat.Integration;
 
 namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
 {
@@ -121,6 +123,49 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
             Assert.That(provider.TryCommitCompletedAction(), Is.True);
             Assert.That(runtime.PatternIndex, Is.Zero);
             Assert.That(provider.TryCommitCompletedAction(), Is.False);
+        }
+
+        [Test]
+        public void OnlyRockshardPlanRequestsThreeRocksWithMaximumSix()
+        {
+            var runtime = new KragmorBattleRuntimeState();
+            var provider = new KragmorBossCombatActionProvider(runtime);
+            BossBattleState boss = Boss(850d);
+            PartyBattleState party = Party();
+            var actionIds = new CombatActionIdSequence();
+            InitializeDefense(boss, runtime);
+            CombatActionExecutor executor = Executor(boss, party);
+
+            BossActionPlan ironFist = provider.CreatePlan(
+                Context(boss, party, 1));
+            Assert.That(ironFist.BoardCommand, Is.Null);
+            executor.Execute(new CombatActionQueue(ironFist.CombatActions));
+            Assert.That(provider.TryCommitCompletedAction(), Is.True);
+
+            BossActionPlan rockshard = provider.CreatePlan(
+                Context(boss, party, 2));
+            Assert.That(rockshard.BoardCommand, Is.Not.Null);
+            Assert.That(rockshard.BoardCommand.Kind,
+                Is.EqualTo(BattleBoardMutationKind.CreateRock));
+            Assert.That(rockshard.BoardCommand.RequestedCount,
+                Is.EqualTo(KragmorRules.RockshardRockCreationCount));
+            Assert.That(rockshard.BoardCommand.MaximumCount,
+                Is.EqualTo(KragmorRules.MaximumRockCount));
+            Assert.That(runtime.PatternIndex, Is.EqualTo(1));
+            executor.Execute(new CombatActionQueue(
+                rockshard.CombatActions));
+            Assert.That(provider.TryCommitCompletedAction(), Is.True);
+
+            BossActionPlan compression = provider.CreatePlan(
+                Context(boss, party, 3));
+            Assert.That(compression.BoardCommand, Is.Null);
+            executor.Execute(new CombatActionQueue(
+                compression.CombatActions));
+            Assert.That(provider.TryCommitCompletedAction(), Is.True);
+
+            BossActionPlan collapse = provider.CreatePlan(
+                Context(boss, party, 4));
+            Assert.That(collapse.BoardCommand, Is.Null);
         }
 
         [Test]
@@ -284,7 +329,8 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
                 executor,
                 new EmptyMatchEventActionProvider(),
                 provider,
-                actionIds);
+                actionIds,
+                new ImmediateSuccessfulBoardMutationSink());
             coordinator.StartBattle();
             return new BattleHarness(
                 coordinator,

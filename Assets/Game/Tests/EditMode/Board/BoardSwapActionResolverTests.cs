@@ -98,7 +98,12 @@ namespace ValorChronicle.Tests.EditMode.Board
             long runtimeId = board.Get(fixedPosition).RuntimeId;
             board.Set(
                 fixedPosition,
-                new BoardBlock(runtimeId, blockType, ElementType.Dark));
+                new BoardBlock(
+                    runtimeId,
+                    blockType,
+                    blockType == BoardBlockType.Rock
+                        ? (ElementType?)null
+                        : ElementType.Dark));
 
             AssertNotSwappable(
                 board,

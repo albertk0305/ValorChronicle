@@ -243,9 +243,12 @@ namespace ValorChronicle.Tests.EditMode.Board
         public void FindMatches_NonNormalBlocksAreExcluded(BoardBlockType blockType)
         {
             var board = new BoardState();
-            SetBlock(board, 0, 2, blockType, ElementType.Fire);
-            SetBlock(board, 1, 2, blockType, ElementType.Fire);
-            SetBlock(board, 2, 2, blockType, ElementType.Fire);
+            ElementType? element = blockType == BoardBlockType.Rock
+                ? (ElementType?)null
+                : ElementType.Fire;
+            SetBlock(board, 0, 2, blockType, element);
+            SetBlock(board, 1, 2, blockType, element);
+            SetBlock(board, 2, 2, blockType, element);
 
             IReadOnlyList<BoardMatch> matches = BoardMatchFinder.FindMatches(board);
 

@@ -44,24 +44,9 @@ namespace ValorChronicle.Battle.Board.Presentation
             BoardCascadeStep step,
             out HashSet<long> removedIds)
         {
-            var matchPositions = new HashSet<BoardPosition>();
-            for (int matchIndex = 0;
-                matchIndex < step.Matches.Count;
-                matchIndex++)
-            {
-                BoardMatch match = step.Matches[matchIndex];
-                for (int positionIndex = 0;
-                    positionIndex < match.Positions.Count;
-                    positionIndex++)
-                {
-                    if (!matchPositions.Add(match.Positions[positionIndex]))
-                    {
-                        throw new InvalidOperationException(
-                            "Match positions cannot be duplicated in a " +
-                            "cascade presentation step.");
-                    }
-                }
-            }
+            BoardCascadeRemovalValidator.Validate(
+                step.Matches,
+                step.Collapse.Removals);
 
             var removalPositions = new HashSet<BoardPosition>();
             removedIds = new HashSet<long>();
@@ -93,12 +78,6 @@ namespace ValorChronicle.Battle.Board.Presentation
                 }
             }
 
-            if (!removalPositions.SetEquals(matchPositions))
-            {
-                throw new InvalidOperationException(
-                    "The removal positions must equal the union of all " +
-                    "match positions.");
-            }
         }
 
         private static void ValidateMoves(
@@ -336,12 +315,17 @@ namespace ValorChronicle.Battle.Board.Presentation
             BoardBlock block,
             string context)
         {
-            if (block == null
-                || block.BlockType != BoardBlockType.Normal
-                || !block.Element.HasValue)
+            bool isSupportedNormal = block != null
+                && block.BlockType == BoardBlockType.Normal
+                && block.Element.HasValue;
+            bool isSupportedRock = block != null
+                && block.BlockType == BoardBlockType.Rock
+                && !block.Element.HasValue;
+            if (!isSupportedNormal && !isSupportedRock)
             {
                 throw new NotSupportedException(
-                    $"Only Normal blocks with an Element are supported in {context}.");
+                    $"Only elemental Normal blocks and elementless Rock "
+                        + $"blocks are supported in {context}.");
             }
         }
 

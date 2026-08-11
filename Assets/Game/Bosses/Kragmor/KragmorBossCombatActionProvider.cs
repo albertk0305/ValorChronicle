@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Battle.Combat.Damage;
@@ -12,6 +13,7 @@ namespace ValorChronicle.Bosses.Kragmor
 {
     public sealed class KragmorBossCombatActionProvider
         : IBossCombatActionProvider,
+            IBossCombatActionPlanProvider,
             IBossCombatActionCompletionHandler
     {
         private readonly KragmorBattleRuntimeState runtimeState;
@@ -32,15 +34,30 @@ namespace ValorChronicle.Bosses.Kragmor
         public IReadOnlyList<CombatAction> CreateRootActions(
             BossCombatActionContext context)
         {
+            return CreatePlan(context).CombatActions;
+        }
+
+        public BossActionPlan CreatePlan(
+            BossCombatActionContext context)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
 
-            return CreateActions(
+            KragmorActionKind actionKind = runtimeState.NextActionKind;
+            IReadOnlyList<CombatAction> actions = CreateActions(
                 context.Boss,
                 context.Party,
                 context.ActionIds);
+            BattleBoardMutationCommand command =
+                actionKind == KragmorActionKind.RockshardEruption
+                    ? new BattleBoardMutationCommand(
+                        BattleBoardMutationKind.CreateRock,
+                        KragmorRules.RockshardRockCreationCount,
+                        KragmorRules.MaximumRockCount)
+                    : null;
+            return new BossActionPlan(actions, command);
         }
 
         public IReadOnlyList<CombatAction> CreateActions(

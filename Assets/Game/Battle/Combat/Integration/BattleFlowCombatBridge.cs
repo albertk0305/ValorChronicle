@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
+using ValorChronicle.Core.Logging;
 
 namespace ValorChronicle.Battle.Combat.Integration
 {
@@ -18,8 +20,12 @@ namespace ValorChronicle.Battle.Combat.Integration
         private readonly CombatActionIdSequence actionIds;
         private readonly BattleTurnEndProcessor turnEndProcessor;
         private readonly ActiveAbilityCombatExecutor activeExecutor;
+        private readonly IBattleBoardMutationSink boardMutationSink;
         private readonly HashSet<long> executedActionIds =
             new HashSet<long>();
+        private bool hasPendingBossBoardMutation;
+        private int pendingBossTurn;
+        private BattleBoardMutationCommand pendingBoardCommand;
 
         public BattleFlowCombatBridge(
             BattleFlowCoordinator coordinator,
@@ -38,7 +44,31 @@ namespace ValorChronicle.Battle.Combat.Integration
                 bossActionProvider,
                 actionIds,
                 Array.Empty<ActiveAbilityBinding>(),
-                new ActiveAbilityActionProviderRegistry())
+                new ActiveAbilityActionProviderRegistry(),
+                boardMutationSink: null)
+        {
+        }
+
+        public BattleFlowCombatBridge(
+            BattleFlowCoordinator coordinator,
+            PartyBattleState party,
+            BossBattleState boss,
+            CombatActionExecutor executor,
+            IMatchEventActionProvider matchActionProvider,
+            IBossCombatActionProvider bossActionProvider,
+            CombatActionIdSequence actionIds,
+            IBattleBoardMutationSink boardMutationSink)
+            : this(
+                coordinator,
+                party,
+                boss,
+                executor,
+                matchActionProvider,
+                bossActionProvider,
+                actionIds,
+                Array.Empty<ActiveAbilityBinding>(),
+                new ActiveAbilityActionProviderRegistry(),
+                boardMutationSink)
         {
         }
 
@@ -52,6 +82,31 @@ namespace ValorChronicle.Battle.Combat.Integration
             CombatActionIdSequence actionIds,
             IReadOnlyList<ActiveAbilityBinding> activeBindings,
             ActiveAbilityActionProviderRegistry activeProviders)
+            : this(
+                coordinator,
+                party,
+                boss,
+                executor,
+                matchActionProvider,
+                bossActionProvider,
+                actionIds,
+                activeBindings,
+                activeProviders,
+                boardMutationSink: null)
+        {
+        }
+
+        public BattleFlowCombatBridge(
+            BattleFlowCoordinator coordinator,
+            PartyBattleState party,
+            BossBattleState boss,
+            CombatActionExecutor executor,
+            IMatchEventActionProvider matchActionProvider,
+            IBossCombatActionProvider bossActionProvider,
+            CombatActionIdSequence actionIds,
+            IReadOnlyList<ActiveAbilityBinding> activeBindings,
+            ActiveAbilityActionProviderRegistry activeProviders,
+            IBattleBoardMutationSink boardMutationSink)
         {
             this.coordinator = coordinator
                 ?? throw new ArgumentNullException(nameof(coordinator));
@@ -65,6 +120,7 @@ namespace ValorChronicle.Battle.Combat.Integration
                 ?? throw new ArgumentNullException(nameof(bossActionProvider));
             this.actionIds = actionIds
                 ?? throw new ArgumentNullException(nameof(actionIds));
+            this.boardMutationSink = boardMutationSink;
             var matchActionFactory = new MatchEventCombatActionFactory(
                 party,
                 boss,
@@ -92,6 +148,10 @@ namespace ValorChronicle.Battle.Combat.Integration
         public CombatActionIdSequence ActionIds => actionIds;
         public int ProcessedTurnEndCount =>
             turnEndProcessor.ProcessedTurnCount;
+        public bool HasPendingBossBoardMutation =>
+            hasPendingBossBoardMutation;
+        public BattleBoardMutationCompletion
+            LastBossBoardMutationCompletion { get; private set; }
         public CombatActionExecutionResult LastMatchExecutionResult
         {
             get;
@@ -174,7 +234,8 @@ namespace ValorChronicle.Battle.Combat.Integration
         {
             if (coordinator.Context.Result != BattleResultKind.None
                 || coordinator.Context.Phase != BattlePhase.BossActing
-                || coordinator.Context.CurrentTurn != currentTurn)
+                || coordinator.Context.CurrentTurn != currentTurn
+                || hasPendingBossBoardMutation)
             {
                 return false;
             }
@@ -185,8 +246,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 currentTurn,
                 actionIds);
             long idBeforeProvider = actionIds.LastIssuedId;
-            IReadOnlyList<CombatAction> rootActions =
-                bossActionProvider.CreateRootActions(context);
+            BossActionPlan plan = CreateBossActionPlan(context);
+            IReadOnlyList<CombatAction> rootActions = plan.CombatActions;
             ValidateBossRootActions(rootActions, idBeforeProvider);
             LastBossExecutionResult = Execute(rootActions);
             if (LastBossExecutionResult != null)
@@ -204,6 +265,152 @@ namespace ValorChronicle.Battle.Combat.Integration
                 return coordinator.NotifyBossDefeated();
             }
 
+            if (plan.BoardCommand != null)
+            {
+                return BeginBossBoardMutation(
+                    currentTurn,
+                    plan.BoardCommand);
+            }
+
+            return CompleteBossAction();
+        }
+
+        private BossActionPlan CreateBossActionPlan(
+            BossCombatActionContext context)
+        {
+            if (bossActionProvider
+                is IBossCombatActionPlanProvider planProvider)
+            {
+                return planProvider.CreatePlan(context)
+                    ?? throw new InvalidOperationException(
+                        "Boss action plan providers cannot return null.");
+            }
+
+            return new BossActionPlan(
+                bossActionProvider.CreateRootActions(context));
+        }
+
+        private bool BeginBossBoardMutation(
+            int currentTurn,
+            BattleBoardMutationCommand command)
+        {
+            if (boardMutationSink == null)
+            {
+                GameLogger.Error(
+                    "[BattleFlowCombatBridge] A boss Board command has no "
+                        + "mutation sink.");
+                coordinator.AbortBattle();
+                return false;
+            }
+
+            hasPendingBossBoardMutation = true;
+            pendingBossTurn = currentTurn;
+            pendingBoardCommand = command;
+            bool accepted;
+            try
+            {
+                accepted = boardMutationSink.TryExecuteMutation(
+                    command,
+                    HandleBossBoardMutationCompleted);
+            }
+            catch (Exception exception)
+            {
+                GameLogger.Exception(exception);
+                GameLogger.Error(
+                    "[BattleFlowCombatBridge] Boss Board mutation request "
+                        + "threw an exception.");
+                ClearPendingBossBoardMutation();
+                coordinator.AbortBattle();
+                return false;
+            }
+
+            if (!accepted)
+            {
+                GameLogger.Error(
+                    "[BattleFlowCombatBridge] Boss Board mutation request "
+                        + "was rejected.");
+                ClearPendingBossBoardMutation();
+                coordinator.AbortBattle();
+                return false;
+            }
+
+            return coordinator.Context.Result != BattleResultKind.Aborted;
+        }
+
+        private void HandleBossBoardMutationCompleted(
+            BattleBoardMutationCompletion completion)
+        {
+            if (!hasPendingBossBoardMutation
+                || completion == null
+                || !ReferenceEquals(
+                    completion.Command,
+                    pendingBoardCommand))
+            {
+                GameLogger.Warning(
+                    "[BattleFlowCombatBridge] Ignored duplicate or stale "
+                        + "boss Board mutation completion.");
+                return;
+            }
+
+            LastBossBoardMutationCompletion = completion;
+            int completedTurn = pendingBossTurn;
+            ClearPendingBossBoardMutation();
+            if (coordinator.Context.Result != BattleResultKind.None
+                || coordinator.Context.Phase != BattlePhase.BossActing
+                || coordinator.Context.CurrentTurn != completedTurn)
+            {
+                GameLogger.Warning(
+                    "[BattleFlowCombatBridge] Ignored boss Board mutation "
+                        + "completion outside its originating boss action.");
+                return;
+            }
+
+            if (!completion.Succeeded)
+            {
+                if (completion.Failure != null)
+                {
+                    GameLogger.Exception(completion.Failure);
+                }
+
+                GameLogger.Error(
+                    "[BattleFlowCombatBridge] Boss Board mutation failed; "
+                        + "the battle will be aborted without committing "
+                        + "the boss pattern.");
+                coordinator.AbortBattle();
+                return;
+            }
+
+            try
+            {
+                if (!CompleteBossAction())
+                {
+                    throw new InvalidOperationException(
+                        "The completed boss Board mutation could not finish "
+                            + "the boss action.");
+                }
+            }
+            catch (Exception exception)
+            {
+                GameLogger.Exception(exception);
+                GameLogger.Error(
+                    "[BattleFlowCombatBridge] Boss action completion failed "
+                        + "after Board mutation.");
+                if (coordinator.Context.Result == BattleResultKind.None)
+                {
+                    coordinator.AbortBattle();
+                }
+            }
+        }
+
+        private void ClearPendingBossBoardMutation()
+        {
+            hasPendingBossBoardMutation = false;
+            pendingBossTurn = 0;
+            pendingBoardCommand = null;
+        }
+
+        private bool CompleteBossAction()
+        {
             turnEndProcessor.ProcessTurnEnd();
             CommitBossActionProvider();
             return coordinator.CompleteBossAction();

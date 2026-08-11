@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
+using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Battle.Combat.Damage;
@@ -71,6 +73,81 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             CombatActionTriggerContext context)
         {
             return createActions(context);
+        }
+    }
+
+    internal sealed class RecordingBoardMutationSink
+        : IBattleBoardMutationSink
+    {
+        private Action<BattleBoardMutationCompletion> completion;
+        private Action<BattleBoardMutationCompletion> lastCompletion;
+
+        public bool AcceptRequests { get; set; } = true;
+        public int RequestCount { get; private set; }
+        public BattleBoardMutationCommand LastCommand { get; private set; }
+
+        public bool TryExecuteMutation(
+            BattleBoardMutationCommand command,
+            Action<BattleBoardMutationCompletion> callback)
+        {
+            RequestCount++;
+            LastCommand = command;
+            if (!AcceptRequests)
+            {
+                return false;
+            }
+
+            completion = callback;
+            lastCompletion = callback;
+            return true;
+        }
+
+        public void Complete(BattleBoardMutationCompletion result)
+        {
+            Action<BattleBoardMutationCompletion> callback = completion;
+            completion = null;
+            callback(result);
+        }
+
+        public void RepeatCompletion(BattleBoardMutationCompletion result)
+        {
+            lastCompletion(result);
+        }
+    }
+
+    internal sealed class ImmediateSuccessfulBoardMutationSink
+        : IBattleBoardMutationSink
+    {
+        public int RequestCount { get; private set; }
+        public BattleBoardMutationCommand LastCommand { get; private set; }
+
+        public bool TryExecuteMutation(
+            BattleBoardMutationCommand command,
+            Action<BattleBoardMutationCompletion> completion)
+        {
+            RequestCount++;
+            LastCommand = command;
+            var result = (BoardRockMutationResult)Activator.CreateInstance(
+                typeof(BoardRockMutationResult),
+                BindingFlags.Instance
+                    | BindingFlags.Public
+                    | BindingFlags.NonPublic,
+                binder: null,
+                args: new object[]
+                {
+                    new BoardState(),
+                    command.RequestedCount,
+                    Array.Empty<BoardRockPlacement>(),
+                    0,
+                    null,
+                    BoardRockMutationFailure.None
+                },
+                culture: null);
+            completion(new BattleBoardMutationCompletion(
+                command,
+                result,
+                BattleBoardMutationCompletionStatus.Completed));
+            return true;
         }
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Damage;
 using ValorChronicle.Battle.Combat.Integration;
@@ -120,6 +121,13 @@ namespace ValorChronicle.Battle.Flow.Presentation
         public BattleFlowCombatBridge CreateBridge(
             BattleFlowCoordinator coordinator)
         {
+            return CreateBridge(coordinator, boardMutationSink: null);
+        }
+
+        public BattleFlowCombatBridge CreateBridge(
+            BattleFlowCoordinator coordinator,
+            IBattleBoardMutationSink boardMutationSink)
+        {
             if (coordinator == null)
             {
                 throw new ArgumentNullException(nameof(coordinator));
@@ -140,7 +148,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 BossActionProvider,
                 ActionIds,
                 activeBindings,
-                ActiveProviders);
+                ActiveProviders,
+                boardMutationSink);
             return Bridge;
         }
     }

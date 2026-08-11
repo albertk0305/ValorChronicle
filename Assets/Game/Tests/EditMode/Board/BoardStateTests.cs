@@ -199,6 +199,15 @@ namespace ValorChronicle.Tests.EditMode.Board
             Assert.That(block.Element, Is.Null);
         }
 
+        [Test]
+        public void RockBlock_RejectsElement()
+        {
+            Assert.Throws<ArgumentException>(() => new BoardBlock(
+                300,
+                BoardBlockType.Rock,
+                ElementType.Fire));
+        }
+
         private static BoardBlock CreateNormalBlock(long runtimeId, ElementType element)
         {
             return new BoardBlock(runtimeId, BoardBlockType.Normal, element);

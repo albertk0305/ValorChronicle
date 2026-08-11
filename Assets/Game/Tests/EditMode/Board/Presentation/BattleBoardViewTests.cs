@@ -26,6 +26,7 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
         private Sprite grass;
         private Sprite light;
         private Sprite dark;
+        private Sprite rock;
 
         [SetUp]
         public void SetUp()
@@ -40,10 +41,11 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             grass = CreateSprite(Color.green);
             light = CreateSprite(Color.white);
             dark = CreateSprite(Color.black);
+            rock = CreateSprite(Color.gray);
 
             spriteSet = ScriptableObject.CreateInstance<
                 BoardElementSpriteSet>();
-            spriteSet.Configure(fire, water, grass, light, dark);
+            spriteSet.Configure(fire, water, grass, light, dark, rock);
             createdObjects.Add(spriteSet);
 
             prefabObject = new GameObject(
@@ -93,6 +95,17 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(spriteSet.GetSprite(ElementType.Grass), Is.SameAs(grass));
             Assert.That(spriteSet.GetSprite(ElementType.Light), Is.SameAs(light));
             Assert.That(spriteSet.GetSprite(ElementType.Dark), Is.SameAs(dark));
+        }
+
+        [Test]
+        public void SpriteSet_ResolvesRockWithoutElementLookup()
+        {
+            var block = new BoardBlock(
+                100,
+                BoardBlockType.Rock,
+                null);
+
+            Assert.That(spriteSet.GetSprite(block), Is.SameAs(rock));
         }
 
         [Test]
@@ -276,11 +289,36 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             BoardState board = CreateFullBoard();
             board.Set(
                 new BoardPosition(0, 0),
-                new BoardBlock(1, BoardBlockType.Rock, null));
+                new BoardBlock(1, BoardBlockType.Special, null));
 
             Assert.Throws<NotSupportedException>(
                 () => boardView.Render(board));
             Assert.That(boardView.ActiveViewCount, Is.Zero);
+        }
+
+        [Test]
+        public void Render_RockUsesTheSharedPoolAndRockSprite()
+        {
+            BoardState board = CreateFullBoard();
+            var position = new BoardPosition(0, 0);
+            var rockBlock = new BoardBlock(
+                1000,
+                BoardBlockType.Rock,
+                null);
+            board.Set(position, rockBlock);
+
+            boardView.Render(board);
+
+            Assert.That(boardView.ActiveViewCount,
+                Is.EqualTo(BoardConstants.CellCount));
+            Assert.That(pool.ActiveCount,
+                Is.EqualTo(BoardConstants.CellCount));
+            Assert.That(boardView.TryGetView(
+                rockBlock.RuntimeId,
+                out BlockView view), Is.True);
+            Assert.That(view.Image.sprite, Is.SameAs(rock));
+            Assert.That(view.Position, Is.EqualTo(position));
+            Assert.That(boardView.MatchesBoard(board), Is.True);
         }
 
         [Test]

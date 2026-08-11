@@ -69,7 +69,13 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Sprite sprite = CreateSprite();
             var spriteSet = ScriptableObject.CreateInstance<
                 BoardElementSpriteSet>();
-            spriteSet.Configure(sprite, sprite, sprite, sprite, sprite);
+            spriteSet.Configure(
+                sprite,
+                sprite,
+                sprite,
+                sprite,
+                sprite,
+                sprite);
             createdObjects.Add(spriteSet);
 
             var prefabObject = new GameObject(
@@ -164,6 +170,63 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             input.OnBeginDrag(eventData);
 
             Assert.That(input.IsTrackingPointer, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator BeginDrag_RockDoesNotTrackOrConsumeATurn()
+        {
+            yield return InitializeReadyBoard();
+            var position = new BoardPosition(2, 2);
+            BoardState board = controller.CurrentBoard.Clone();
+            var rock = new BoardBlock(
+                1000,
+                BoardBlockType.Rock,
+                null);
+            board.Set(position, rock);
+            SetProperty(controller, "CurrentBoard", board);
+            boardView.Render(board);
+            BlockView view = GetView(position);
+            PointerEventData eventData = CreatePointerEvent(
+                31,
+                view.gameObject,
+                GetScreenPoint(view));
+
+            input.OnBeginDrag(eventData);
+            eventData.position += Vector2.right * 100f;
+            input.OnDrag(eventData);
+            input.OnEndDrag(eventData);
+
+            Assert.That(input.IsTrackingPointer, Is.False);
+            Assert.That(controller.LastSwapActionResult, Is.Null);
+            Assert.That(controller.CurrentBoard.Get(position),
+                Is.SameAs(rock));
+        }
+
+        [UnityTest]
+        public IEnumerator NormalDragTowardRockUsesNotSwappablePath()
+        {
+            yield return InitializeReadyBoard();
+            var normalPosition = new BoardPosition(2, 2);
+            var rockPosition = new BoardPosition(3, 2);
+            BoardState board = controller.CurrentBoard.Clone();
+            var rock = new BoardBlock(
+                1000,
+                BoardBlockType.Rock,
+                null);
+            board.Set(rockPosition, rock);
+            SetProperty(controller, "CurrentBoard", board);
+            boardView.Render(board);
+            BlockView normalView = GetView(normalPosition);
+
+            PerformDrag(normalView, 32, Vector2.right * 80f);
+
+            Assert.That(controller.LastSwapActionResult, Is.Not.Null);
+            Assert.That(controller.LastSwapActionResult.Status,
+                Is.EqualTo(BoardSwapActionStatus.NotSwappable));
+            Assert.That(controller.LastSwapActionResult.ConsumesTurn,
+                Is.False);
+            Assert.That(controller.CurrentBoard.Get(rockPosition),
+                Is.SameAs(rock));
         }
 
         [UnityTest]

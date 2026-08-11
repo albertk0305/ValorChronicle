@@ -46,7 +46,7 @@ namespace ValorChronicle.Battle.Board
             }
 
             List<BoardPosition> positionsToRemove =
-                CollectRemovalPositions(matches);
+                CollectRemovalPositions(board, matches);
             BoardCollapseResult collapse = BoardCollapseResolver.Resolve(
                 board,
                 positionsToRemove);
@@ -57,6 +57,7 @@ namespace ValorChronicle.Battle.Board
         }
 
         private static List<BoardPosition> CollectRemovalPositions(
+            BoardState board,
             IReadOnlyList<BoardMatch> matches)
         {
             var positions = new List<BoardPosition>();
@@ -88,7 +89,68 @@ namespace ValorChronicle.Battle.Board
                 }
             }
 
+            for (int matchIndex = 0;
+                matchIndex < matches.Count;
+                matchIndex++)
+            {
+                BoardMatch match = matches[matchIndex];
+                for (int positionIndex = 0;
+                    positionIndex < match.Positions.Count;
+                    positionIndex++)
+                {
+                    BoardPosition position = match.Positions[positionIndex];
+                    TryAddAdjacentRock(
+                        board,
+                        position.X - 1,
+                        position.Y,
+                        uniquePositions,
+                        positions);
+                    TryAddAdjacentRock(
+                        board,
+                        position.X + 1,
+                        position.Y,
+                        uniquePositions,
+                        positions);
+                    TryAddAdjacentRock(
+                        board,
+                        position.X,
+                        position.Y - 1,
+                        uniquePositions,
+                        positions);
+                    TryAddAdjacentRock(
+                        board,
+                        position.X,
+                        position.Y + 1,
+                        uniquePositions,
+                        positions);
+                }
+            }
+
             return positions;
+        }
+
+        private static void TryAddAdjacentRock(
+            BoardState board,
+            int x,
+            int y,
+            ISet<BoardPosition> uniquePositions,
+            ICollection<BoardPosition> positions)
+        {
+            if (!BoardPosition.IsValid(x, y))
+            {
+                return;
+            }
+
+            var position = new BoardPosition(x, y);
+            BoardBlock block = board.Get(position);
+            if (block == null
+                || block.BlockType != BoardBlockType.Rock
+                || !uniquePositions.Add(position))
+            {
+                return;
+            }
+
+            positions.Add(position);
         }
     }
 }

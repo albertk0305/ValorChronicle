@@ -54,7 +54,13 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
 
             var spriteSet = ScriptableObject.CreateInstance<
                 BoardElementSpriteSet>();
-            spriteSet.Configure(sprite, sprite, sprite, sprite, sprite);
+            spriteSet.Configure(
+                sprite,
+                sprite,
+                sprite,
+                sprite,
+                sprite,
+                sprite);
             createdObjects.Add(spriteSet);
 
             var prefabObject = new GameObject(
@@ -608,6 +614,58 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(controller.LastSwapActionResult, Is.Null);
         }
 
+        [UnityTest]
+        public IEnumerator RockMutationUpdatesBoardViewsAndCapSynchronously()
+        {
+            SetAllDurationsToZero();
+            controller.Initialize();
+            yield return null;
+            BoardState inputBoard = controller.CurrentBoard;
+            BoardBlock[] original = Capture(inputBoard);
+            var command = new BattleBoardMutationCommand(
+                BattleBoardMutationKind.CreateRock,
+                requestedCount: 3,
+                maximumCount: 6);
+            BattleBoardMutationCompletion completion = null;
+
+            Assert.That(controller.TryExecuteMutation(
+                command,
+                result => completion = result), Is.True);
+
+            Assert.That(completion, Is.Not.Null);
+            Assert.That(completion.Succeeded, Is.True);
+            Assert.That(completion.Result.CreatedCount, Is.EqualTo(3));
+            Assert.That(controller.CurrentBoard,
+                Is.SameAs(completion.Result.Board));
+            Assert.That(controller.CurrentBoard, Is.Not.SameAs(inputBoard));
+            Assert.That(boardView.MatchesBoard(controller.CurrentBoard),
+                Is.True);
+            Assert.That(controller.IsBoardReady, Is.True);
+            AssertOriginalUnchanged(inputBoard, original);
+            foreach (BoardRockPlacement placement
+                in completion.Result.Placements)
+            {
+                Assert.That(placement.RockBlock.RuntimeId,
+                    Is.Not.EqualTo(placement.ReplacedBlock.RuntimeId));
+                Assert.That(boardView.TryGetView(
+                    placement.RockBlock.RuntimeId,
+                    out BlockView view), Is.True);
+                Assert.That(view.Position, Is.EqualTo(placement.Position));
+                Assert.That(boardView.TryGetView(
+                    placement.ReplacedBlock.RuntimeId,
+                    out _), Is.False);
+            }
+
+            controller.TryExecuteMutation(command, result =>
+                completion = result);
+            Assert.That(CountRocks(controller.CurrentBoard), Is.EqualTo(6));
+            Assert.That(completion.Result.CreatedCount, Is.EqualTo(3));
+            controller.TryExecuteMutation(command, result =>
+                completion = result);
+            Assert.That(CountRocks(controller.CurrentBoard), Is.EqualTo(6));
+            Assert.That(completion.Result.CreatedCount, Is.Zero);
+        }
+
         private static BoardState CreateBoard(IRandomSource source)
         {
             return new BoardGenerator(
@@ -716,6 +774,43 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
 
             Assert.That(runtimeIds.Count, Is.EqualTo(
                 BoardConstants.CellCount));
+        }
+
+        private static BoardBlock[] Capture(BoardState board)
+        {
+            var blocks = new BoardBlock[BoardConstants.CellCount];
+            for (int index = 0; index < blocks.Length; index++)
+            {
+                blocks[index] = board.Get(BoardPosition.FromIndex(index));
+            }
+
+            return blocks;
+        }
+
+        private static void AssertOriginalUnchanged(
+            BoardState board,
+            IReadOnlyList<BoardBlock> original)
+        {
+            for (int index = 0; index < original.Count; index++)
+            {
+                Assert.That(board.Get(BoardPosition.FromIndex(index)),
+                    Is.SameAs(original[index]));
+            }
+        }
+
+        private static int CountRocks(BoardState board)
+        {
+            int count = 0;
+            for (int index = 0; index < BoardConstants.CellCount; index++)
+            {
+                if (board.Get(BoardPosition.FromIndex(index)).BlockType
+                    == BoardBlockType.Rock)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         private static void SetField(object target, string name, object value)

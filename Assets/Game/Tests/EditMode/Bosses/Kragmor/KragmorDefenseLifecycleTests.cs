@@ -12,6 +12,7 @@ using ValorChronicle.Battle.Flow;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Tests.EditMode.Battle.Combat.Integration;
 
 namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
 {
@@ -260,7 +261,8 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
                 executor,
                 new EmptyMatchEventActionProvider(),
                 provider,
-                actionIds);
+                actionIds,
+                new ImmediateSuccessfulBoardMutationSink());
             coordinator.StartBattle();
             return new BattleHarness(
                 coordinator,

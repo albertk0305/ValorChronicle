@@ -17,6 +17,13 @@ namespace ValorChronicle.Battle.Board
                     nameof(element));
             }
 
+            if (blockType == BoardBlockType.Rock && element.HasValue)
+            {
+                throw new ArgumentException(
+                    "A Rock block cannot have an element.",
+                    nameof(element));
+            }
+
             RuntimeId = runtimeId;
             BlockType = blockType;
             Element = element;

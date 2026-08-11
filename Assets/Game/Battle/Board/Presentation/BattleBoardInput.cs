@@ -62,6 +62,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                 || !controller.CanAcceptBoardInput
                 || !TryGetPressedBlockView(eventData, out BlockView view)
                 || !IsCurrentBoardView(view)
+                || !IsSwappableBlock(view.Position, view.RuntimeId)
                 || !TryGetLocalPoint(eventData, out Vector2 localPoint))
             {
                 return;
@@ -208,6 +209,16 @@ namespace ValorChronicle.Battle.Board.Presentation
                 eventData.position,
                 eventData.pressEventCamera,
                 out localPoint);
+        }
+
+        private bool IsSwappableBlock(
+            BoardPosition position,
+            long runtimeId)
+        {
+            BoardBlock block = controller.CurrentBoard?.Get(position);
+            return block != null
+                && block.RuntimeId == runtimeId
+                && block.BlockType == BoardBlockType.Normal;
         }
 
         private void ResetGesture()

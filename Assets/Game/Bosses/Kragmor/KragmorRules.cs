@@ -14,6 +14,8 @@ namespace ValorChronicle.Bosses.Kragmor
         public const int PatternCount = 4;
         public const double ColossusIronFistCoefficient = 0.75d;
         public const double RockshardEruptionCoefficient = 0.65d;
+        public const int RockshardRockCreationCount = 3;
+        public const int MaximumRockCount = 6;
         public const double EarthCollapseCoefficient = 2.40d;
         public const double VolcanicCarapaceReductionRate = 0.10d;
         public const double CoreCompressionReductionRate = 0.20d;

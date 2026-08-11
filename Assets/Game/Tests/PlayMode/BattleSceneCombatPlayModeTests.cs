@@ -5,9 +5,11 @@ using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using ValorChronicle.Battle.Board;
+using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
@@ -27,6 +29,9 @@ namespace ValorChronicle.Tests.PlayMode
         private BattleSceneCombatBootstrap combatBootstrap;
         private BattleFlowController flow;
         private BattleSceneCombatComposition combat;
+        private BattleBoardController boardController;
+        private BattleBoardView boardView;
+        private BattleBoardInput boardInput;
         private GameObject bootstrapRoot;
 
         [UnitySetUp]
@@ -56,7 +61,16 @@ namespace ValorChronicle.Tests.PlayMode
 
             flow = combatBootstrap.GetComponent<BattleFlowController>();
             combat = combatBootstrap.CombatComposition;
+            boardController = UnityEngine.Object.FindFirstObjectByType<
+                BattleBoardController>();
+            boardView = UnityEngine.Object.FindFirstObjectByType<
+                BattleBoardView>();
+            boardInput = UnityEngine.Object.FindFirstObjectByType<
+                BattleBoardInput>();
             Assert.That(combatBootstrap.HasInitializedCombat, Is.True);
+            Assert.That(boardController, Is.Not.Null);
+            Assert.That(boardView, Is.Not.Null);
+            Assert.That(boardInput, Is.Not.Null);
             Assert.That(flow.Context.Phase,
                 Is.EqualTo(BattlePhase.ActiveInput));
         }
@@ -171,6 +185,7 @@ namespace ValorChronicle.Tests.PlayMode
                 Is.EqualTo(637));
             Assert.That(combat.KragmorRuntimeState.PatternIndex,
                 Is.EqualTo(1));
+            Assert.That(CountRocks(boardController.CurrentBoard), Is.Zero);
             RestorePartyHpForSnapshotTest();
 
             CombatActionExecutionResult fourMatch =
@@ -191,6 +206,9 @@ namespace ValorChronicle.Tests.PlayMode
                 Is.EqualTo(552));
             Assert.That(combat.KragmorRuntimeState.PatternIndex,
                 Is.EqualTo(2));
+            Assert.That(combat.KragmorRuntimeState.NextActionKind,
+                Is.EqualTo(KragmorActionKind.CoreCompression));
+            AssertRockshardPresentation(expectedRockCount: 3);
             RestorePartyHpForSnapshotTest();
 
             CombatActionExecutionResult fiveMatch =
@@ -229,6 +247,68 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(flow.Context.Phase, Is.EqualTo(BattlePhase.Result));
             Assert.That(flow.Context.CurrentTurn, Is.EqualTo(turnBeforeLethal));
             yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator SceneCascadeRemovesCollateralRocksAndMovesRockView()
+        {
+            BoardState fixture = CreateRockCascadeFixture(
+                out BoardSwap swap,
+                out long firstCollateralRockId,
+                out long secondCollateralRockId,
+                out long fallingRockId);
+            SetAutoProperty(
+                typeof(BattleBoardController),
+                "CurrentBoard",
+                boardController,
+                fixture);
+            boardView.Render(fixture);
+            BlockView fallingView = boardView.ActiveViews[fallingRockId];
+
+            Assert.That(flow.CompleteActiveInput(), Is.True);
+            Assert.That(flow.Context.Phase, Is.EqualTo(BattlePhase.PuzzleInput));
+            Assert.That(boardController.TryExecuteSwap(swap), Is.True);
+
+            float deadline = Time.realtimeSinceStartup + 10f;
+            while (!boardController.IsBoardReady
+                && Time.realtimeSinceStartup < deadline)
+            {
+                yield return null;
+            }
+
+            BoardSwapActionResult result =
+                boardController.LastSwapActionResult;
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Status,
+                Is.EqualTo(BoardSwapActionStatus.Resolved));
+            BoardCascadeStep firstStep = result.Cascade.Steps[0];
+            Assert.That(firstStep.Matches, Has.Count.EqualTo(1));
+            Assert.That(firstStep.Matches[0].Positions,
+                Has.Count.EqualTo(3));
+            Assert.That(firstStep.Collapse.Removals,
+                Has.Count.EqualTo(5));
+            Assert.That(firstStep.Collapse.Removals.Count(removal =>
+                    removal.Block.BlockType == BoardBlockType.Rock),
+                Is.EqualTo(2));
+            Assert.That(boardView.TryGetView(
+                firstCollateralRockId,
+                out _), Is.False);
+            Assert.That(boardView.TryGetView(
+                secondCollateralRockId,
+                out _), Is.False);
+            Assert.That(boardView.TryGetView(
+                fallingRockId,
+                out BlockView movedRockView), Is.True);
+            Assert.That(movedRockView, Is.SameAs(fallingView));
+            Assert.That(movedRockView.Position,
+                Is.EqualTo(new BoardPosition(0, 0)));
+            Assert.That(boardController.CurrentBoard.Get(
+                    new BoardPosition(0, 0)).RuntimeId,
+                Is.EqualTo(fallingRockId));
+            Assert.That(boardView.TryValidateCurrentViewLayout(
+                boardController.CurrentBoard,
+                "Rock cascade PlayMode result",
+                out string failure), Is.True, failure);
         }
 
         [UnityTest]
@@ -280,6 +360,22 @@ namespace ValorChronicle.Tests.PlayMode
             AssertDefense(KragmorDefenseState.VolcanicCarapace);
             Assert.That(combat.KragmorRuntimeState.PatternIndex,
                 Is.EqualTo(1));
+
+            ResolveWaterMatch(blockCount: 3);
+            Assert.That(CountRocks(boardController.CurrentBoard),
+                Is.EqualTo(6));
+            Assert.That(boardController.LastRockMutationResult.CreatedCount,
+                Is.EqualTo(3));
+            ResolveWaterMatch(blockCount: 3);
+            ResolveWaterMatch(blockCount: 3);
+            ResolveWaterMatch(blockCount: 3);
+            ResolveWaterMatch(blockCount: 3);
+            Assert.That(CountRocks(boardController.CurrentBoard),
+                Is.EqualTo(6));
+            Assert.That(boardController.LastRockMutationResult.CreatedCount,
+                Is.Zero);
+            Assert.That(combat.KragmorRuntimeState.NextActionKind,
+                Is.EqualTo(KragmorActionKind.CoreCompression));
             yield return null;
         }
 
@@ -413,6 +509,136 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(combat.Boss.Effects.FindByEffectId(
                     KragmorDefenseEffectFactory.GetEffectId(expectedState)),
                 Has.Count.EqualTo(1));
+        }
+
+        private void AssertRockshardPresentation(int expectedRockCount)
+        {
+            Assert.That(boardController.LastRockMutationResult, Is.Not.Null);
+            Assert.That(boardController.LastRockMutationResult.Succeeded,
+                Is.True);
+            Assert.That(boardController.LastRockMutationResult.CreatedCount,
+                Is.EqualTo(expectedRockCount));
+            Assert.That(CountRocks(boardController.CurrentBoard),
+                Is.EqualTo(expectedRockCount));
+            Assert.That(boardView.TryValidateCurrentViewLayout(
+                boardController.CurrentBoard,
+                "Rockshard PlayMode result",
+                out string failure), Is.True, failure);
+
+            BlockView firstRockView = null;
+            foreach (BoardRockPlacement placement
+                in boardController.LastRockMutationResult.Placements)
+            {
+                Assert.That(boardView.TryGetView(
+                    placement.RockBlock.RuntimeId,
+                    out BlockView rockView), Is.True);
+                Assert.That(rockView.Position,
+                    Is.EqualTo(placement.Position));
+                Assert.That(rockView.Image.sprite, Is.Not.Null);
+                Assert.That(rockView.Image.sprite.name,
+                    Is.EqualTo("RockBlock"));
+                firstRockView ??= rockView;
+            }
+
+            var pointer = new PointerEventData(EventSystem.current)
+            {
+                pointerId = 701,
+                pointerPress = firstRockView.gameObject,
+                position = RectTransformUtility.WorldToScreenPoint(
+                    null,
+                    firstRockView.RectTransform.position)
+            };
+            boardInput.OnBeginDrag(pointer);
+            Assert.That(boardInput.IsTrackingPointer, Is.False);
+            Assert.That(flow.Context.Phase,
+                Is.EqualTo(BattlePhase.ActiveInput));
+        }
+
+        private static BoardState CreateRockCascadeFixture(
+            out BoardSwap swap,
+            out long firstCollateralRockId,
+            out long secondCollateralRockId,
+            out long fallingRockId)
+        {
+            var board = new BoardState();
+            long runtimeId = 1;
+            for (int x = 0; x < BoardConstants.Width; x++)
+            {
+                for (int y = 0; y < BoardConstants.Height; y++)
+                {
+                    board.Set(
+                        new BoardPosition(x, y),
+                        new BoardBlock(
+                            runtimeId++,
+                            BoardBlockType.Normal,
+                            (ElementType)((x + y) % 5)));
+                }
+            }
+
+            SetNormal(board, 0, 0, ElementType.Grass);
+            SetNormal(board, 1, 0, ElementType.Grass);
+            SetNormal(board, 2, 0, ElementType.Dark);
+            SetNormal(board, 3, 0, ElementType.Grass);
+            firstCollateralRockId = 101;
+            secondCollateralRockId = 102;
+            fallingRockId = 103;
+            board.Set(
+                new BoardPosition(0, 1),
+                new BoardBlock(
+                    firstCollateralRockId,
+                    BoardBlockType.Rock,
+                    null));
+            board.Set(
+                new BoardPosition(1, 1),
+                new BoardBlock(
+                    secondCollateralRockId,
+                    BoardBlockType.Rock,
+                    null));
+            board.Set(
+                new BoardPosition(0, 2),
+                new BoardBlock(
+                    fallingRockId,
+                    BoardBlockType.Rock,
+                    null));
+            swap = new BoardSwap(
+                new BoardPosition(2, 0),
+                new BoardPosition(3, 0));
+            Assert.That(BoardMatchFinder.FindMatches(board), Is.Empty);
+            Assert.That(new BoardMoveAnalyzer().IsValidSwap(
+                board,
+                swap.First,
+                swap.Second), Is.True);
+            return board;
+        }
+
+        private static void SetNormal(
+            BoardState board,
+            int x,
+            int y,
+            ElementType element)
+        {
+            var position = new BoardPosition(x, y);
+            board.Set(
+                position,
+                new BoardBlock(
+                    board.Get(position).RuntimeId,
+                    BoardBlockType.Normal,
+                    element));
+        }
+
+        private static int CountRocks(BoardState board)
+        {
+            int count = 0;
+            for (int index = 0; index < BoardConstants.CellCount; index++)
+            {
+                if (board.Get(BoardPosition.FromIndex(index))?.BlockType
+                    == BoardBlockType.Rock)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         private void InstallTestBootstrapper()

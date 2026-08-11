@@ -361,7 +361,7 @@ namespace ValorChronicle.Tests.EditMode.Board
         {
             BoardState board = CreateFullBoard();
             var rockPosition = new BoardPosition(3, 4);
-            var rock = new BoardBlock(1000, BoardBlockType.Rock, ElementType.Dark);
+            var rock = new BoardBlock(1000, BoardBlockType.Rock, null);
             board.Set(rockPosition, rock);
 
             BoardCollapseResult result = BoardCollapseResolver.Resolve(
@@ -372,7 +372,7 @@ namespace ValorChronicle.Tests.EditMode.Board
             Assert.That(movedRock, Is.SameAs(rock));
             Assert.That(movedRock.RuntimeId, Is.EqualTo(1000));
             Assert.That(movedRock.BlockType, Is.EqualTo(BoardBlockType.Rock));
-            Assert.That(movedRock.Element, Is.EqualTo(ElementType.Dark));
+            Assert.That(movedRock.Element, Is.Null);
         }
 
         [Test]

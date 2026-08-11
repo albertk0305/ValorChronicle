@@ -114,7 +114,9 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     randomSource);
                 battleFlowController.Initialize(
                     CombatComposition.FlowSetup,
-                    CombatComposition.CreateBridge);
+                    coordinator => CombatComposition.CreateBridge(
+                        coordinator,
+                        battleFlowController.BoardMutationSink));
                 HasInitializedFlow = true;
             }
             catch (Exception exception)

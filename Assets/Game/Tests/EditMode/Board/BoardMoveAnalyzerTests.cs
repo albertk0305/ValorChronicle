@@ -178,7 +178,14 @@ namespace ValorChronicle.Tests.EditMode.Board
         {
             var board = new BoardState();
             SetNormal(board, 2, 2, ElementType.Fire);
-            SetBlock(board, 3, 2, blockType, ElementType.Water);
+            SetBlock(
+                board,
+                3,
+                2,
+                blockType,
+                blockType == BoardBlockType.Rock
+                    ? (ElementType?)null
+                    : ElementType.Water);
 
             AssertInvalidSwap(board, 2, 2, 3, 2);
         }

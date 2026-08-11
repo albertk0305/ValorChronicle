@@ -34,6 +34,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
         public BattleFlowCoordinator Coordinator => coordinator;
         public BattleContext Context => coordinator?.Context;
         public BattleFlowCombatBridge CombatBridge => combatBridge;
+        public IBattleBoardMutationSink BoardMutationSink => boardController;
         public bool RequiresCombatBridge => requireCombatBridge;
 
         private void OnEnable()

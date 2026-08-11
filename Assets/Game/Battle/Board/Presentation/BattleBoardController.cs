@@ -7,7 +7,8 @@ using ValorChronicle.Core.Random;
 
 namespace ValorChronicle.Battle.Board.Presentation
 {
-    public sealed class BattleBoardController : MonoBehaviour
+    public sealed class BattleBoardController : MonoBehaviour,
+        IBattleBoardMutationSink
     {
         [SerializeField]
         private BattleBoardView boardView = null;
@@ -53,6 +54,7 @@ namespace ValorChronicle.Battle.Board.Presentation
         private BoardGenerator boardGenerator;
         private BoardRefiller boardRefiller;
         private BoardShuffler boardShuffler;
+        private BoardRockMutationResolver rockMutationResolver;
         private BoardSwapActionResolver swapActionResolver;
         private BoardActionPresentationTimings actionTimings;
         private IEnumerator activePresentationSequence;
@@ -64,6 +66,11 @@ namespace ValorChronicle.Battle.Board.Presentation
 
         public BoardState CurrentBoard { get; private set; }
         public BoardSwapActionResult LastSwapActionResult { get; private set; }
+        public BoardRockMutationResult LastRockMutationResult
+        {
+            get;
+            private set;
+        }
         public bool IsInitialized => initialized;
         public bool IsBoardReady { get; private set; }
         public bool HasInitialBoardReady => initialBoardReadyPublished;
@@ -81,6 +88,7 @@ namespace ValorChronicle.Battle.Board.Presentation
             && boardGenerator != null
             && boardRefiller != null
             && boardShuffler != null
+            && rockMutationResolver != null
             && swapActionResolver != null
             && actionTimings != null;
 
@@ -180,6 +188,11 @@ namespace ValorChronicle.Battle.Board.Presentation
                 moveAnalyzer,
                 cascadeResolver,
                 shuffler);
+            var rockResolver = new BoardRockMutationResolver(
+                sharedRandomSource,
+                sharedIdGenerator,
+                moveAnalyzer,
+                shuffler);
             BoardActionPresentationTimings timings = CreateActionTimings();
 
             BoardState generatedBoard = generator.Generate();
@@ -205,6 +218,7 @@ namespace ValorChronicle.Battle.Board.Presentation
             boardGenerator = generator;
             boardRefiller = refiller;
             boardShuffler = shuffler;
+            rockMutationResolver = rockResolver;
             swapActionResolver = actionResolver;
             actionTimings = timings;
             initialized = true;
@@ -282,6 +296,121 @@ namespace ValorChronicle.Battle.Board.Presentation
             BoardPosition second)
         {
             return TryExecuteSwap(new BoardSwap(first, second));
+        }
+
+        public bool TryExecuteMutation(
+            BattleBoardMutationCommand command,
+            Action<BattleBoardMutationCompletion> completion)
+        {
+            if (command == null)
+            {
+                throw new ArgumentNullException(nameof(command));
+            }
+
+            if (completion == null)
+            {
+                throw new ArgumentNullException(nameof(completion));
+            }
+
+            if (!initialized
+                || !IsBoardReady
+                || isActionInProgress
+                || boardView == null
+                || boardView.IsAnimating
+                || rockMutationResolver == null)
+            {
+                return false;
+            }
+
+            if (command.Kind != BattleBoardMutationKind.CreateRock)
+            {
+                throw new NotSupportedException(
+                    $"Unsupported Board mutation: {command.Kind}.");
+            }
+
+            BoardRockMutationResult result;
+            try
+            {
+                result = rockMutationResolver.Resolve(
+                    CurrentBoard,
+                    command.RequestedCount,
+                    command.MaximumCount);
+            }
+            catch (Exception exception)
+            {
+                GameLogger.Exception(exception, this);
+                GameLogger.Error(
+                    "[BattleBoard] Rock mutation resolution failed.",
+                    this);
+                completion(new BattleBoardMutationCompletion(
+                    command,
+                    result: null,
+                    status: BattleBoardMutationCompletionStatus.Failed,
+                    failure: exception));
+                return true;
+            }
+
+            LastRockMutationResult = result;
+            if (!result.Succeeded)
+            {
+                GameLogger.Error(
+                    $"[BattleBoard] Rock mutation failed. "
+                        + $"Failure={result.Failure}.",
+                    this);
+                completion(new BattleBoardMutationCompletion(
+                    command,
+                    result,
+                    BattleBoardMutationCompletionStatus.Failed));
+                return true;
+            }
+
+            BoardState beforeBoard = CurrentBoard;
+            CurrentBoard = result.Board;
+            IsBoardReady = false;
+            isActionInProgress = true;
+            Exception presentationFailure = null;
+            try
+            {
+                boardView.Render(CurrentBoard);
+            }
+            catch (Exception exception)
+            {
+                presentationFailure = exception;
+                GameLogger.Exception(exception, this);
+                GameLogger.Error(
+                    "[BattleBoard] Rock mutation presentation failed.",
+                    this);
+            }
+            finally
+            {
+                isActionInProgress = false;
+                UpdateReadyStateAfterPresentation(
+                    "The Rock mutation View does not match CurrentBoard.");
+            }
+
+            if (presentationFailure != null || !IsBoardReady)
+            {
+                completion(new BattleBoardMutationCompletion(
+                    command,
+                    result,
+                    BattleBoardMutationCompletionStatus.Failed,
+                    presentationFailure
+                        ?? new InvalidOperationException(
+                            "Rock mutation presentation did not stabilize.")));
+                return true;
+            }
+
+            if (ReferenceEquals(beforeBoard, CurrentBoard))
+            {
+                throw new InvalidOperationException(
+                    "Board mutation must return an independent BoardState.");
+            }
+
+            completion(new BattleBoardMutationCompletion(
+                command,
+                result,
+                BattleBoardMutationCompletionStatus.Completed));
+            return true;
         }
 
         private IEnumerator RenderInitialBoard(

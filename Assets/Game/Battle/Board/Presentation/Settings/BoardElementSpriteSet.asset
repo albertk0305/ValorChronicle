@@ -17,3 +17,4 @@ MonoBehaviour:
   grass: {fileID: 21300000, guid: 6e251e9a1d12b944692cb6e221fc0ec9, type: 3}
   light: {fileID: 21300000, guid: 7399089b60104544aa16a77c1749d61c, type: 3}
   dark: {fileID: 21300000, guid: 326091e1f96a7d5439512754c1ab4f0c, type: 3}
+  rock: {fileID: 21300000, guid: 82b225f34a47a10448fcde8665d275aa, type: 3}

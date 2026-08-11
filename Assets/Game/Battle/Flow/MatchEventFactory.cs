@@ -21,13 +21,14 @@ namespace ValorChronicle.Battle.Flow
                 stepIndex++)
             {
                 BoardCascadeStep step = cascade.Steps[stepIndex];
-                int matchedBlockCount = 0;
+                BoardCascadeRemovalValidator.Validate(
+                    step.Matches,
+                    step.Collapse.Removals);
                 for (int matchIndex = 0;
                     matchIndex < step.Matches.Count;
                     matchIndex++)
                 {
                     BoardMatch match = step.Matches[matchIndex];
-                    matchedBlockCount += match.BlockCount;
                     events.Add(new MatchEvent(
                         sequenceIndex++,
                         stepIndex,
@@ -37,14 +38,6 @@ namespace ValorChronicle.Battle.Flow
                         match.Origin,
                         match.Positions,
                         match.BlockCount));
-                }
-
-                if (matchedBlockCount != step.RemovedBlockCount)
-                {
-                    throw new InvalidOperationException(
-                        $"CascadeStep[{stepIndex}] match block count " +
-                        $"{matchedBlockCount} does not match removed block " +
-                        $"count {step.RemovedBlockCount}.");
                 }
             }
 

@@ -209,7 +209,7 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             BoardCascadeStep step = CreateSingleMatchStep(out BoardState board);
             step.Board.Set(
                 new BoardPosition(5, 4),
-                new BoardBlock(999, BoardBlockType.Rock, null));
+                new BoardBlock(999, BoardBlockType.Special, null));
 
             Assert.Throws<NotSupportedException>(() =>
                 planner.Build(board, step));

@@ -126,9 +126,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
                 () => MatchEventFactory.Create(cascade));
 
             Assert.That(exception.Message,
-                Does.Contain("CascadeStep[0]"));
-            Assert.That(exception.Message,
-                Does.Contain("3").And.Contain("2"));
+                Does.Contain("Matched position"));
         }
 
         [Test]

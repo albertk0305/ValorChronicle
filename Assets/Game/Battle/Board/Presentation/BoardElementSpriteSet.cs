@@ -24,6 +24,40 @@ namespace ValorChronicle.Battle.Board.Presentation
         [SerializeField]
         private Sprite dark;
 
+        [SerializeField]
+        private Sprite rock;
+
+        public Sprite GetSprite(BoardBlock block)
+        {
+            if (block == null)
+            {
+                throw new ArgumentNullException(nameof(block));
+            }
+
+            if (block.BlockType == BoardBlockType.Normal
+                && block.Element.HasValue)
+            {
+                return GetSprite(block.Element.Value);
+            }
+
+            if (block.BlockType == BoardBlockType.Rock
+                && !block.Element.HasValue)
+            {
+                if (rock == null)
+                {
+                    throw new InvalidOperationException(
+                        "No board sprite is assigned for Rock.");
+                }
+
+                return rock;
+            }
+
+            throw new NotSupportedException(
+                $"Board block type {block.BlockType} with Element "
+                    + $"{block.Element?.ToString() ?? "<none>"} is not "
+                    + "supported by the sprite set.");
+        }
+
         public Sprite GetSprite(ElementType element)
         {
             Sprite sprite;
@@ -68,11 +102,29 @@ namespace ValorChronicle.Battle.Board.Presentation
             Sprite lightSprite,
             Sprite darkSprite)
         {
+            Configure(
+                fireSprite,
+                waterSprite,
+                grassSprite,
+                lightSprite,
+                darkSprite,
+                rockSprite: null);
+        }
+
+        public void Configure(
+            Sprite fireSprite,
+            Sprite waterSprite,
+            Sprite grassSprite,
+            Sprite lightSprite,
+            Sprite darkSprite,
+            Sprite rockSprite)
+        {
             fire = fireSprite;
             water = waterSprite;
             grass = grassSprite;
             light = lightSprite;
             dark = darkSprite;
+            rock = rockSprite;
         }
     }
 }
