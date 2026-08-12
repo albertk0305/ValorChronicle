@@ -118,8 +118,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 
             Assert.That(flowController.Context.CurrentTurn, Is.EqualTo(1));
             Assert.That(flowController.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
-            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+                Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(boardController.IsExternalInputEnabled, Is.True);
 
             PublishInitialBoardReady();
             Assert.That(flowController.Context.CurrentTurn, Is.EqualTo(1));
@@ -135,7 +135,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             ActivateFixture();
 
             Assert.That(flowController.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
             Assert.Throws<InvalidOperationException>(() =>
                 flowController.Initialize(new BattleFlowSetup(25)));
 
@@ -147,7 +147,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         }
 
         [Test]
-        public void ActiveInputDelegatesAndEnablesOnlyPuzzleInput()
+        public void PlayerInputAllowsActiveAndBoardInputTogether()
         {
             InitializeStarted(new[] { 3 });
 
@@ -157,55 +157,47 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.CanUseActive(0), Is.False);
             Assert.That(flowController.Context.ActiveAbilities[0]
                 .RemainingCooldown, Is.EqualTo(3));
-            Assert.That(boardController.IsExternalInputEnabled, Is.False);
-
-            Assert.That(flowController.CompleteActiveInput(), Is.True);
             Assert.That(flowController.Context.Phase,
-                Is.EqualTo(BattlePhase.PuzzleInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(flowController.CanUseActive(0), Is.False);
             Assert.That(boardController.IsExternalInputEnabled, Is.True);
             Assert.That(boardController.CanAcceptBoardInput, Is.False);
-            Assert.That(flowController.CompleteActiveInput(), Is.False);
         }
 
         [Test]
-        public void EmptyActiveListAndNoBoardEventsRemainInPuzzleInput()
+        public void EmptyActiveListStillEntersPlayerInput()
         {
             InitializeStarted(Array.Empty<int>());
 
             Assert.That(flowController.Context.ActiveAbilities, Is.Empty);
-            Assert.That(flowController.CompleteActiveInput(), Is.True);
             Assert.That(flowController.Context.Phase,
-                Is.EqualTo(BattlePhase.PuzzleInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(flowController.Context.CurrentTurn, Is.EqualTo(1));
             Assert.That(boardController.IsExternalInputEnabled, Is.True);
         }
 
         [Test]
-        public void BoardActionValidatesPhaseAndActionId()
+        public void NoMatchBoardActionStaysInPlayerInputAndValidatesActionId()
         {
             InitializeStarted(Array.Empty<int>());
             BoardSwapActionResult result = CreateNoMatchResult();
-            BoardActionExecution invalidPhase = CreateExecution(1, result);
-            LogAssert.Expect(
-                LogType.Error,
-                new Regex("Board action started in an invalid phase"));
 
             InvokePrivate(
                 flowController,
                 "HandleBoardActionStarted",
-                invalidPhase);
+                CreateExecution(1, result));
             Assert.That(flowController.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
 
-            flowController.CompleteActiveInput();
+            LogAssert.Expect(
+                LogType.Warning,
+                new Regex("Ignored duplicate or stale board action"));
             InvokePrivate(
                 flowController,
                 "HandleBoardActionStarted",
                 CreateExecution(2, result));
             Assert.That(flowController.Context.Phase,
-                Is.EqualTo(BattlePhase.BoardResolving));
-            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+                Is.EqualTo(BattlePhase.PlayerInput));
 
             LogAssert.Expect(
                 LogType.Warning,
@@ -214,19 +206,27 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 flowController,
                 "HandleBoardActionFinished",
                 CreateCompletion(
-                    1,
+                    2,
                     result,
                     BoardActionCompletionStatus.Completed));
             Assert.That(flowController.Context.Phase,
-                Is.EqualTo(BattlePhase.BoardResolving));
+                Is.EqualTo(BattlePhase.PlayerInput));
+
+            InvokePrivate(
+                flowController,
+                "HandleBoardActionFinished",
+                CreateCompletion(
+                    1,
+                    result,
+                    BoardActionCompletionStatus.Completed));
+            Assert.That(boardController.IsExternalInputEnabled, Is.True);
         }
 
         [Test]
-        public void NoMatchReturnsToPuzzleWithoutConsumingTurnOrActiveUse()
+        public void NoMatchKeepsPlayerInputAndPreservesAppliedActiveState()
         {
-            InitializeStarted(new[] { 4 });
+            InitializeStarted(new[] { 4, 5 });
             flowController.TryUseActive(0);
-            flowController.CompleteActiveInput();
             ActiveAbilityRuntimeState active =
                 flowController.Context.ActiveAbilities[0];
             BoardSwapActionResult result = CreateNoMatchResult();
@@ -234,20 +234,85 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             SendCompletedAction(1, result);
 
             Assert.That(flowController.Context.Phase,
-                Is.EqualTo(BattlePhase.PuzzleInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(flowController.Context.CurrentTurn, Is.EqualTo(1));
             Assert.That(active.RemainingCooldown, Is.EqualTo(4));
             Assert.That(active.UsedThisTurn, Is.True);
+            Assert.That(flowController.CanUseActive(1), Is.True);
+            Assert.That(flowController.TryUseActive(1), Is.True);
             Assert.That(flowController.Coordinator.PendingMatchEventCount,
                 Is.Zero);
             Assert.That(boardController.IsExternalInputEnabled, Is.True);
+        }
+
+        [Test]
+        public void NoMatchPresentationTemporarilyLocksActiveInput()
+        {
+            InitializeStarted(new[] { 4 });
+            ActiveAbilityRuntimeState active =
+                flowController.Context.ActiveAbilities[0];
+            BoardSwapActionResult result = CreateNoMatchResult();
+            Assert.That(flowController.CanUseActive(0), Is.True);
+
+            SetField(boardController, "isActionInProgress", true);
+            InvokePrivate(
+                flowController,
+                "HandleBoardActionStarted",
+                CreateExecution(1, result));
+
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(flowController.CanUseActive(0), Is.False);
+            Assert.That(flowController.TryUseActive(0), Is.False);
+            Assert.That(active.RemainingCooldown, Is.Zero);
+            Assert.That(active.UsedThisTurn, Is.False);
+            Assert.That(boardController.CanAcceptBoardInput, Is.False);
+
+            SetField(boardController, "isActionInProgress", false);
+            InvokePrivate(
+                flowController,
+                "HandleBoardActionFinished",
+                CreateCompletion(
+                    1,
+                    result,
+                    BoardActionCompletionStatus.Completed));
+
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(flowController.CanUseActive(0), Is.True);
+            Assert.That(flowController.TryUseActive(0), Is.True);
+            Assert.That(active.RemainingCooldown, Is.EqualTo(4));
+            Assert.That(active.UsedThisTurn, Is.True);
+            Assert.That(boardController.IsExternalInputEnabled, Is.True);
+        }
+
+        [Test]
+        public void ResolvedBoardActionLeavesPlayerInputWhenExecutionStarts()
+        {
+            InitializeStarted(new[] { 3 });
+            Assert.That(flowController.TryUseActive(0), Is.True);
+            BoardSwapActionResult result =
+                CreateResolvedResult(CreateSingleMatchCascade());
+
+            InvokePrivate(
+                flowController,
+                "HandleBoardActionStarted",
+                CreateExecution(1, result));
+
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.BoardResolving));
+            Assert.That(flowController.CanUseActive(0), Is.False);
+            Assert.That(flowController.Context.ActiveAbilities[0]
+                .RemainingCooldown, Is.EqualTo(3));
+            Assert.That(flowController.Context.ActiveAbilities[0]
+                .UsedThisTurn, Is.True);
+            Assert.That(boardController.IsExternalInputEnabled, Is.False);
         }
 
         [UnityTest]
         public IEnumerator ResolvedActionExecutesMatchesInOrderThenBossAndNextTurn()
         {
             InitializeStarted(Array.Empty<int>());
-            flowController.CompleteActiveInput();
             BoardCascadeResult cascade = CreateTwoMatchCascade();
             BoardSwapActionResult result = CreateResolvedResult(cascade);
             var executed = new List<MatchEvent>();
@@ -281,13 +346,13 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             yield return WaitUntil(
                 () => flowController.Context.CurrentTurn == 2
                     && flowController.Context.Phase
-                        == BattlePhase.ActiveInput,
+                        == BattlePhase.PlayerInput,
                 "The placeholder Boss action did not complete the turn.");
 
             Assert.That(flowController.Context.CurrentTurn, Is.EqualTo(2));
             Assert.That(flowController.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
-            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+                Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(boardController.IsExternalInputEnabled, Is.True);
         }
 
         [UnityTest]
@@ -323,7 +388,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 bossProvider,
                 actionIds);
             flowController.AttachCombatBridge(bridge);
-            flowController.CompleteActiveInput();
 
             SendCompletedAction(
                 1,
@@ -332,7 +396,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             yield return WaitUntil(
                 () => flowController.Context.CurrentTurn == 2
                     && flowController.Context.Phase
-                        == BattlePhase.ActiveInput,
+                        == BattlePhase.PlayerInput,
                 "The combat bridge did not complete the integrated turn.");
 
             Assert.That(matchProvider.CallCount, Is.EqualTo(1));
@@ -361,7 +425,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             long actionId = 1;
             for (int turn = 1; turn <= 25; turn++)
             {
-                Assert.That(flowController.CompleteActiveInput(), Is.True);
                 SendCompletedAction(
                     actionId++,
                     CreateResolvedResult(CreateSingleMatchCascade()));
@@ -370,7 +433,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     () => flowController.Context.Result
                             != BattleResultKind.None
                         || flowController.Context.Phase
-                            == BattlePhase.ActiveInput,
+                            == BattlePhase.PlayerInput,
                     $"Turn {turn} did not finish within the frame limit.");
 
                 if (turn < 25)
@@ -397,7 +460,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         public IEnumerator BossDefeatDuringFirstMatchStopsRemainingMatchesAndBoss()
         {
             InitializeStarted(Array.Empty<int>());
-            flowController.CompleteActiveInput();
             int matchCount = 0;
             int bossCount = 0;
             int resultCount = 0;
@@ -465,7 +527,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         public void FailedBoardCompletionAbortsAndPreservesFailureLog()
         {
             InitializeStarted(Array.Empty<int>());
-            flowController.CompleteActiveInput();
             BoardSwapActionResult result = CreateNoMatchResult();
             InvokePrivate(
                 flowController,
@@ -500,7 +561,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         public void InterruptedBoardCompletionAbortsDuringBattle()
         {
             InitializeStarted(Array.Empty<int>());
-            flowController.CompleteActiveInput();
             BoardSwapActionResult result = CreateNoMatchResult();
             InvokePrivate(
                 flowController,
@@ -527,7 +587,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         public void InterruptedAndOnDisableAbortExactlyOnceAndUnsubscribe()
         {
             InitializeStarted(Array.Empty<int>());
-            flowController.CompleteActiveInput();
             BoardSwapActionResult result = CreateNoMatchResult();
             InvokePrivate(
                 flowController,
@@ -562,7 +621,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Is.EqualTo(BattlePhase.NotStarted));
             ActivateFixture();
             Assert.That(flowController.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
         }
 
         private void InitializeFlow(BattleFlowSetup setup)

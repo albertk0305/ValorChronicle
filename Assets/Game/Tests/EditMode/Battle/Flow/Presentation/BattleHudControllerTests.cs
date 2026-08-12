@@ -70,7 +70,16 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 "battleFlowController",
                 flowController);
             SetField(hudController, "turnText", CreateText("TurnText"));
+            SetField(hudController, "scoreText", CreateText("ScoreText"));
             SetField(hudController, "comboText", CreateText("ComboText"));
+            var resultOverlay = new GameObject(
+                "BattleResultOverlay",
+                typeof(RectTransform));
+            resultOverlay.transform.SetParent(root.transform, false);
+            TMP_Text resultText = CreateText("ResultText");
+            resultText.transform.SetParent(resultOverlay.transform, false);
+            SetField(hudController, "resultOverlay", resultOverlay);
+            SetField(hudController, "resultText", resultText);
             SetField(hudController, "bossHpText", CreateText("BossHpText"));
             SetField(hudController, "partyHpText", CreateText("PartyHpText"));
             SetField(
@@ -182,6 +191,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 hudController,
                 "OnEnable"));
             Assert.That(hudController.IsRuntimeConnected, Is.False);
+            Assert.That(hudController.ResultOverlay.activeSelf, Is.False);
+            Assert.That(hudController.ResultText.text, Is.Empty);
+            Assert.That(hudController.ScoreText.text, Is.Empty);
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
 
             InitializeCombat();
@@ -191,8 +203,77 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(hudController.Coordinator,
                 Is.SameAs(flowController.Coordinator));
             Assert.That(hudController.CombatBridge, Is.SameAs(bridge));
+            Assert.That(hudController.ResultOverlay.activeSelf, Is.False);
+            Assert.That(hudController.ResultText.text, Is.Empty);
+            Assert.That(hudController.ScoreText.text, Is.EqualTo("Score --"));
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
             Assert.That(emptySlot.ActiveButton.interactable, Is.False);
+        }
+
+        [TestCase(BattleResultKind.Victory, "Victory")]
+        [TestCase(BattleResultKind.Defeat, "Defeat")]
+        [TestCase(
+            BattleResultKind.TurnLimitReached,
+            "Turn Limit Reached")]
+        [TestCase(BattleResultKind.Aborted, "Battle Aborted")]
+        public void ResultOverlayUsesRuntimeResult(
+            BattleResultKind result,
+            string expectedText)
+        {
+            InvokePrivate(hudController, "OnEnable");
+            InitializeCombat(turnLimit: 1);
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+            Assert.That(hudController.ResultOverlay.activeSelf, Is.False);
+
+            ReachResult(result);
+
+            Assert.That(flowController.Context.Result, Is.EqualTo(result));
+            Assert.That(hudController.ResultOverlay.activeSelf, Is.True);
+            Assert.That(hudController.ResultText.text,
+                Is.EqualTo(expectedText));
+            Assert.That(hudController.ScoreText.text, Is.EqualTo("Score --"));
+            Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
+            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+
+            InvokePrivate(hudController, "OnDisable");
+            InvokePrivate(hudController, "OnEnable");
+            Assert.That(hudController.ResultOverlay.activeSelf, Is.True);
+            Assert.That(hudController.ResultText.text,
+                Is.EqualTo(expectedText));
+            AssertSingleHudSubscription(flowController.Coordinator);
+        }
+
+        [Test]
+        public void VictoryHidesIntentAndPendingQueueWithoutHudMutation()
+        {
+            InvokePrivate(hudController, "OnEnable");
+            BattleSceneCombatComposition composition =
+                CreateProductionComposition();
+            SetProperty(combatBootstrap, "CombatComposition", composition);
+            flowController.Initialize(
+                composition.FlowSetup,
+                coordinator => composition.CreateBridge(coordinator));
+            bridge = composition.Bridge;
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+            Assert.That(bossIntentSlots[0].Root.activeSelf, Is.True);
+            EnterMatchResolving(3);
+            Assert.That(matchEventSlots[0].Root.activeSelf, Is.True);
+
+            IReadOnlyList<MatchEvent> pendingBefore =
+                flowController.Coordinator.GetPendingMatchEvents();
+            Assert.That(flowController.Coordinator.NotifyBossDefeated(),
+                Is.True);
+
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Victory));
+            Assert.That(bossIntentSlots[0].Root.activeSelf, Is.False);
+            AssertAllMatchSlotsHidden();
+            Assert.That(flowController.Coordinator.PendingMatchEventCount,
+                Is.Zero);
+            Assert.That(pendingBefore, Has.Count.EqualTo(3));
+            Assert.That(hudController.ResultOverlay.activeSelf, Is.True);
         }
 
         [Test]
@@ -537,7 +618,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Is.EqualTo(MareaBluefangRules.ActiveCooldownTurns.ToString()));
             Assert.That(occupiedSlot.CharacterImage.color, Is.EqualTo(baseColor));
 
-            CompleteActiveAndBoardWithoutMatches();
+            CompletePlayerInputAndEnterBossActing();
             Assert.That(bridge.ResolveBossAction(1), Is.True);
 
             Assert.That(occupiedSlot.CooldownText.text,
@@ -559,7 +640,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 index < MareaBluefangRules.ActiveCooldownTurns;
                 index++)
             {
-                CompleteActiveAndBoardWithoutMatches();
+                CompletePlayerInputAndEnterBossActing();
                 Assert.That(
                     bridge.ResolveBossAction(
                         flowController.Context.CurrentTurn),
@@ -583,17 +664,15 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             InvokePrivate(hudController, "Start");
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.True);
 
-            Assert.That(flowController.Coordinator.CompleteActiveInput(),
-                Is.True);
-            Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
-            Assert.That(flowController.Coordinator.NotifyBoardActionStarted(),
+            Assert.That(flowController.Coordinator.TryBeginBoardResolution(),
                 Is.True);
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
             Assert.That(
                 flowController.Coordinator.NotifyBoardActionResolved(
-                    null,
+                    CreateSingleFireCascade(),
                     true),
                 Is.True);
+            flowController.Coordinator.ExecuteRemainingMatchEvents();
             Assert.That(flowController.Context.Phase,
                 Is.EqualTo(BattlePhase.BossActing));
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
@@ -780,7 +859,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(bossStatusSlots[0].Root.activeSelf, Is.True);
             Assert.That(partyStatusSlots[0].Root.activeSelf, Is.True);
 
-            CompleteActiveAndBoardWithoutMatches();
+            CompletePlayerInputAndEnterBossActing();
             Assert.That(bridge.ResolveBossAction(1), Is.True);
 
             Assert.That(bridge.Boss.Effects.Count, Is.Zero);
@@ -809,7 +888,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 index < MareaBluefangRules.ActiveDurationTurns;
                 index++)
             {
-                CompleteActiveAndBoardWithoutMatches();
+                CompletePlayerInputAndEnterBossActing();
                 Assert.That(bridge.ResolveBossAction(
                     flowController.Context.CurrentTurn), Is.True);
             }
@@ -953,7 +1032,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(composition.KragmorRuntimeState.PatternIndex,
                 Is.EqualTo(patternBeforeRefresh));
 
-            CompleteActiveAndBoardWithoutMatches();
+            CompletePlayerInputAndEnterBossActing();
             Assert.That(bossIntentSlots[0].ActionImage.sprite,
                 Is.SameAs(fistIntentSprite));
             Assert.That(bridge.ResolveBossAction(1), Is.True);
@@ -1011,7 +1090,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             InvokePrivate(flowController, "OnEnable");
 
             Assert.That(flowController.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(flowController.Context.Result,
                 Is.EqualTo(BattleResultKind.None));
             InvokePrivate(flowController, "OnDisable");
@@ -1062,7 +1141,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 1,
                 1));
 
-            CompleteActiveAndBoardWithoutMatches();
+            CompletePlayerInputAndEnterBossActing();
             Assert.That(bridge.ResolveBossAction(1), Is.True);
 
             Assert.That(hudController.TurnText.text, Is.EqualTo(
@@ -1145,7 +1224,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Coordinator.StartBattle(), Is.True);
             InvokePrivate(hudController, "Start");
 
-            CompleteActiveAndBoardWithoutMatches();
+            CompletePlayerInputAndEnterBossActing();
             Assert.That(bridge.ResolveBossAction(1), Is.True);
             long damagedHp = bridge.Party.CurrentHp;
             Assert.That(damagedHp, Is.LessThan(bridge.Party.MaxHp));
@@ -1179,7 +1258,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 1,
                 3,
                 1));
-            Assert.That(flowController.Coordinator.CompleteActiveInput(),
+            Assert.That(flowController.Coordinator.TryBeginBoardResolution(),
                 Is.True);
 
             Assert.That(hudController.PartyShieldImage.gameObject.activeSelf,
@@ -1202,7 +1281,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 1,
                 3,
                 2));
-            Assert.That(flowController.Coordinator.NotifyBoardActionStarted(),
+            Assert.That(flowController.Coordinator.TryBeginBoardResolution(),
                 Is.True);
 
             Assert.That(
@@ -1237,7 +1316,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 1,
                 3,
                 1));
-            CompleteActiveAndBoardWithoutMatches();
+            CompletePlayerInputAndEnterBossActing();
 
             Assert.That(bridge.ResolveBossAction(1), Is.True);
             Assert.That(bridge.Party.Shields.TotalShield, Is.Zero);
@@ -1418,9 +1497,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 positions[index] = new BoardPosition(index, 0);
             }
 
-            Assert.That(flowController.Coordinator.CompleteActiveInput(),
-                Is.True);
-            Assert.That(flowController.Coordinator.NotifyBoardActionStarted(),
+            Assert.That(flowController.Coordinator.TryBeginBoardResolution(),
                 Is.True);
             Assert.That(
                 flowController.Coordinator.NotifyBoardActionResolved(
@@ -1481,9 +1558,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 };
             }
 
-            Assert.That(flowController.Coordinator.CompleteActiveInput(),
-                Is.True);
-            Assert.That(flowController.Coordinator.NotifyBoardActionStarted(),
+            Assert.That(flowController.Coordinator.TryBeginBoardResolution(),
                 Is.True);
             Assert.That(
                 flowController.Coordinator.NotifyBoardActionResolved(
@@ -1492,6 +1567,36 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Is.True);
             Assert.That(flowController.Context.Phase,
                 Is.EqualTo(BattlePhase.MatchEventResolving));
+        }
+
+        private void ReachResult(BattleResultKind result)
+        {
+            switch (result)
+            {
+                case BattleResultKind.Victory:
+                    Assert.That(
+                        flowController.Coordinator.NotifyBossDefeated(),
+                        Is.True);
+                    break;
+                case BattleResultKind.Defeat:
+                    Assert.That(
+                        flowController.Coordinator
+                            .NotifyPartyIncapacitated(),
+                        Is.True);
+                    break;
+                case BattleResultKind.TurnLimitReached:
+                    CompletePlayerInputAndEnterBossActing();
+                    Assert.That(
+                        flowController.Coordinator.CompleteBossAction(),
+                        Is.True);
+                    break;
+                case BattleResultKind.Aborted:
+                    Assert.That(flowController.Coordinator.AbortBattle(),
+                        Is.True);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(result));
+            }
         }
 
         private void AssertMatchSlot(int index, MatchEvent matchEvent)
@@ -1514,19 +1619,31 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             }
         }
 
-        private void CompleteActiveAndBoardWithoutMatches()
+        private void CompletePlayerInputAndEnterBossActing()
         {
-            Assert.That(flowController.Coordinator.CompleteActiveInput(),
-                Is.True);
-            Assert.That(flowController.Coordinator.NotifyBoardActionStarted(),
+            Assert.That(flowController.Coordinator.TryBeginBoardResolution(),
                 Is.True);
             Assert.That(
                 flowController.Coordinator.NotifyBoardActionResolved(
-                    null,
+                    CreateSingleFireCascade(),
                     true),
                 Is.True);
+            flowController.Coordinator.ExecuteRemainingMatchEvents();
             Assert.That(flowController.Context.Phase,
                 Is.EqualTo(BattlePhase.BossActing));
+        }
+
+        private static BoardCascadeResult CreateSingleFireCascade()
+        {
+            return BattleFlowTestSupport.CreateCascade(
+                new[]
+                {
+                    BattleFlowTestSupport.Match(
+                        ElementType.Fire,
+                        new BoardPosition(0, 0),
+                        new BoardPosition(1, 0),
+                        new BoardPosition(2, 0))
+                });
         }
 
         private static void AssertHp(

@@ -116,12 +116,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             battle.Party.Shields.Add(shield);
             battle.Coordinator.StartBattle();
 
-            EnterBossActingFromActiveInput(battle.Coordinator);
+            EnterBossActingFromPlayerInput(battle.Coordinator);
             battle.Bridge.ResolveBossAction(1);
             Assert.That(battle.Party.Shields.TotalShield, Is.EqualTo(15));
             Assert.That(shield.RemainingTurns, Is.EqualTo(1));
 
-            EnterBossActingFromActiveInput(battle.Coordinator);
+            EnterBossActingFromPlayerInput(battle.Coordinator);
             battle.Bridge.ResolveBossAction(2);
             Assert.That(battle.Party.CurrentHp,
                 Is.EqualTo(battle.Party.MaxHp));
@@ -258,7 +258,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                 2);
             defeatBattle.Party.Effects.ApplyEffect(defeatEffect);
             defeatBattle.Coordinator.StartBattle();
-            EnterBossActingFromActiveInput(defeatBattle.Coordinator);
+            EnterBossActingFromPlayerInput(defeatBattle.Coordinator);
 
             Assert.That(defeatBattle.Bridge.ResolveBossAction(1), Is.True);
             Assert.That(defeatBattle.Coordinator.Context.Result,
@@ -276,7 +276,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                 2);
             abortBattle.Character.Effects.ApplyEffect(abortEffect);
             abortBattle.Coordinator.StartBattle();
-            EnterBossActingFromActiveInput(abortBattle.Coordinator);
+            EnterBossActingFromPlayerInput(abortBattle.Coordinator);
             Assert.That(abortBattle.Coordinator.AbortBattle(), Is.True);
 
             Assert.That(abortBattle.Bridge.ResolveBossAction(1), Is.False);
@@ -301,7 +301,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
 
             for (int turn = 1; turn <= 25; turn++)
             {
-                EnterBossActingFromActiveInput(battle.Coordinator);
+                EnterBossActingFromPlayerInput(battle.Coordinator);
                 Assert.That(
                     battle.Bridge.ResolveBossAction(turn),
                     Is.True);
@@ -480,8 +480,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             BattleFlowCoordinator coordinator,
             BoardCascadeResult cascade)
         {
-            coordinator.CompleteActiveInput();
-            coordinator.NotifyBoardActionStarted();
+            coordinator.TryBeginBoardResolution();
             coordinator.NotifyBoardActionResolved(cascade, true);
         }
 
@@ -489,13 +488,15 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             BattleFlowCoordinator coordinator)
         {
             coordinator.StartBattle();
-            EnterBossActingFromActiveInput(coordinator);
+            EnterBossActingFromPlayerInput(coordinator);
         }
 
-        private static void EnterBossActingFromActiveInput(
+        private static void EnterBossActingFromPlayerInput(
             BattleFlowCoordinator coordinator)
         {
-            EnterMatchResolving(coordinator, null);
+            EnterMatchResolving(
+                coordinator,
+                BattleFlowTestSupport.CreateCascade());
             coordinator.TryBeginNextMatchEvent(out _);
         }
 

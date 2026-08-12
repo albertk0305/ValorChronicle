@@ -172,12 +172,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
 
             Assert.That(observedCounts, Is.EqualTo(new[] { 4, 4, 4, 4 }));
             Assert.That(coordinator.CompleteBossAction(), Is.True);
-            Assert.That(coordinator.CompleteActiveInput(), Is.True);
-            Assert.That(coordinator.NotifyBoardActionStarted(), Is.True);
-            Assert.That(
-                coordinator.NotifyBoardActionResolved(null, false),
-                Is.True);
-            Assert.That(coordinator.NotifyBoardActionStarted(), Is.True);
+            Assert.That(coordinator.TryBeginBoardResolution(), Is.True);
             Assert.That(
                 coordinator.NotifyBoardActionResolved(
                     SingleMatchCascade(ElementType.Fire, 3),
@@ -242,8 +237,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         {
             var coordinator = new BattleFlowCoordinator(turns);
             coordinator.StartBattle();
-            coordinator.CompleteActiveInput();
-            coordinator.NotifyBoardActionStarted();
+            coordinator.TryBeginBoardResolution();
             return coordinator;
         }
 

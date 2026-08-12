@@ -30,6 +30,12 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private TMP_Text scoreText = null;
 
         [SerializeField]
+        private GameObject resultOverlay = null;
+
+        [SerializeField]
+        private TMP_Text resultText = null;
+
+        [SerializeField]
         private BattleBossIntentSlotView[] bossIntentSlots =
             Array.Empty<BattleBossIntentSlotView>();
 
@@ -117,6 +123,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
             subscribedCoordinator != null && subscribedBridge != null;
         public TMP_Text TurnText => turnText;
         public TMP_Text ScoreText => scoreText;
+        public GameObject ResultOverlay => resultOverlay;
+        public TMP_Text ResultText => resultText;
         public Image BossImage => bossImage;
         public Sprite CoreCompressionBossSprite =>
             coreCompressionBossSprite;
@@ -202,6 +210,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
 
             RefreshTurnAndPhase();
+            RefreshScorePlaceholder();
             RefreshCombatState();
             RefreshBossIntent();
             RefreshCombo();
@@ -357,6 +366,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
             SetSlotsVisible(partyStatusSlots, false);
             ClearText(turnText);
             ClearText(scoreText);
+            SetActive(resultOverlay, false);
+            ClearText(resultText);
             ClearText(bossHpText);
             ClearText(comboText);
             ClearText(partyHpText);
@@ -638,6 +649,49 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void RefreshResult()
         {
+            BattleResultKind result = subscribedCoordinator?.Context.Result
+                ?? BattleResultKind.None;
+            if (result == BattleResultKind.None)
+            {
+                SetActive(resultOverlay, false);
+                ClearText(resultText);
+                return;
+            }
+
+            if (resultText != null)
+            {
+                resultText.text = GetResultDisplayText(result);
+            }
+
+            SetActive(resultOverlay, true);
+        }
+
+        private void RefreshScorePlaceholder()
+        {
+            if (scoreText != null)
+            {
+                scoreText.text = "Score --";
+            }
+        }
+
+        private static string GetResultDisplayText(BattleResultKind result)
+        {
+            switch (result)
+            {
+                case BattleResultKind.Victory:
+                    return "Victory";
+                case BattleResultKind.Defeat:
+                    return "Defeat";
+                case BattleResultKind.TurnLimitReached:
+                    return "Turn Limit Reached";
+                case BattleResultKind.Aborted:
+                    return "Battle Aborted";
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(result),
+                        result,
+                        "Unsupported terminal battle result.");
+            }
         }
 
         private void RefreshStatusSnapshot()
@@ -963,6 +1017,14 @@ namespace ValorChronicle.Battle.Flow.Presentation
             if (text != null)
             {
                 text.text = string.Empty;
+            }
+        }
+
+        private static void SetActive(GameObject target, bool active)
+        {
+            if (target != null)
+            {
+                target.SetActive(active);
             }
         }
 

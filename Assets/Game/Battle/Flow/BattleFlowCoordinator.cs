@@ -50,7 +50,7 @@ namespace ValorChronicle.Battle.Flow
         public bool CanUseActiveAbility(int activeAbilityIndex)
         {
             return Context.Result == BattleResultKind.None
-                && Context.Phase == BattlePhase.ActiveInput
+                && Context.Phase == BattlePhase.PlayerInput
                 && activeAbilityIndex >= 0
                 && activeAbilityIndex < Context.ActiveAbilities.Count
                 && Context.ActiveAbilities[activeAbilityIndex].CanUse;
@@ -72,7 +72,7 @@ namespace ValorChronicle.Battle.Flow
 
         public bool TryUseActiveAbility(int activeAbilityIndex)
         {
-            if (Context.Phase != BattlePhase.ActiveInput
+            if (Context.Phase != BattlePhase.PlayerInput
                 || Context.Result != BattleResultKind.None)
             {
                 return false;
@@ -95,20 +95,9 @@ namespace ValorChronicle.Battle.Flow
             return Context.ActiveAbilities[activeAbilityIndex].TryUse();
         }
 
-        public bool CompleteActiveInput()
+        public bool TryBeginBoardResolution()
         {
-            if (!CanExecuteInPhase(BattlePhase.ActiveInput))
-            {
-                return false;
-            }
-
-            TransitionTo(BattlePhase.PuzzleInput);
-            return true;
-        }
-
-        public bool NotifyBoardActionStarted()
-        {
-            if (!CanExecuteInPhase(BattlePhase.PuzzleInput))
+            if (!CanExecuteInPhase(BattlePhase.PlayerInput))
             {
                 return false;
             }
@@ -128,28 +117,26 @@ namespace ValorChronicle.Battle.Flow
 
             if (!consumesTurn)
             {
-                if (cascade != null)
-                {
-                    throw new ArgumentException(
-                        "A non-consuming board action cannot contain a " +
-                        "cascade result.",
-                        nameof(cascade));
-                }
+                throw new ArgumentException(
+                    "Only a confirmed consuming board action may resolve "
+                        + "the PlayerInput phase.",
+                    nameof(consumesTurn));
+            }
 
-                resolvedMatchEventCount = 0;
-                TransitionTo(BattlePhase.PuzzleInput);
-                return true;
+            if (cascade == null)
+            {
+                throw new ArgumentNullException(
+                    nameof(cascade),
+                    "A consuming board action must provide its resolved "
+                        + "cascade.");
             }
 
             matchEventQueue.Clear();
             resolvedMatchEventCount = 0;
-            if (cascade != null)
-            {
-                IReadOnlyList<MatchEvent> matchEvents =
-                    MatchEventFactory.Create(cascade);
-                matchEventQueue.EnqueueRange(matchEvents);
-                resolvedMatchEventCount = matchEvents.Count;
-            }
+            IReadOnlyList<MatchEvent> matchEvents =
+                MatchEventFactory.Create(cascade);
+            matchEventQueue.EnqueueRange(matchEvents);
+            resolvedMatchEventCount = matchEvents.Count;
 
             TransitionTo(BattlePhase.MatchEventResolving);
             return true;
@@ -307,7 +294,7 @@ namespace ValorChronicle.Battle.Flow
             TransitionTo(BattlePhase.TurnStart);
             if (Context.Result == BattleResultKind.None)
             {
-                TransitionTo(BattlePhase.ActiveInput);
+                TransitionTo(BattlePhase.PlayerInput);
             }
         }
 

@@ -31,7 +31,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
 
             Assert.That(coordinator.TryUseActiveAbility(0), Is.True);
             Assert.That(coordinator.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(coordinator.TryUseActiveAbility(1), Is.True);
         }
 
@@ -47,7 +47,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
             Assert.That(coordinator.TryUseActiveAbility(0), Is.True);
             Assert.That(coordinator.TryUseActiveAbility(1), Is.True);
 
-            BattleFlowTestSupport.CompleteTurnWithoutMatchEvents(coordinator);
+            BattleFlowTestSupport.CompleteTurnWithSingleMatch(coordinator);
 
             Assert.That(first.RemainingCooldown, Is.Zero);
             Assert.That(first.UsedThisTurn, Is.False);
@@ -80,7 +80,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
                         $"Turn {turn}");
                 }
 
-                BattleFlowTestSupport.CompleteTurnWithoutMatchEvents(
+                BattleFlowTestSupport.CompleteTurnWithSingleMatch(
                     coordinator);
             }
 
@@ -89,25 +89,37 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
         }
 
         [Test]
-        public void NonConsumingBoardAction_DoesNotRestoreUsedActive()
+        public void UsedActiveRemainsAppliedWhilePlayerInputContinues()
         {
             var coordinator = new BattleFlowCoordinator(25, new[] { 2 });
             coordinator.StartBattle();
             coordinator.TryUseActiveAbility(0);
-            coordinator.CompleteActiveInput();
-            coordinator.NotifyBoardActionStarted();
-
-            Assert.That(
-                coordinator.NotifyBoardActionResolved(null, false),
-                Is.True);
 
             ActiveAbilityRuntimeState state =
                 coordinator.Context.ActiveAbilities[0];
             Assert.That(coordinator.Context.Phase,
-                Is.EqualTo(BattlePhase.PuzzleInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(coordinator.Context.CurrentTurn, Is.EqualTo(1));
             Assert.That(state.RemainingCooldown, Is.EqualTo(2));
             Assert.That(state.UsedThisTurn, Is.True);
+        }
+
+        [Test]
+        public void PlayerInputAllowsMultipleDistinctActivesBeforeBoardAction()
+        {
+            var coordinator = new BattleFlowCoordinator(25, new[] { 2, 3 });
+            coordinator.StartBattle();
+
+            Assert.That(coordinator.TryUseActiveAbility(0), Is.True);
+            Assert.That(coordinator.Context.Phase,
+                Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(coordinator.TryUseActiveAbility(1), Is.True);
+            Assert.That(coordinator.Context.Phase,
+                Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(coordinator.Context.ActiveAbilities[0].UsedThisTurn,
+                Is.True);
+            Assert.That(coordinator.Context.ActiveAbilities[1].UsedThisTurn,
+                Is.True);
         }
     }
 }

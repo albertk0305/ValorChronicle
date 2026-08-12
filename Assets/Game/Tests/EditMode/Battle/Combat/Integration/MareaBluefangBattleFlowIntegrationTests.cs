@@ -370,7 +370,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(battle.Bridge.TryUseActive(0), Is.False);
             Assert.That(notificationCount, Is.EqualTo(1));
 
-            Assert.That(battle.Coordinator.CompleteActiveInput(), Is.True);
+            Assert.That(battle.Coordinator.TryBeginBoardResolution(), Is.True);
             Assert.That(battle.Bridge.CanUseActive(0), Is.False);
         }
 
@@ -425,7 +425,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(battle.Coordinator.Context.ActiveAbilities[0]
                 .RemainingCooldown, Is.EqualTo(8));
             Assert.That(battle.Coordinator.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(battle.Bridge.LastActiveExecutionResult
                 .ActionResults.Single(), Is.TypeOf<ApplyEffectActionResult>());
             long idsAfterFirstUse = battle.ActionIds.LastIssuedId;
@@ -449,7 +449,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(battle.Marea.Effects.GetActiveEffects()[0]
                 .RemainingTurns, Is.EqualTo(2));
             Assert.That(battle.Coordinator.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(battle.ActionIds.LastIssuedId, Is.EqualTo(3));
         }
 
@@ -479,8 +479,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         private static DamageActionResult ResolveOneMareaMatch(
             IntegratedBattle battle)
         {
-            Assert.That(battle.Coordinator.CompleteActiveInput(), Is.True);
-            Assert.That(battle.Coordinator.NotifyBoardActionStarted(), Is.True);
+            Assert.That(battle.Coordinator.TryBeginBoardResolution(), Is.True);
             Assert.That(battle.Coordinator.NotifyBoardActionResolved(
                 WaterMatch(3),
                 true), Is.True);
@@ -589,8 +588,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         {
             var coordinator = new BattleFlowCoordinator(25);
             coordinator.StartBattle();
-            coordinator.CompleteActiveInput();
-            coordinator.NotifyBoardActionStarted();
+            coordinator.TryBeginBoardResolution();
             coordinator.NotifyBoardActionResolved(cascade, true);
             return coordinator;
         }

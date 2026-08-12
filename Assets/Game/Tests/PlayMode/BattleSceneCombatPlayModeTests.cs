@@ -45,6 +45,7 @@ namespace ValorChronicle.Tests.PlayMode
             panel = UnityEngine.Object.FindFirstObjectByType<
                 BattleFlowDebugPanel>();
             Assert.That(panel, Is.Not.Null);
+            Assert.That(panel.enabled, Is.False);
             combatBootstrap = UnityEngine.Object.FindFirstObjectByType<
                 BattleSceneCombatBootstrap>();
             Assert.That(combatBootstrap, Is.Not.Null);
@@ -72,7 +73,7 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(boardView, Is.Not.Null);
             Assert.That(boardInput, Is.Not.Null);
             Assert.That(flow.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
         }
 
         [UnityTearDown]
@@ -117,8 +118,6 @@ namespace ValorChronicle.Tests.PlayMode
                 Is.SameAs(combat.BossIntentSource));
             Assert.That(combat.BossIntentSource.NextIntent.ActionKind,
                 Is.EqualTo(KragmorActionKind.ColossusIronFist));
-            Assert.That(panel.BossIntentText,
-                Does.Contain("ColossusIronFist"));
             Assert.That(combat.WaterElement.MaxAmount, Is.EqualTo(5));
             Assert.That(combat.WaterElement.CurrentAmount, Is.Zero);
             Assert.That(combat.MatchProviders.TryResolve(
@@ -170,7 +169,7 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(combatBootstrap.HasInitializedCombat, Is.True);
             Assert.That(flow.Context, Is.SameAs(context));
             Assert.That(flow.CombatBridge, Is.SameAs(bridge));
-            Assert.That(flow.Context.Phase, Is.EqualTo(BattlePhase.ActiveInput));
+            Assert.That(flow.Context.Phase, Is.EqualTo(BattlePhase.PlayerInput));
         }
 
         [UnityTest]
@@ -191,8 +190,8 @@ namespace ValorChronicle.Tests.PlayMode
                 Is.EqualTo(637));
             Assert.That(combat.KragmorRuntimeState.PatternIndex,
                 Is.EqualTo(1));
-            Assert.That(panel.BossIntentText,
-                Does.Contain("RockshardEruption"));
+            Assert.That(combat.KragmorRuntimeState.NextActionKind,
+                Is.EqualTo(KragmorActionKind.RockshardEruption));
             Assert.That(CountRocks(boardController.CurrentBoard), Is.Zero);
             RestorePartyHpForSnapshotTest();
 
@@ -217,8 +216,6 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(combat.KragmorRuntimeState.NextActionKind,
                 Is.EqualTo(KragmorActionKind.CoreCompression));
             AssertRockshardPresentation(expectedRockCount: 3);
-            Assert.That(panel.BossIntentText,
-                Does.Contain("CoreCompression"));
             RestorePartyHpForSnapshotTest();
 
             CombatActionExecutionResult fiveMatch =
@@ -244,9 +241,8 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(combat.KragmorRuntimeState.PatternIndex,
                 Is.EqualTo(3));
             AssertDefense(KragmorDefenseState.CoreCompression);
-            Assert.That(panel.BossIntentText, Is.EqualTo(
-                "Boss Intent: EarthCollapse | Direct: true | "
-                    + "Heavy: true | Coefficient: 2.40"));
+            Assert.That(combat.KragmorRuntimeState.NextActionKind,
+                Is.EqualTo(KragmorActionKind.EarthCollapse));
 
             SetBossHpForTerminalTest(1);
             int turnBeforeLethal = flow.Context.CurrentTurn;
@@ -278,8 +274,6 @@ namespace ValorChronicle.Tests.PlayMode
             boardView.Render(fixture);
             BlockView fallingView = boardView.ActiveViews[fallingRockId];
 
-            Assert.That(flow.CompleteActiveInput(), Is.True);
-            Assert.That(flow.Context.Phase, Is.EqualTo(BattlePhase.PuzzleInput));
             Assert.That(boardController.TryExecuteSwap(swap), Is.True);
 
             float deadline = Time.realtimeSinceStartup + 10f;
@@ -397,11 +391,8 @@ namespace ValorChronicle.Tests.PlayMode
             bool completeBossAction = true)
         {
             Assert.That(flow.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
-            Assert.That(flow.CompleteActiveInput(), Is.True);
-            Assert.That(flow.Context.Phase,
-                Is.EqualTo(BattlePhase.PuzzleInput));
-            Assert.That(flow.Coordinator.NotifyBoardActionStarted(), Is.True);
+                Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(flow.Coordinator.TryBeginBoardResolution(), Is.True);
             Assert.That(flow.Coordinator.NotifyBoardActionResolved(
                 CreateWaterCascade(blockCount),
                 consumesTurn: true), Is.True);
@@ -420,7 +411,7 @@ namespace ValorChronicle.Tests.PlayMode
                 Assert.That(combat.Bridge.ResolveBossAction(
                     flow.Context.CurrentTurn), Is.True);
                 Assert.That(flow.Context.Phase,
-                    Is.EqualTo(BattlePhase.ActiveInput));
+                    Is.EqualTo(BattlePhase.PlayerInput));
             }
 
             return result;
@@ -564,7 +555,7 @@ namespace ValorChronicle.Tests.PlayMode
             boardInput.OnBeginDrag(pointer);
             Assert.That(boardInput.IsTrackingPointer, Is.False);
             Assert.That(flow.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
         }
 
         private static BoardState CreateRockCascadeFixture(

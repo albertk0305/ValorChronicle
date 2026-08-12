@@ -308,6 +308,7 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
 
             Assert.That(controller.TryExecuteSwap(swap), Is.True);
             Assert.That(execution, Is.Not.Null);
+            Assert.That(controller.CanAcceptBoardInput, Is.False);
             yield return null;
 
             Assert.That(controller.LastSwapActionResult.Status,

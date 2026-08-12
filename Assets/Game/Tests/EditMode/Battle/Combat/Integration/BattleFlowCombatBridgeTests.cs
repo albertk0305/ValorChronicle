@@ -104,7 +104,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                 Is.EqualTo(new long[] { 9 }));
             Assert.That(actionIds.LastIssuedId, Is.EqualTo(9));
             Assert.That(coordinator.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(coordinator.Context.CurrentTurn, Is.EqualTo(2));
         }
 
@@ -352,8 +352,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
 
             for (int turn = 1; turn <= 25; turn++)
             {
-                coordinator.CompleteActiveInput();
-                coordinator.NotifyBoardActionStarted();
+                coordinator.TryBeginBoardResolution();
                 coordinator.NotifyBoardActionResolved(
                     SingleFireMatchCascade(),
                     true);
@@ -452,8 +451,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         {
             var coordinator = new BattleFlowCoordinator(turnLimit);
             coordinator.StartBattle();
-            coordinator.CompleteActiveInput();
-            coordinator.NotifyBoardActionStarted();
+            coordinator.TryBeginBoardResolution();
             coordinator.NotifyBoardActionResolved(cascade, true);
             return coordinator;
         }

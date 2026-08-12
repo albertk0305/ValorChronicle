@@ -78,34 +78,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             InvokePrivate(debugPanel, "RefreshState");
 
             Assert.That(debugPanel.StatusText, Is.EqualTo(
-                "Turn: 1 / 7\nPhase: ActiveInput\nResult: None\n"
+                "Turn: 1 / 7\nPhase: PlayerInput\nResult: None\n"
                     + "Boss Intent: Unavailable"));
-            Assert.That(
-                debugPanel.CompleteActivePhaseInteractable,
-                Is.True);
             Assert.That(debugPanel.EndBattleButtonsInteractable, Is.True);
             Assert.That(
                 GetField<Text>(debugPanel, "statusLabel").text,
                 Is.EqualTo(debugPanel.StatusText));
-            Assert.That(
-                GetField<Button>(
-                    debugPanel,
-                    "completeActivePhaseButton").interactable,
-                Is.True);
-
-            debugPanel.CompleteActivePhase();
-
-            Assert.That(flowController.Context.Phase,
-                Is.EqualTo(BattlePhase.PuzzleInput));
-            Assert.That(
-                debugPanel.CompleteActivePhaseInteractable,
-                Is.False);
-            Assert.That(debugPanel.EndBattleButtonsInteractable, Is.True);
-            Assert.That(
-                GetField<Button>(
-                    debugPanel,
-                    "completeActivePhaseButton").interactable,
-                Is.False);
             InvokePrivate(flowController, "OnDisable");
         }
 
@@ -122,9 +100,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Is.EqualTo(BattleResultKind.Victory));
             Assert.That(debugPanel.StatusText,
                 Does.Contain("Result: Victory"));
-            Assert.That(
-                debugPanel.CompleteActivePhaseInteractable,
-                Is.False);
             Assert.That(debugPanel.EndBattleButtonsInteractable, Is.False);
             InvokePrivate(flowController, "OnDisable");
         }
@@ -167,7 +142,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     "subscribedCoordinator"),
                 Is.SameAs(flowController.Coordinator));
             Assert.That(debugPanel.StatusText,
-                Does.Contain("Phase: ActiveInput"));
+                Does.Contain("Phase: PlayerInput"));
             Assert.That(debugPanel.BossIntentText,
                 Is.EqualTo("Boss Intent: Unavailable"));
             InvokePrivate(flowController, "OnDisable");

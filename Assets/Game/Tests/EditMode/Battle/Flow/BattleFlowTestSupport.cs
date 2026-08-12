@@ -49,22 +49,25 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
                 new List<BoardCascadeStep> { step });
         }
 
-        public static void CompleteTurnWithoutMatchEvents(
+        public static void CompleteTurnWithSingleMatch(
             ValorChronicle.Battle.Flow.BattleFlowCoordinator coordinator)
         {
-            if (!coordinator.CompleteActiveInput())
-            {
-                throw new InvalidOperationException(
-                    "Active input did not complete.");
-            }
-
-            if (!coordinator.NotifyBoardActionStarted())
+            if (!coordinator.TryBeginBoardResolution())
             {
                 throw new InvalidOperationException(
                     "Board action did not start.");
             }
 
-            if (!coordinator.NotifyBoardActionResolved(null, true))
+            BoardCascadeResult cascade = CreateCascade(
+                new[]
+                {
+                    Match(
+                        ElementType.Fire,
+                        new BoardPosition(0, 0),
+                        new BoardPosition(1, 0),
+                        new BoardPosition(2, 0))
+                });
+            if (!coordinator.NotifyBoardActionResolved(cascade, true))
             {
                 throw new InvalidOperationException(
                     "Board action did not resolve.");

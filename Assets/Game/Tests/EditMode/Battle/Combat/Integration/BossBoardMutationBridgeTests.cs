@@ -13,6 +13,7 @@ using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Tests.EditMode.Battle.Flow;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
 {
@@ -44,7 +45,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(battle.Bridge.ProcessedTurnEndCount, Is.EqualTo(1));
             Assert.That(battle.Coordinator.Context.CurrentTurn, Is.EqualTo(2));
             Assert.That(battle.Coordinator.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
         }
 
         [Test]
@@ -220,9 +221,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                 actionIds,
                 sink);
             coordinator.StartBattle();
-            coordinator.CompleteActiveInput();
-            coordinator.NotifyBoardActionStarted();
-            coordinator.NotifyBoardActionResolved(null, true);
+            coordinator.TryBeginBoardResolution();
+            coordinator.NotifyBoardActionResolved(
+                BattleFlowTestSupport.CreateCascade(),
+                true);
             coordinator.TryBeginNextMatchEvent(out _);
             return new Harness(
                 coordinator,

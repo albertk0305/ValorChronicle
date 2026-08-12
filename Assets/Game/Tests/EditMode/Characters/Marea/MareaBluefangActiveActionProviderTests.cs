@@ -13,6 +13,7 @@ using ValorChronicle.Battle.Flow;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Tests.EditMode.Battle.Flow;
 
 namespace ValorChronicle.Tests.EditMode.Characters.Marea
 {
@@ -284,10 +285,11 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
         private static void CompleteTurnWithoutMatchEvents(
             BattleFlowCoordinator coordinator)
         {
-            Assert.That(coordinator.CompleteActiveInput(), Is.True);
-            Assert.That(coordinator.NotifyBoardActionStarted(), Is.True);
+            Assert.That(coordinator.TryBeginBoardResolution(), Is.True);
             Assert.That(
-                coordinator.NotifyBoardActionResolved(null, true),
+                coordinator.NotifyBoardActionResolved(
+                    BattleFlowTestSupport.CreateCascade(),
+                    true),
                 Is.True);
             coordinator.ExecuteRemainingMatchEvents();
             Assert.That(coordinator.CompleteBossAction(), Is.True);

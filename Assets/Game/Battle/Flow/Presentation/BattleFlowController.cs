@@ -129,18 +129,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
         }
 
-        public bool CompleteActiveInput()
-        {
-            if (coordinator == null)
-            {
-                return false;
-            }
-
-            bool completed = coordinator.CompleteActiveInput();
-            UpdateBoardInputGate();
-            return completed;
-        }
-
         public void AttachCombatBridge(BattleFlowCombatBridge bridge)
         {
             if (bridge == null)
@@ -171,7 +159,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         public bool TryUseActive(int activeIndex)
         {
-            if (coordinator == null)
+            if (coordinator == null || waitingActionId != 0)
             {
                 return false;
             }
@@ -183,7 +171,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         public bool CanUseActive(int activeIndex)
         {
-            if (coordinator == null)
+            if (coordinator == null || waitingActionId != 0)
             {
                 return false;
             }
@@ -325,7 +313,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
-            if (coordinator.Context.Phase != BattlePhase.PuzzleInput)
+            if (coordinator.Context.Phase != BattlePhase.PlayerInput)
             {
                 GameLogger.Error(
                     $"[BattleFlow] Board action started in an invalid phase. " +
@@ -336,7 +324,15 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
-            if (!coordinator.NotifyBoardActionStarted())
+            waitingActionId = execution.ActionId;
+            lastAcceptedActionId = execution.ActionId;
+            if (!execution.Result.ConsumesTurn)
+            {
+                UpdateBoardInputGate();
+                return;
+            }
+
+            if (!coordinator.TryBeginBoardResolution())
             {
                 GameLogger.Error(
                     $"[BattleFlow] Coordinator rejected board action start. " +
@@ -346,8 +342,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
-            waitingActionId = execution.ActionId;
-            lastAcceptedActionId = execution.ActionId;
             UpdateBoardInputGate();
         }
 
@@ -410,10 +404,14 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
-            BoardCascadeResult cascade = result.ConsumesTurn
-                ? result.Cascade
-                : null;
-            if (result.ConsumesTurn && cascade == null)
+            if (!result.ConsumesTurn)
+            {
+                UpdateBoardInputGate();
+                return;
+            }
+
+            BoardCascadeResult cascade = result.Cascade;
+            if (cascade == null)
             {
                 GameLogger.Error(
                     $"[BattleFlow] Consuming board action has no cascade. " +
@@ -428,7 +426,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             {
                 resolved = coordinator.NotifyBoardActionResolved(
                     cascade,
-                    result.ConsumesTurn);
+                    consumesTurn: true);
             }
             catch (Exception exception)
             {
@@ -453,10 +451,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
 
             UpdateBoardInputGate();
-            if (result.ConsumesTurn)
-            {
-                StartFlowProgression();
-            }
+            StartFlowProgression();
         }
 
         private void HandleFailedBoardAction(
@@ -737,7 +732,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             bool enabled = connectionEnabled
                 && coordinator != null
                 && coordinator.Context.Result == BattleResultKind.None
-                && coordinator.Context.Phase == BattlePhase.PuzzleInput;
+                && coordinator.Context.Phase == BattlePhase.PlayerInput;
             SetBoardInputGate(enabled);
         }
 

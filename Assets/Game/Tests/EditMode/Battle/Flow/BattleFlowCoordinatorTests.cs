@@ -9,7 +9,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
     public sealed class BattleFlowCoordinatorTests
     {
         [Test]
-        public void StartBattle_ProcessesTurnStartAndEntersActiveInput()
+        public void StartBattle_ProcessesTurnStartAndEntersPlayerInput()
         {
             var phases = new List<BattlePhase>();
             var coordinator = new BattleFlowCoordinator(25);
@@ -21,11 +21,11 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
 
             Assert.That(coordinator.Context.CurrentTurn, Is.EqualTo(1));
             Assert.That(coordinator.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(phases, Is.EqualTo(new[]
             {
                 BattlePhase.TurnStart,
-                BattlePhase.ActiveInput
+                BattlePhase.PlayerInput
             }));
         }
 
@@ -37,26 +37,27 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
             coordinator.PhaseChanged += phases.Add;
             coordinator.StartBattle();
 
-            Assert.That(coordinator.CompleteActiveInput(), Is.True);
-            Assert.That(coordinator.NotifyBoardActionStarted(), Is.True);
+            Assert.That(coordinator.TryBeginBoardResolution(), Is.True);
             Assert.That(
-                coordinator.NotifyBoardActionResolved(null, true),
+                coordinator.NotifyBoardActionResolved(
+                    CreateTwoMatchCascade(),
+                    true),
                 Is.True);
-            Assert.That(coordinator.ExecuteRemainingMatchEvents(), Is.Zero);
+            Assert.That(coordinator.ExecuteRemainingMatchEvents(),
+                Is.EqualTo(2));
             Assert.That(coordinator.CompleteBossAction(), Is.True);
 
             Assert.That(phases, Is.EqualTo(new[]
             {
                 BattlePhase.TurnStart,
-                BattlePhase.ActiveInput,
-                BattlePhase.PuzzleInput,
+                BattlePhase.PlayerInput,
                 BattlePhase.BoardResolving,
                 BattlePhase.MatchEventResolving,
                 BattlePhase.BossActing,
                 BattlePhase.TurnEnd,
                 BattlePhase.ResultCheck,
                 BattlePhase.TurnStart,
-                BattlePhase.ActiveInput
+                BattlePhase.PlayerInput
             }));
         }
 
@@ -65,8 +66,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
         {
             var coordinator = new BattleFlowCoordinator(25, new[] { 1 });
 
-            Assert.That(coordinator.CompleteActiveInput(), Is.False);
-            Assert.That(coordinator.NotifyBoardActionStarted(), Is.False);
+            Assert.That(coordinator.TryBeginBoardResolution(), Is.False);
             Assert.That(
                 coordinator.NotifyBoardActionResolved(null, true),
                 Is.False);
@@ -304,7 +304,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
 
             for (int turn = 1; turn <= 24; turn++)
             {
-                BattleFlowTestSupport.CompleteTurnWithoutMatchEvents(
+                BattleFlowTestSupport.CompleteTurnWithSingleMatch(
                     coordinator);
             }
 
@@ -312,10 +312,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
             Assert.That(coordinator.Context.Result,
                 Is.EqualTo(BattleResultKind.None));
             Assert.That(coordinator.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
+                Is.EqualTo(BattlePhase.PlayerInput));
 
-            coordinator.CompleteActiveInput();
-            coordinator.NotifyBoardActionStarted();
+            coordinator.TryBeginBoardResolution();
             coordinator.NotifyBoardActionResolved(
                 BattleFlowTestSupport.CreateCascade(
                     new[]
@@ -399,8 +398,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
             Assert.That(coordinator.PendingMatchEventCount, Is.Zero);
             Assert.That(bossActionCount, Is.Zero);
             Assert.That(resultCount, Is.EqualTo(1));
-            Assert.That(coordinator.CompleteActiveInput(), Is.False);
-            Assert.That(coordinator.NotifyBoardActionStarted(), Is.False);
+            Assert.That(coordinator.TryBeginBoardResolution(), Is.False);
             Assert.That(coordinator.CompleteBossAction(), Is.False);
             Assert.That(coordinator.AbortBattle(), Is.False);
         }
@@ -430,8 +428,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
         {
             var coordinator = new BattleFlowCoordinator(turnLimit);
             coordinator.StartBattle();
-            coordinator.CompleteActiveInput();
-            coordinator.NotifyBoardActionStarted();
+            coordinator.TryBeginBoardResolution();
             return coordinator;
         }
 

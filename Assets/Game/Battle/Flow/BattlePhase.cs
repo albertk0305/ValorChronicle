@@ -4,13 +4,12 @@ namespace ValorChronicle.Battle.Flow
     {
         NotStarted = 0,
         TurnStart = 1,
-        ActiveInput = 2,
-        PuzzleInput = 3,
-        BoardResolving = 4,
-        MatchEventResolving = 5,
-        BossActing = 6,
-        TurnEnd = 7,
-        ResultCheck = 8,
-        Result = 9
+        PlayerInput = 2,
+        BoardResolving = 3,
+        MatchEventResolving = 4,
+        BossActing = 5,
+        TurnEnd = 6,
+        ResultCheck = 7,
+        Result = 8
     }
 }

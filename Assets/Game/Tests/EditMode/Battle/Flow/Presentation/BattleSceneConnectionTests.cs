@@ -29,23 +29,23 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 
                 BattleBoardController[] boardControllers =
                     Object.FindObjectsByType<BattleBoardController>(
-                        FindObjectsInactive.Include,
+                        FindObjectsInactive.Exclude,
                         FindObjectsSortMode.None);
                 BattleFlowController[] flowControllers =
                     Object.FindObjectsByType<BattleFlowController>(
-                        FindObjectsInactive.Include,
+                        FindObjectsInactive.Exclude,
                         FindObjectsSortMode.None);
                 BattleFlowDebugPanel[] debugPanels =
                     Object.FindObjectsByType<BattleFlowDebugPanel>(
-                        FindObjectsInactive.Include,
+                        FindObjectsInactive.Exclude,
                         FindObjectsSortMode.None);
                 BattleHudController[] hudControllers =
                     Object.FindObjectsByType<BattleHudController>(
-                        FindObjectsInactive.Include,
+                        FindObjectsInactive.Exclude,
                         FindObjectsSortMode.None);
                 BattleSceneCombatBootstrap[] combatBootstraps =
                     Object.FindObjectsByType<BattleSceneCombatBootstrap>(
-                        FindObjectsInactive.Include,
+                        FindObjectsInactive.Exclude,
                         FindObjectsSortMode.None);
 
                 Assert.That(boardControllers, Has.Length.EqualTo(1));
@@ -64,6 +64,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     Is.EqualTo("GameContent"));
                 Assert.That(debugPanel.gameObject,
                     Is.SameAs(flowController.gameObject));
+                Assert.That(debugPanel.enabled, Is.False);
                 Assert.That(hudController.gameObject,
                     Is.SameAs(flowController.gameObject));
                 Assert.That(combatBootstrap.gameObject,
@@ -192,6 +193,13 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(hudController.TurnText.name, Is.EqualTo("TurnText"));
             Assert.That(hudController.ScoreText, Is.Not.Null);
             Assert.That(hudController.ScoreText.name, Is.EqualTo("ScoreText"));
+            Assert.That(hudController.ResultOverlay, Is.Not.Null);
+            Assert.That(hudController.ResultOverlay.name,
+                Is.EqualTo("BattleResultOverlay"));
+            Assert.That(hudController.ResultOverlay.activeSelf, Is.False);
+            Assert.That(hudController.ResultText, Is.Not.Null);
+            Assert.That(hudController.ResultText.name,
+                Is.EqualTo("ResultText"));
             Assert.That(hudController.BossImage, Is.Not.Null);
             Assert.That(hudController.CoreCompressionBossSprite, Is.Null);
             Assert.That(hudController.CoreExposureBossSprite, Is.Not.Null);

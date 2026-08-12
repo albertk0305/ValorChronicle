@@ -14,6 +14,7 @@ using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Tests.EditMode.Battle.Combat.Integration;
+using ValorChronicle.Tests.EditMode.Battle.Flow;
 
 namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
 {
@@ -395,11 +396,10 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
             BattleFlowCoordinator coordinator)
         {
             Assert.That(coordinator.Context.Phase,
-                Is.EqualTo(BattlePhase.ActiveInput));
-            Assert.That(coordinator.CompleteActiveInput(), Is.True);
-            Assert.That(coordinator.NotifyBoardActionStarted(), Is.True);
+                Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(coordinator.TryBeginBoardResolution(), Is.True);
             Assert.That(coordinator.NotifyBoardActionResolved(
-                cascade: null,
+                cascade: BattleFlowTestSupport.CreateCascade(),
                 consumesTurn: true), Is.True);
             Assert.That(coordinator.TryBeginNextMatchEvent(out _), Is.False);
             Assert.That(coordinator.Context.Phase,

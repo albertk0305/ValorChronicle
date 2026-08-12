@@ -14,7 +14,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private GameObject panelRoot;
         private Text statusLabel;
-        private Button completeActivePhaseButton;
         private Button bossDefeatedButton;
         private Button partyDefeatedButton;
         private Button abortBattleButton;
@@ -22,7 +21,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private BattleSceneCombatBootstrap combatBootstrap;
         public string StatusText { get; private set; } = string.Empty;
         public string BossIntentText { get; private set; } = string.Empty;
-        public bool CompleteActivePhaseInteractable { get; private set; }
         public bool EndBattleButtonsInteractable { get; private set; }
 
         private void Awake()
@@ -67,12 +65,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private void OnDestroy()
         {
             UnsubscribeFromFlow();
-        }
-
-        public void CompleteActivePhase()
-        {
-            battleFlowController?.CompleteActiveInput();
-            RefreshState();
         }
 
         public void NotifyBossDefeated()
@@ -147,9 +139,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 $"Phase: {phase}\n" +
                 $"Result: {result}\n" +
                 BossIntentText;
-            CompleteActivePhaseInteractable =
-                result == BattleResultKind.None
-                && phase == BattlePhase.ActiveInput;
             EndBattleButtonsInteractable =
                 context != null && result == BattleResultKind.None;
 
@@ -158,9 +147,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 statusLabel.text = StatusText;
             }
 
-            SetButtonInteractable(
-                completeActivePhaseButton,
-                CompleteActivePhaseInteractable);
             SetButtonInteractable(
                 bossDefeatedButton,
                 EndBattleButtonsInteractable);
@@ -230,21 +216,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 30f,
                 TextAnchor.UpperLeft);
 
-            completeActivePhaseButton = CreateButton(
-                "Complete Active Phase",
-                -165f,
-                CompleteActivePhase);
             bossDefeatedButton = CreateButton(
                 "Boss Defeated",
-                -250f,
+                -165f,
                 NotifyBossDefeated);
             partyDefeatedButton = CreateButton(
                 "Party Defeated",
-                -335f,
+                -250f,
                 NotifyPartyDefeated);
             abortBattleButton = CreateButton(
                 "Abort Battle",
-                -420f,
+                -335f,
                 AbortBattle);
         }
 
