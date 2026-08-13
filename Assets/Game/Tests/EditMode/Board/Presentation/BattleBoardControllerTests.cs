@@ -292,9 +292,11 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             var eventOrder = new List<string>();
             BoardActionExecution execution = null;
             BoardActionCompletion completion = null;
+            bool inputLockedAtStart = false;
             controller.BoardActionStarted += value =>
             {
                 execution = value;
+                inputLockedAtStart = !controller.CanAcceptBoardInput;
                 eventOrder.Add("Started");
             };
             controller.BoardActionFinished += value =>
@@ -308,9 +310,8 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
 
             Assert.That(controller.TryExecuteSwap(swap), Is.True);
             Assert.That(execution, Is.Not.Null);
-            Assert.That(controller.CanAcceptBoardInput, Is.False);
-            yield return null;
-
+            Assert.That(inputLockedAtStart, Is.True);
+            Assert.That(completion, Is.Not.Null);
             Assert.That(controller.LastSwapActionResult.Status,
                 Is.EqualTo(BoardSwapActionStatus.NoMatch));
             Assert.That(controller.CurrentBoard,

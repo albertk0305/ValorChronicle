@@ -62,8 +62,8 @@ namespace ValorChronicle.Bosses.Kragmor
                 actionKind == KragmorActionKind.RockshardEruption
                     ? new BattleBoardMutationCommand(
                         BattleBoardMutationKind.CreateRock,
-                        KragmorRules.RockshardRockCreationCount,
-                        KragmorRules.MaximumRockCount)
+                        runtimeState.Config.RockshardRockCreationCount,
+                        runtimeState.Config.MaximumRockCount)
                     : null;
             return new BossActionPlan(actions, command);
         }
@@ -192,7 +192,7 @@ namespace ValorChronicle.Bosses.Kragmor
                     attackTags)));
         }
 
-        private static void AddDefenseTransition(
+        private void AddDefenseTransition(
             ICollection<CombatAction> actions,
             BossBattleState boss,
             EffectInstance currentEffect,
@@ -211,7 +211,8 @@ namespace ValorChronicle.Bosses.Kragmor
                 boss,
                 KragmorDefenseEffectFactory.Create(
                     nextState,
-                    applyActionId)));
+                    applyActionId,
+                    runtimeState.Config)));
         }
 
         private void RequireDefenseState(KragmorDefenseState expectedState)

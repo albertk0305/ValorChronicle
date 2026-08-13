@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Core.Bootstrap;
@@ -38,6 +39,9 @@ namespace ValorChronicle.Battle.Flow.Presentation
         public bool HasInitializedCombat => CombatComposition?.Bridge != null;
         public IKragmorBossIntentSource BossIntentSource =>
             CombatComposition?.BossIntentSource;
+        public IBossVisualStateSource BossVisualStateSource =>
+            CombatComposition?.BossVisualStateSource;
+        public DefinitionDatabase DefinitionDatabase { get; private set; }
         public BattleSceneCombatComposition CombatComposition
         {
             get;
@@ -57,6 +61,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
 
             initializationAttempted = true;
+            DefinitionDatabase = ResolveInitializedDefinitionDatabase();
             if (battleFlowController == null)
             {
                 GameLogger.Error(
@@ -94,12 +99,52 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
+            if (!(selectedBoss.CombatConfig is
+                KragmorCombatConfig selectedKragmorConfig))
+            {
+                GameLogger.Error(
+                    "[BattleSceneCombatBootstrap] Kragmor requires a "
+                        + "KragmorCombatConfig.",
+                    this);
+                return;
+            }
+
+            if (!selectedKragmorConfig.TryValidate(
+                out string kragmorConfigError))
+            {
+                GameLogger.Error(
+                    "[BattleSceneCombatBootstrap] Kragmor combat config "
+                        + $"is invalid. {kragmorConfigError}",
+                    this);
+                return;
+            }
+
             CharacterDefinition selectedMarea = ResolveMareaDefinition();
             if (selectedMarea == null)
             {
                 GameLogger.Error(
                     "[BattleSceneCombatBootstrap] No Marea "
                         + "CharacterDefinition is available.",
+                    this);
+                return;
+            }
+
+            if (!(selectedMarea.CombatConfig is
+                MareaBluefangCombatConfig selectedMareaConfig))
+            {
+                GameLogger.Error(
+                    "[BattleSceneCombatBootstrap] Marea requires a "
+                        + "MareaBluefangCombatConfig.",
+                    this);
+                return;
+            }
+
+            if (!selectedMareaConfig.TryValidate(
+                out string configError))
+            {
+                GameLogger.Error(
+                    "[BattleSceneCombatBootstrap] Marea combat config "
+                        + $"is invalid. {configError}",
                     this);
                 return;
             }
@@ -111,8 +156,10 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     ?? new UnityRandomSource();
                 CombatComposition = new BattleSceneCombatComposition(
                     selectedMarea,
+                    selectedMareaConfig,
                     developmentMareaLevel,
                     selectedBoss,
+                    selectedKragmorConfig,
                     selectedDifficulty,
                     randomSource);
                 battleFlowController.Initialize(
@@ -134,8 +181,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private BossDefinition ResolveBossDefinition()
         {
-            DefinitionDatabase database =
-                GameBootstrapper.Instance?.DefinitionDatabase;
+            DefinitionDatabase database = DefinitionDatabase;
             if (database != null
                 && database.IsInitialized
                 && database.TryGetBoss(
@@ -150,8 +196,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private CharacterDefinition ResolveMareaDefinition()
         {
-            DefinitionDatabase database =
-                GameBootstrapper.Instance?.DefinitionDatabase;
+            DefinitionDatabase database = DefinitionDatabase;
             if (database != null
                 && database.IsInitialized
                 && database.TryGetCharacter(
@@ -162,6 +207,16 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
 
             return fallbackMareaDefinition;
+        }
+
+        private static DefinitionDatabase
+            ResolveInitializedDefinitionDatabase()
+        {
+            DefinitionDatabase database =
+                GameBootstrapper.Instance?.DefinitionDatabase;
+            return database != null && database.IsInitialized
+                ? database
+                : null;
         }
     }
 }

@@ -290,13 +290,15 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
                 bossHp,
                 100d);
             ResourceState water = WaterElementResource.Register(
-                boss.Resources);
+                boss.Resources,
+                5);
             if (initialWater > 0)
             {
                 water.Add(initialWater);
             }
 
-            var provider = new MareaBluefangMatchActionProvider();
+            var provider = new MareaBluefangMatchActionProvider(
+                MareaBluefangTestConfig.Create());
             IReadOnlyList<CombatAction> actions = provider.CreateActions(
                 character,
                 party,
@@ -310,6 +312,50 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
                 boss,
                 water,
                 actions);
+        }
+
+        [Test]
+        public void Match3UsesInjectedConfigValue()
+        {
+            var character = new CharacterBattleState(
+                MareaBluefangRules.CharacterId,
+                0,
+                ElementType.Water,
+                1000,
+                1000d);
+            var party = new PartyBattleState(new[] { character });
+            var boss = new BossBattleState(
+                "training_boss",
+                ElementType.Fire,
+                100000,
+                100d);
+            WaterElementResource.Register(boss.Resources, 5);
+            var provider = new MareaBluefangMatchActionProvider(
+                MareaBluefangTestConfig.Create(
+                    match3Coefficient: 1.23d));
+
+            IReadOnlyList<CombatAction> actions = provider.CreateActions(
+                character,
+                party,
+                boss,
+                BoardMatchTier.Three,
+                1,
+                new CombatActionIdSequence());
+
+            Assert.That(((DamageAction)actions[0]).ContextRequest
+                    .SkillCoefficient,
+                Is.EqualTo(1.23d));
+        }
+
+        [Test]
+        public void ConstructorRejectsNullAndInvalidConfig()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                new MareaBluefangMatchActionProvider(null));
+            Assert.Throws<ArgumentException>(() =>
+                new MareaBluefangMatchActionProvider(
+                    MareaBluefangTestConfig.Create(
+                        match3Coefficient: double.NaN)));
         }
 
         private static DamageAction AssertDamage(

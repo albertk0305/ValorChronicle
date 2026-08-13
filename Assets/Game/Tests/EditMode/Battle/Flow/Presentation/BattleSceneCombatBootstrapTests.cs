@@ -9,6 +9,7 @@ using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Bosses.Kragmor;
+using ValorChronicle.Characters.Marea;
 using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
@@ -51,6 +52,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                         66000,
                         850d)
                 });
+            KragmorCombatConfig kragmorConfig =
+                KragmorTestConfig.Create();
+            createdObjects.Add(kragmorConfig);
+            SetField(bossDefinition, "combatConfig", kragmorConfig);
 
             CharacterDefinition mareaDefinition =
                 ScriptableObject.CreateInstance<CharacterDefinition>();
@@ -64,6 +69,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             SetField(mareaDefinition, "level1Attack", 180);
             SetField(mareaDefinition, "level100Hp", 3400);
             SetField(mareaDefinition, "level100Attack", 1050);
+            MareaBluefangCombatConfig config =
+                MareaBluefangTestConfig.Create();
+            createdObjects.Add(config);
+            SetField(mareaDefinition, "combatConfig", config);
 
             combatBootstrap =
                 root.AddComponent<BattleSceneCombatBootstrap>();
@@ -150,6 +159,16 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Has.Count.EqualTo(1));
             Assert.That(composition.WaterElement.MaxAmount, Is.EqualTo(5));
             Assert.That(composition.WaterElement.CurrentAmount, Is.Zero);
+            Assert.That(
+                composition.KragmorConfig,
+                Is.SameAs(((BossDefinition)GetField(
+                    combatBootstrap,
+                    "fallbackBossDefinition")).CombatConfig));
+            Assert.That(
+                composition.MareaConfig,
+                Is.SameAs(((CharacterDefinition)GetField(
+                    combatBootstrap,
+                    "fallbackMareaDefinition")).CombatConfig));
         }
 
         [Test]
@@ -196,6 +215,84 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Context, Is.Null);
         }
 
+        [Test]
+        public void MissingMareaConfigDoesNotInitialize()
+        {
+            CharacterDefinition marea = (CharacterDefinition)GetField(
+                combatBootstrap,
+                "fallbackMareaDefinition");
+            SetField(marea, "combatConfig", null);
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex("Marea requires a MareaBluefangCombatConfig"));
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            Assert.That(combatBootstrap.HasInitializedCombat, Is.False);
+            Assert.That(flowController.Context, Is.Null);
+        }
+
+        [Test]
+        public void InvalidMareaConfigDoesNotInitialize()
+        {
+            CharacterDefinition marea = (CharacterDefinition)GetField(
+                combatBootstrap,
+                "fallbackMareaDefinition");
+            MareaBluefangCombatConfig invalid =
+                MareaBluefangTestConfig.Create(
+                    waterElementMaxAmount: 0);
+            createdObjects.Add(invalid);
+            SetField(marea, "combatConfig", invalid);
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex("Marea combat config is invalid"));
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            Assert.That(combatBootstrap.HasInitializedCombat, Is.False);
+            Assert.That(flowController.Context, Is.Null);
+        }
+
+        [Test]
+        public void WrongKragmorConfigTypeDoesNotInitialize()
+        {
+            BossDefinition boss = (BossDefinition)GetField(
+                combatBootstrap,
+                "fallbackBossDefinition");
+            MareaBluefangCombatConfig wrong =
+                MareaBluefangTestConfig.Create();
+            createdObjects.Add(wrong);
+            SetField(boss, "combatConfig", wrong);
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex("Kragmor requires a KragmorCombatConfig"));
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            Assert.That(combatBootstrap.HasInitializedCombat, Is.False);
+            Assert.That(flowController.Context, Is.Null);
+        }
+
+        [Test]
+        public void InvalidKragmorConfigDoesNotInitialize()
+        {
+            BossDefinition boss = (BossDefinition)GetField(
+                combatBootstrap,
+                "fallbackBossDefinition");
+            KragmorCombatConfig invalid = KragmorTestConfig.Create(
+                maximumRockCount: -1);
+            createdObjects.Add(invalid);
+            SetField(boss, "combatConfig", invalid);
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex("Kragmor combat config is invalid"));
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            Assert.That(combatBootstrap.HasInitializedCombat, Is.False);
+            Assert.That(flowController.Context, Is.Null);
+        }
+
         private static object InvokePrivate(
             object target,
             string methodName)
@@ -222,6 +319,27 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 {
                     field.SetValue(target, value);
                     return;
+                }
+
+                type = type.BaseType;
+            }
+
+            throw new MissingFieldException(
+                target.GetType().FullName,
+                fieldName);
+        }
+
+        private static object GetField(object target, string fieldName)
+        {
+            Type type = target.GetType();
+            while (type != null)
+            {
+                FieldInfo field = type.GetField(
+                    fieldName,
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    return field.GetValue(target);
                 }
 
                 type = type.BaseType;

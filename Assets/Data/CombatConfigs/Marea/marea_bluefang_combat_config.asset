@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb50551a120f464ea0561b019e521fa4, type: 3}
+  m_Name: marea_bluefang_combat_config
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Characters.Marea.MareaBluefangCombatConfig
+  match3Coefficient: 0.9
+  match4BaseCoefficient: 1.5
+  match4WaterElementBonusCoefficient: 0.4
+  match5BaseCoefficient: 2.4
+  match5CoefficientPerWaterElement: 1.4
+  passiveDealtDamageIncreaseRate: 0.15
+  activeWaterDamageIncreaseRate: 0.25
+  activeDurationTurns: 3
+  activeCooldownTurns: 8
+  waterElementMaxAmount: 5

@@ -4,6 +4,8 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using ValorChronicle.Battle.Flow.Presentation;
+using ValorChronicle.Bosses.Kragmor;
+using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
 
@@ -109,8 +111,10 @@ namespace ValorChronicle.Tests.EditMode
 
             var composition = new BattleSceneCombatComposition(
                 marea,
+                (MareaBluefangCombatConfig)marea.CombatConfig,
                 1,
                 boss,
+                (KragmorCombatConfig)boss.CombatConfig,
                 stats,
                 new SeededRandomSource(1));
 
@@ -134,8 +138,10 @@ namespace ValorChronicle.Tests.EditMode
                 Is.True);
             var composition = new BattleSceneCombatComposition(
                 marea,
+                (MareaBluefangCombatConfig)marea.CombatConfig,
                 1,
                 boss,
+                (KragmorCombatConfig)boss.CombatConfig,
                 stats,
                 new SeededRandomSource(1));
             MethodInfo applyDamage = composition.Boss.GetType().GetMethod(
@@ -154,6 +160,46 @@ namespace ValorChronicle.Tests.EditMode
                 Is.True);
             Assert.That(after, Is.SameAs(stats));
             Assert.That(after.MaxHp, Is.EqualTo(66000));
+        }
+
+        [Test]
+        public void CompositionUsesInjectedCooldownAndWaterMaximum()
+        {
+            CharacterDefinition source = AssetDatabase.LoadAssetAtPath<
+                CharacterDefinition>(MareaAssetPath);
+            CharacterDefinition marea = UnityEngine.Object.Instantiate(
+                source);
+            MareaBluefangCombatConfig config =
+                MareaBluefangTestConfig.Create(
+                    activeCooldownTurns: 4,
+                    waterElementMaxAmount: 7);
+            MareaBluefangTestConfig.Assign(marea, config);
+            BossDefinition boss = LoadBoss();
+            boss.TryGetDifficultyStats(
+                "difficulty_normal",
+                out BossDifficultyStats stats);
+
+            try
+            {
+                var composition = new BattleSceneCombatComposition(
+                    marea,
+                    config,
+                    1,
+                    boss,
+                    (KragmorCombatConfig)boss.CombatConfig,
+                    stats,
+                    new SeededRandomSource(1));
+
+                Assert.That(composition.WaterElement.MaxAmount,
+                    Is.EqualTo(7));
+                Assert.That(composition.FlowSetup.ActiveAbilityCooldowns,
+                    Is.EqualTo(new[] { 4 }));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(marea);
+                UnityEngine.Object.DestroyImmediate(config);
+            }
         }
 
         private static BossDefinition LoadBoss()

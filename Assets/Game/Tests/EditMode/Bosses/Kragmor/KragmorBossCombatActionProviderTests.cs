@@ -6,6 +6,7 @@ using NUnit.Framework;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Battle.Combat.Damage;
+using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Board;
@@ -23,13 +24,17 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
         [Test]
         public void RuntimeStateStartsAtFirstIntentAndCyclesFourActions()
         {
-            var runtime = new KragmorBattleRuntimeState();
+            var runtime = new KragmorBattleRuntimeState(KragmorTestConfig.Create());
 
             Assert.That(runtime.PatternIndex, Is.Zero);
             Assert.That(runtime.NextActionKind,
                 Is.EqualTo(KragmorActionKind.ColossusIronFist));
             Assert.That(runtime.NextIntent.ActionKind,
                 Is.EqualTo(KragmorActionKind.ColossusIronFist));
+            Assert.That(runtime.NextIntent.SkillId,
+                Is.EqualTo(KragmorRules.ColossusIronFistSkillId));
+            Assert.That(runtime.CurrentVisualStateId,
+                Is.EqualTo(KragmorRules.DefaultVisualStateId));
 
             var observed = new List<KragmorActionKind>();
             var completedStates = new[]
@@ -61,7 +66,7 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
         [Test]
         public void ForecastReturnsTenWrappedIntentsWithOneBasedTurns()
         {
-            var runtime = new KragmorBattleRuntimeState();
+            var runtime = new KragmorBattleRuntimeState(KragmorTestConfig.Create());
             var provider = new KragmorBossCombatActionProvider(runtime);
 
             IReadOnlyList<KragmorBossIntentPreview> forecast =
@@ -85,13 +90,28 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
             Assert.That(
                 forecast.Select(item => item.TurnsUntilAction),
                 Is.EqualTo(Enumerable.Range(1, 10)));
+            Assert.That(
+                forecast.Select(item => item.Intent.SkillId),
+                Is.EqualTo(new[]
+                {
+                    KragmorRules.ColossusIronFistSkillId,
+                    KragmorRules.RockshardEruptionSkillId,
+                    KragmorRules.CoreCompressionSkillId,
+                    KragmorRules.EarthCollapseSkillId,
+                    KragmorRules.ColossusIronFistSkillId,
+                    KragmorRules.RockshardEruptionSkillId,
+                    KragmorRules.CoreCompressionSkillId,
+                    KragmorRules.EarthCollapseSkillId,
+                    KragmorRules.ColossusIronFistSkillId,
+                    KragmorRules.RockshardEruptionSkillId
+                }));
             Assert.That(forecast[0].Intent, Is.SameAs(provider.NextIntent));
         }
 
         [Test]
         public void ForecastQueryIsSideEffectFreeAndHandlesNonPositiveCount()
         {
-            var runtime = new KragmorBattleRuntimeState();
+            var runtime = new KragmorBattleRuntimeState(KragmorTestConfig.Create());
             var provider = new KragmorBossCombatActionProvider(runtime);
             BossBattleState boss = Boss(850d);
             PartyBattleState party = Party();
@@ -120,12 +140,35 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
             Assert.That(
                 second.Select(item => item.Intent.ActionKind),
                 Is.EqualTo(first.Select(item => item.Intent.ActionKind)));
+            Assert.That(
+                second.Select(item => item.Intent.SkillId),
+                Is.EqualTo(first.Select(item => item.Intent.SkillId)));
+        }
+
+        [Test]
+        public void CommittedDefenseStateProjectsStableVisualStateId()
+        {
+            var runtime = new KragmorBattleRuntimeState(
+                KragmorTestConfig.Create());
+
+            Assert.That(runtime.CurrentVisualStateId,
+                Is.EqualTo(KragmorRules.DefaultVisualStateId));
+            runtime.CommitAction(KragmorDefenseState.VolcanicCarapace);
+            Assert.That(runtime.CurrentVisualStateId,
+                Is.EqualTo(KragmorRules.DefaultVisualStateId));
+            runtime.CommitAction(KragmorDefenseState.VolcanicCarapace);
+            runtime.CommitAction(KragmorDefenseState.CoreCompression);
+            Assert.That(runtime.CurrentVisualStateId,
+                Is.EqualTo(KragmorRules.CoreCompressionVisualStateId));
+            runtime.CommitAction(KragmorDefenseState.CoreExposure);
+            Assert.That(runtime.CurrentVisualStateId,
+                Is.EqualTo(KragmorRules.CoreExposureVisualStateId));
         }
 
         [Test]
         public void ForecastSlidesOnlyAfterCommitAndWrapsAfterFullPattern()
         {
-            var runtime = new KragmorBattleRuntimeState();
+            var runtime = new KragmorBattleRuntimeState(KragmorTestConfig.Create());
             var provider = new KragmorBossCombatActionProvider(runtime);
             BossBattleState boss = Boss(850d);
             PartyBattleState party = Party();
@@ -164,7 +207,7 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
         [Test]
         public void QueryingAndPlanningDoNotAdvancePattern()
         {
-            var runtime = new KragmorBattleRuntimeState();
+            var runtime = new KragmorBattleRuntimeState(KragmorTestConfig.Create());
             var provider = new KragmorBossCombatActionProvider(runtime);
             BossBattleState boss = Boss(850d);
             PartyBattleState party = Party();
@@ -193,7 +236,7 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
         [Test]
         public void PatternCreatesExpectedDamageActionsAndHeavyTag()
         {
-            var runtime = new KragmorBattleRuntimeState();
+            var runtime = new KragmorBattleRuntimeState(KragmorTestConfig.Create());
             var provider = new KragmorBossCombatActionProvider(runtime);
             BossBattleState boss = Boss(850d);
             PartyBattleState party = Party();
@@ -232,7 +275,7 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
         [Test]
         public void OnlyRockshardPlanRequestsThreeRocksWithMaximumSix()
         {
-            var runtime = new KragmorBattleRuntimeState();
+            var runtime = new KragmorBattleRuntimeState(KragmorTestConfig.Create());
             var provider = new KragmorBossCombatActionProvider(runtime);
             BossBattleState boss = Boss(850d);
             PartyBattleState party = Party();
@@ -252,9 +295,9 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
             Assert.That(rockshard.BoardCommand.Kind,
                 Is.EqualTo(BattleBoardMutationKind.CreateRock));
             Assert.That(rockshard.BoardCommand.RequestedCount,
-                Is.EqualTo(KragmorRules.RockshardRockCreationCount));
+                Is.EqualTo(3));
             Assert.That(rockshard.BoardCommand.MaximumCount,
-                Is.EqualTo(KragmorRules.MaximumRockCount));
+                Is.EqualTo(6));
             Assert.That(runtime.PatternIndex, Is.EqualTo(1));
             executor.Execute(new CombatActionQueue(
                 rockshard.CombatActions));
@@ -277,12 +320,12 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
         {
             PartyBattleState party = Party();
             BossBattleState firstBoss = Boss(850d);
-            var firstRuntime = new KragmorBattleRuntimeState();
+            var firstRuntime = new KragmorBattleRuntimeState(KragmorTestConfig.Create());
             InitializeDefense(firstBoss, firstRuntime);
             var firstProvider = new KragmorBossCombatActionProvider(
                 firstRuntime);
             BossBattleState laterBoss = Boss(850d);
-            var laterRuntime = new KragmorBattleRuntimeState();
+            var laterRuntime = new KragmorBattleRuntimeState(KragmorTestConfig.Create());
             InitializeDefense(laterBoss, laterRuntime);
             var laterProvider = new KragmorBossCombatActionProvider(
                 laterRuntime);
@@ -406,6 +449,84 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
                 Is.EqualTo(BattlePhase.BossActing));
         }
 
+        [Test]
+        public void OverrideConfigDrivesIntentDamageRockAndDefenseEffects()
+        {
+            KragmorCombatConfig config = KragmorTestConfig.Create(
+                colossusIronFistCoefficient: 1.11d,
+                rockshardEruptionCoefficient: 0.82d,
+                rockshardRockCreationCount: 2,
+                maximumRockCount: 4,
+                earthCollapseCoefficient: 3.10d,
+                volcanicCarapaceReductionRate: 0.07d,
+                coreCompressionReductionRate: 0.33d,
+                coreExposureIncreaseRate: 0.45d);
+            var runtime = new KragmorBattleRuntimeState(config);
+            var provider = new KragmorBossCombatActionProvider(runtime);
+            BossBattleState boss = Boss(850d);
+            PartyBattleState party = Party();
+            var actionIds = new CombatActionIdSequence();
+            EffectInstance carapace =
+                KragmorDefenseEffectFactory.InitializeBattle(
+                    boss,
+                    runtime,
+                    actionIds);
+            CombatActionExecutor executor = Executor(boss, party);
+
+            Assert.That(provider.NextIntent.DamageCoefficient,
+                Is.EqualTo(1.11d));
+            Assert.That(provider.GetIntentForecast(4)
+                    .Select(item => item.Intent.DamageCoefficient),
+                Is.EqualTo(new[] { 1.11d, 0.82d, 0d, 3.10d }));
+            Assert.That(carapace.Magnitude, Is.EqualTo(0.07d));
+
+            BossActionPlan fist = provider.CreatePlan(
+                Context(boss, party, 1));
+            Assert.That(DamageAction(fist.CombatActions).ContextRequest
+                .AttackCoefficient, Is.EqualTo(1.11d));
+            executor.Execute(new CombatActionQueue(fist.CombatActions));
+            Assert.That(provider.TryCommitCompletedAction(), Is.True);
+
+            BossActionPlan rock = provider.CreatePlan(
+                Context(boss, party, 2));
+            Assert.That(DamageAction(rock.CombatActions).ContextRequest
+                .AttackCoefficient, Is.EqualTo(0.82d));
+            Assert.That(rock.BoardCommand.RequestedCount, Is.EqualTo(2));
+            Assert.That(rock.BoardCommand.MaximumCount, Is.EqualTo(4));
+            executor.Execute(new CombatActionQueue(rock.CombatActions));
+            Assert.That(provider.TryCommitCompletedAction(), Is.True);
+
+            BossActionPlan compression = provider.CreatePlan(
+                Context(boss, party, 3));
+            ApplyEffectAction compressionEffect = compression.CombatActions
+                .OfType<ApplyEffectAction>().Single();
+            Assert.That(compressionEffect.Effect.Magnitude,
+                Is.EqualTo(0.33d));
+            executor.Execute(new CombatActionQueue(
+                compression.CombatActions));
+            Assert.That(provider.TryCommitCompletedAction(), Is.True);
+
+            BossActionPlan collapse = provider.CreatePlan(
+                Context(boss, party, 4));
+            Assert.That(DamageAction(collapse.CombatActions).ContextRequest
+                .AttackCoefficient, Is.EqualTo(3.10d));
+            ApplyEffectAction exposureEffect = collapse.CombatActions
+                .OfType<ApplyEffectAction>().Single();
+            Assert.That(exposureEffect.Effect.Magnitude,
+                Is.EqualTo(0.45d));
+        }
+
+        [Test]
+        public void RuntimeStateRejectsNullAndInvalidConfig()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                new KragmorBattleRuntimeState(null));
+            Assert.Throws<ArgumentException>(() =>
+                new KragmorBattleRuntimeState(
+                    KragmorTestConfig.Create(
+                        earthCollapseCoefficient: double.NaN)));
+        }
+
         private static BattleHarness CreateBattle(
             double bossAttack,
             long partyHp)
@@ -413,7 +534,7 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
             PartyBattleState party = Party(partyHp);
             BossBattleState boss = Boss(bossAttack);
             var coordinator = new BattleFlowCoordinator(turnLimit: 10);
-            var runtime = new KragmorBattleRuntimeState();
+            var runtime = new KragmorBattleRuntimeState(KragmorTestConfig.Create());
             var provider = new KragmorBossCombatActionProvider(runtime);
             var actionIds = new CombatActionIdSequence();
             KragmorDefenseEffectFactory.InitializeBattle(
@@ -457,9 +578,7 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
         private static BossDamageAction DamageAction(
             IReadOnlyList<CombatAction> actions)
         {
-            Assert.That(actions.Count, Is.EqualTo(1));
-            Assert.That(actions[0], Is.TypeOf<BossDamageAction>());
-            return (BossDamageAction)actions[0];
+            return actions.OfType<BossDamageAction>().Single();
         }
 
         private static CombatActionExecutor Executor(
@@ -478,7 +597,8 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
         {
             boss.Effects.ApplyEffect(KragmorDefenseEffectFactory.Create(
                 runtime.CurrentDefenseState,
-                runtimeId: 1000));
+                runtimeId: 1000,
+                config: runtime.Config));
         }
 
         private static BossCombatActionContext Context(

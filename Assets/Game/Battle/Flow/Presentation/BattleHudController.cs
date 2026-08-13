@@ -10,7 +10,7 @@ using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Bosses.Kragmor;
-using ValorChronicle.Characters.Marea;
+using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Battle.Flow.Presentation
@@ -40,25 +40,10 @@ namespace ValorChronicle.Battle.Flow.Presentation
             Array.Empty<BattleBossIntentSlotView>();
 
         [SerializeField]
-        private Sprite colossusIronFistIcon = null;
-
-        [SerializeField]
-        private Sprite rockshardEruptionIcon = null;
-
-        [SerializeField]
-        private Sprite coreCompressionIntentIcon = null;
-
-        [SerializeField]
-        private Sprite earthCollapseIcon = null;
-
-        [SerializeField]
         private Image bossImage = null;
 
         [SerializeField]
-        private Sprite coreCompressionBossSprite = null;
-
-        [SerializeField]
-        private Sprite coreExposureBossSprite = null;
+        private Sprite resourceFallbackIcon = null;
 
         [SerializeField]
         private BattleStatusIconView[] bossStatusSlots =
@@ -126,9 +111,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
         public GameObject ResultOverlay => resultOverlay;
         public TMP_Text ResultText => resultText;
         public Image BossImage => bossImage;
-        public Sprite CoreCompressionBossSprite =>
-            coreCompressionBossSprite;
-        public Sprite CoreExposureBossSprite => coreExposureBossSprite;
+        public Sprite ResourceFallbackIcon => resourceFallbackIcon;
         public Slider BossHpSlider => bossHpSlider;
         public TMP_Text BossHpText => bossHpText;
         public Image BossShieldImage => bossShieldImage;
@@ -137,11 +120,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
         public TMP_Text PartyHpText => partyHpText;
         public Image PartyShieldImage => partyShieldImage;
         public int BossIntentSlotCount => bossIntentSlots?.Length ?? 0;
-        public Sprite ColossusIronFistIcon => colossusIronFistIcon;
-        public Sprite RockshardEruptionIcon => rockshardEruptionIcon;
-        public Sprite CoreCompressionIntentIcon =>
-            coreCompressionIntentIcon;
-        public Sprite EarthCollapseIcon => earthCollapseIcon;
         public int BossStatusSlotCount => bossStatusSlots?.Length ?? 0;
         public int MatchEventSlotCount => matchEventSlots?.Length ?? 0;
         public int CharacterSlotCount => characterSlots?.Length ?? 0;
@@ -527,7 +505,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             {
                 KragmorBossIntentPreview preview = forecast[index];
                 bossIntentSlots[index]?.Render(
-                    ResolveIntentIcon(preview.Intent.ActionKind),
+                    ResolveIntentIcon(preview.Intent.SkillId),
                     preview.TurnsUntilAction);
             }
 
@@ -537,24 +515,20 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
         }
 
-        private Sprite ResolveIntentIcon(KragmorActionKind actionKind)
+        private Sprite ResolveIntentIcon(string skillId)
         {
-            switch (actionKind)
+            DefinitionDatabase database =
+                battleSceneCombatBootstrap?.DefinitionDatabase;
+            if (database != null
+                && database.IsInitialized
+                && database.TryGetSkill(
+                    skillId,
+                    out SkillDefinition definition))
             {
-                case KragmorActionKind.ColossusIronFist:
-                    return colossusIronFistIcon;
-                case KragmorActionKind.RockshardEruption:
-                    return rockshardEruptionIcon;
-                case KragmorActionKind.CoreCompression:
-                    return coreCompressionIntentIcon;
-                case KragmorActionKind.EarthCollapse:
-                    return earthCollapseIcon;
-                default:
-                    throw new ArgumentOutOfRangeException(
-                        nameof(actionKind),
-                        actionKind,
-                        "Unsupported Kragmor action kind.");
+                return definition.Icon;
             }
+
+            return null;
         }
 
         private void RefreshMatchQueue()
@@ -724,18 +698,21 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 RenderEffect(bossStatusSlots[index], effects[index]);
             }
 
-            if (renderedCount < slotCount
-                && subscribedBridge.Boss.Resources.TryGet(
-                    WaterElementResource.Id,
-                    out ResourceState waterElement)
-                && waterElement.CurrentAmount > 0)
+            IReadOnlyList<ResourceState> resources =
+                subscribedBridge.Boss.Resources.GetAll();
+            for (int index = 0;
+                index < resources.Count && renderedCount < slotCount;
+                index++)
             {
-                Sprite waterIcon = elementSpriteSet != null
-                    ? elementSpriteSet.GetSprite(ElementType.Water)
-                    : null;
+                ResourceState resource = resources[index];
+                if (resource.CurrentAmount <= 0)
+                {
+                    continue;
+                }
+
                 bossStatusSlots[renderedCount]?.Render(
-                    waterIcon,
-                    waterElement.CurrentAmount,
+                    ResolveResourceIcon(resource.ResourceId),
+                    resource.CurrentAmount,
                     badgeVisible: true);
                 renderedCount++;
             }
@@ -829,16 +806,35 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private Sprite ResolveEffectIcon(string effectId)
         {
-            if (string.Equals(
+            DefinitionDatabase database =
+                battleSceneCombatBootstrap?.DefinitionDatabase;
+            if (database != null
+                && database.IsInitialized
+                && database.TryGetEffect(
                     effectId,
-                    MareaBluefangRules.ActiveEffectId,
-                    StringComparison.Ordinal)
-                && elementSpriteSet != null)
+                    out EffectDefinition definition))
             {
-                return elementSpriteSet.GetSprite(ElementType.Water);
+                return definition.Icon;
             }
 
             return null;
+        }
+
+        private Sprite ResolveResourceIcon(string resourceId)
+        {
+            DefinitionDatabase database =
+                battleSceneCombatBootstrap?.DefinitionDatabase;
+            if (database != null
+                && database.IsInitialized
+                && database.TryGetResource(
+                    resourceId,
+                    out ResourceDefinition definition)
+                && definition.Icon != null)
+            {
+                return definition.Icon;
+            }
+
+            return resourceFallbackIcon;
         }
 
         private void RefreshBossImage()
@@ -852,23 +848,25 @@ namespace ValorChronicle.Battle.Flow.Presentation
             Sprite targetSprite = defaultBossSprite;
             BattleSceneCombatComposition composition =
                 battleSceneCombatBootstrap?.CombatComposition;
+            DefinitionDatabase database =
+                battleSceneCombatBootstrap?.DefinitionDatabase;
+            IBossVisualStateSource visualStateSource =
+                battleSceneCombatBootstrap?.BossVisualStateSource;
             if (composition != null
-                && ReferenceEquals(composition.Bridge, subscribedBridge))
+                && ReferenceEquals(composition.Bridge, subscribedBridge)
+                && visualStateSource != null
+                && database != null
+                && database.IsInitialized
+                && database.TryGetBossPresentation(
+                    subscribedBridge.Boss.BossId,
+                    out BossPresentationDefinition presentation))
             {
-                switch (composition.KragmorRuntimeState.CurrentDefenseState)
+                if (!presentation.TryGetStateSprite(
+                    visualStateSource.CurrentVisualStateId,
+                    out targetSprite))
                 {
-                    case KragmorDefenseState.VolcanicCarapace:
-                        break;
-                    case KragmorDefenseState.CoreCompression:
-                        targetSprite = coreCompressionBossSprite
-                            ?? defaultBossSprite;
-                        break;
-                    case KragmorDefenseState.CoreExposure:
-                        targetSprite = coreExposureBossSprite
-                            ?? defaultBossSprite;
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
+                    targetSprite = presentation.DefaultSprite
+                        ?? defaultBossSprite;
                 }
             }
 

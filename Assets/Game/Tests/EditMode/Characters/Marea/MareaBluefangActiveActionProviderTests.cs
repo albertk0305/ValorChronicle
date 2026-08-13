@@ -129,10 +129,12 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
         {
             ActiveBattle battle = CreateBattle();
             ResourceState water = WaterElementResource.Register(
-                battle.Boss.Resources);
+                battle.Boss.Resources,
+                5);
             water.Add(1);
             battle.ApplyActive();
-            var matchProvider = new MareaBluefangMatchActionProvider();
+            var matchProvider = new MareaBluefangMatchActionProvider(
+                MareaBluefangTestConfig.Create());
             IReadOnlyList<CombatAction> actions = matchProvider.CreateActions(
                 battle.Character,
                 battle.Party,
@@ -166,10 +168,12 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
         {
             ActiveBattle battle = CreateBattle();
             ResourceState water = WaterElementResource.Register(
-                battle.Boss.Resources);
+                battle.Boss.Resources,
+                5);
             water.Add(5);
             battle.ApplyActive();
-            var matchProvider = new MareaBluefangMatchActionProvider();
+            var matchProvider = new MareaBluefangMatchActionProvider(
+                MareaBluefangTestConfig.Create());
             IReadOnlyList<CombatAction> actions = matchProvider.CreateActions(
                 battle.Character,
                 battle.Party,
@@ -228,7 +232,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
         {
             var coordinator = new BattleFlowCoordinator(
                 25,
-                new[] { MareaBluefangRules.ActiveCooldownTurns });
+                new[] { 8 });
             coordinator.StartBattle();
             ActiveAbilityRuntimeState state =
                 coordinator.Context.ActiveAbilities[0];
@@ -250,7 +254,8 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
         [Test]
         public void CreateActions_RejectsNonMareaAndNullSequence()
         {
-            var provider = new MareaBluefangActiveActionProvider();
+            var provider = new MareaBluefangActiveActionProvider(
+                MareaBluefangTestConfig.Create());
             var other = new CharacterBattleState(
                 "other",
                 0,
@@ -263,6 +268,34 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
                 new CombatActionIdSequence()));
             Assert.Throws<ArgumentNullException>(() =>
                 provider.CreateActions(CreateBattle().Character, null));
+        }
+
+        [Test]
+        public void ActiveUsesInjectedMagnitudeAndDuration()
+        {
+            var provider = new MareaBluefangActiveActionProvider(
+                MareaBluefangTestConfig.Create(
+                    activeWaterDamageIncreaseRate: 0.4d,
+                    activeDurationTurns: 6));
+
+            ApplyEffectAction action = (ApplyEffectAction)provider
+                .CreateActions(
+                    CreateBattle().Character,
+                    new CombatActionIdSequence())[0];
+
+            Assert.That(action.Effect.Magnitude, Is.EqualTo(0.4d));
+            Assert.That(action.Effect.RemainingTurns, Is.EqualTo(6));
+        }
+
+        [Test]
+        public void ConstructorRejectsNullAndInvalidConfig()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                new MareaBluefangActiveActionProvider(null));
+            Assert.Throws<ArgumentException>(() =>
+                new MareaBluefangActiveActionProvider(
+                    MareaBluefangTestConfig.Create(
+                        activeDurationTurns: 0)));
         }
 
         private static ActiveBattle CreateBattle()
@@ -316,8 +349,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
 
         private sealed class ActiveBattle
         {
-            private readonly MareaBluefangActiveActionProvider provider =
-                new MareaBluefangActiveActionProvider();
+            private readonly MareaBluefangActiveActionProvider provider;
             private readonly CombatActionExecutor executor;
 
             public ActiveBattle(
@@ -328,6 +360,8 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
                 Character = character;
                 Party = party;
                 Boss = boss;
+                provider = new MareaBluefangActiveActionProvider(
+                    MareaBluefangTestConfig.Create());
                 ActionIds = new CombatActionIdSequence();
                 executor = new CombatActionExecutor(
                     boss,

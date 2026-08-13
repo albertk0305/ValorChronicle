@@ -1,0 +1,23 @@
+using UnityEngine;
+
+namespace ValorChronicle.Data.Definitions
+{
+    [CreateAssetMenu(
+        fileName = "ResourceDefinition",
+        menuName = "Valor Chronicle/Definitions/Resource")]
+    public sealed class ResourceDefinition : GameDefinition
+    {
+        [SerializeField]
+        private string displayNameKey;
+
+        [SerializeField]
+        private string descriptionKey;
+
+        [SerializeField]
+        private Sprite icon;
+
+        public string DisplayNameKey => displayNameKey;
+        public string DescriptionKey => descriptionKey;
+        public Sprite Icon => icon;
+    }
+}

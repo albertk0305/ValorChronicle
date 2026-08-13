@@ -18,6 +18,7 @@ using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Random;
+using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
@@ -51,6 +52,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         private BattleStatusIconView[] bossStatusSlots;
         private BattleStatusIconView[] partyStatusSlots;
         private BattleSceneCombatBootstrap combatBootstrap;
+        private DefinitionDatabase presentationDatabase;
 
         [SetUp]
         public void SetUp()
@@ -103,10 +105,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Image bossImage = CreateImage("BossImage");
             bossImage.sprite = defaultBossSprite;
             SetField(hudController, "bossImage", bossImage);
-            SetField(
-                hudController,
-                "coreExposureBossSprite",
-                exposedBossSprite);
             combatBootstrap =
                 root.AddComponent<BattleSceneCombatBootstrap>();
             SetField(
@@ -130,26 +128,18 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             SetField(elementSpriteSet, "water", waterSprite);
             SetField(elementSpriteSet, "dark", darkSprite);
             SetField(hudController, "elementSpriteSet", elementSpriteSet);
+            SetField(hudController, "resourceFallbackIcon", waterSprite);
+            presentationDatabase = CreatePresentationDatabase(
+                includeIcons: true,
+                includeBossPresentation: true);
+            SetProperty(
+                combatBootstrap,
+                "DefinitionDatabase",
+                presentationDatabase);
             matchEventSlots = CreateMatchEventSlots(10);
             SetField(hudController, "matchEventSlots", matchEventSlots);
             bossIntentSlots = CreateBossIntentSlots(10);
             SetField(hudController, "bossIntentSlots", bossIntentSlots);
-            SetField(
-                hudController,
-                "colossusIronFistIcon",
-                fistIntentSprite);
-            SetField(
-                hudController,
-                "rockshardEruptionIcon",
-                eruptionIntentSprite);
-            SetField(
-                hudController,
-                "coreCompressionIntentIcon",
-                compressionIntentSprite);
-            SetField(
-                hudController,
-                "earthCollapseIcon",
-                collapseIntentSprite);
             bossStatusSlots = CreateStatusSlots("BossStatus", 16);
             partyStatusSlots = CreateStatusSlots("PartyStatus", 21);
             SetField(hudController, "bossStatusSlots", bossStatusSlots);
@@ -615,15 +605,14 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
             Assert.That(occupiedSlot.CooldownText.gameObject.activeSelf, Is.True);
             Assert.That(occupiedSlot.CooldownText.text,
-                Is.EqualTo(MareaBluefangRules.ActiveCooldownTurns.ToString()));
+                Is.EqualTo("8"));
             Assert.That(occupiedSlot.CharacterImage.color, Is.EqualTo(baseColor));
 
             CompletePlayerInputAndEnterBossActing();
             Assert.That(bridge.ResolveBossAction(1), Is.True);
 
             Assert.That(occupiedSlot.CooldownText.text,
-                Is.EqualTo((MareaBluefangRules.ActiveCooldownTurns - 1)
-                    .ToString()));
+                Is.EqualTo("7"));
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
         }
 
@@ -637,7 +626,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             occupiedSlot.ActiveButton.onClick.Invoke();
 
             for (int index = 0;
-                index < MareaBluefangRules.ActiveCooldownTurns;
+                index < 8;
                 index++)
             {
                 CompletePlayerInputAndEnterBossActing();
@@ -778,7 +767,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(water.CurrentAmount, Is.EqualTo(3));
             Assert.That(bossStatusSlots[0].Root.activeSelf, Is.True);
             Assert.That(bossStatusSlots[0].IconImage.sprite,
-                Is.SameAs(waterSprite));
+                Is.SameAs(fireSprite));
             Assert.That(bossStatusSlots[0].ValueText.text, Is.EqualTo("3"));
 
             water.ConsumeAll();
@@ -794,9 +783,81 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         }
 
         [Test]
+        public void NullMetadataIconsUseGenericPresentationFallbacks()
+        {
+            DefinitionDatabase nullIconDatabase =
+                CreatePresentationDatabase(
+                    includeIcons: false,
+                    includeBossPresentation: true);
+            SetProperty(
+                combatBootstrap,
+                "DefinitionDatabase",
+                nullIconDatabase);
+            InvokePrivate(hudController, "OnEnable");
+            BattleSceneCombatComposition composition =
+                CreateProductionComposition();
+            SetProperty(
+                combatBootstrap,
+                "CombatComposition",
+                composition);
+            flowController.Initialize(
+                composition.FlowSetup,
+                coordinator => composition.CreateBridge(coordinator));
+            bridge = composition.Bridge;
+            composition.WaterElement.Add(2);
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+
+            Assert.That(bossIntentSlots[0].ActionImage.sprite,
+                Is.SameAs(genericIntentSprite));
+            Assert.That(bossStatusSlots[0].IconImage.sprite,
+                Is.SameAs(genericStatusSprite));
+            Assert.That(bossStatusSlots[1].IconImage.sprite,
+                Is.SameAs(waterSprite));
+            Assert.That(bossStatusSlots[1].ValueText.text, Is.EqualTo("2"));
+        }
+
+        [Test]
+        public void MissingPresentationMetadataUsesExistingHudFallbacks()
+        {
+            DefinitionDatabase emptyDatabase =
+                ScriptableObject.CreateInstance<DefinitionDatabase>();
+            createdObjects.Add(emptyDatabase);
+            emptyDatabase.Initialize();
+            SetProperty(
+                combatBootstrap,
+                "DefinitionDatabase",
+                emptyDatabase);
+            InvokePrivate(hudController, "OnEnable");
+            BattleSceneCombatComposition composition =
+                CreateProductionComposition();
+            SetProperty(
+                combatBootstrap,
+                "CombatComposition",
+                composition);
+            flowController.Initialize(
+                composition.FlowSetup,
+                coordinator => composition.CreateBridge(coordinator));
+            bridge = composition.Bridge;
+            composition.WaterElement.Add(3);
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+
+            Assert.That(bossIntentSlots[0].ActionImage.sprite,
+                Is.SameAs(genericIntentSprite));
+            Assert.That(bossStatusSlots[0].IconImage.sprite,
+                Is.SameAs(genericStatusSprite));
+            Assert.That(bossStatusSlots[1].IconImage.sprite,
+                Is.SameAs(waterSprite));
+            Assert.That(hudController.BossImage.sprite,
+                Is.SameAs(defaultBossSprite));
+        }
+
+        [Test]
         public void MareaMatchRefreshesWaterElementFromCombatAppliedEvent()
         {
-            var mareaProvider = new MareaBluefangMatchActionProvider();
+            var mareaProvider = new MareaBluefangMatchActionProvider(
+                MareaBluefangTestConfig.Create());
             InvokePrivate(hudController, "OnEnable");
             InitializeCombat(
                 matchActions: context =>
@@ -812,14 +873,15 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(water.CurrentAmount, Is.EqualTo(1));
             Assert.That(bossStatusSlots[0].Root.activeSelf, Is.True);
             Assert.That(bossStatusSlots[0].IconImage.sprite,
-                Is.SameAs(waterSprite));
+                Is.SameAs(fireSprite));
             Assert.That(bossStatusSlots[0].ValueText.text, Is.EqualTo("1"));
         }
 
         [Test]
         public void MareaFiveMatchConsumptionRemovesWaterElementStatus()
         {
-            var mareaProvider = new MareaBluefangMatchActionProvider();
+            var mareaProvider = new MareaBluefangMatchActionProvider(
+                MareaBluefangTestConfig.Create());
             InvokePrivate(hudController, "OnEnable");
             InitializeCombat(
                 bossMaxHp: 100000,
@@ -827,7 +889,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     mareaProvider.CreateRootActions(context));
             ResourceState water = bridge.Boss.Resources.Get(
                 WaterElementResource.Id);
-            water.Add(WaterElementResource.MaxAmount);
+            water.Add(5);
             Assert.That(flowController.Coordinator.StartBattle(), Is.True);
             InvokePrivate(hudController, "Start");
             Assert.That(bossStatusSlots[0].ValueText.text, Is.EqualTo("5"));
@@ -880,12 +942,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 
             BattleStatusIconView status = occupiedSlot.GetStatusSlot(0);
             Assert.That(status.Root.activeSelf, Is.True);
-            Assert.That(status.IconImage.sprite, Is.SameAs(waterSprite));
+            Assert.That(status.IconImage.sprite, Is.SameAs(darkSprite));
             Assert.That(status.ValueText.text,
-                Is.EqualTo(MareaBluefangRules.ActiveDurationTurns.ToString()));
+                Is.EqualTo("3"));
 
             for (int index = 0;
-                index < MareaBluefangRules.ActiveDurationTurns;
+                index < 3;
                 index++)
             {
                 CompletePlayerInputAndEnterBossActing();
@@ -985,6 +1047,92 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             hudController.RefreshInitialSnapshot();
             Assert.That(hudController.BossImage.sprite,
                 Is.SameAs(defaultBossSprite));
+        }
+
+        [Test]
+        public void BossImageChangesOnlyAfterDefenseTransitionCommit()
+        {
+            InvokePrivate(hudController, "OnEnable");
+            BattleSceneCombatComposition composition =
+                CreateProductionComposition(bossAttack: 1d);
+            SetProperty(
+                combatBootstrap,
+                "CombatComposition",
+                composition);
+            flowController.Initialize(
+                composition.FlowSetup,
+                coordinator => composition.CreateBridge(coordinator));
+            bridge = composition.Bridge;
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+
+            IReadOnlyList<CombatAction> fist =
+                composition.BossActionProvider.CreateActions(
+                    composition.Boss,
+                    composition.Party,
+                    composition.ActionIds);
+            Assert.That(fist, Is.Not.Empty);
+            composition.Executor.Execute(new CombatActionQueue(fist));
+            Assert.That(
+                composition.BossActionProvider.TryCommitCompletedAction(),
+                Is.True);
+            IReadOnlyList<CombatAction> eruption =
+                composition.BossActionProvider.CreateActions(
+                    composition.Boss,
+                    composition.Party,
+                    composition.ActionIds);
+            Assert.That(eruption, Is.Not.Empty);
+            composition.Executor.Execute(new CombatActionQueue(eruption));
+            Assert.That(
+                composition.BossActionProvider.TryCommitCompletedAction(),
+                Is.True);
+
+            IReadOnlyList<CombatAction> compression =
+                composition.BossActionProvider.CreateActions(
+                    composition.Boss,
+                    composition.Party,
+                    composition.ActionIds);
+            composition.Executor.Execute(
+                new CombatActionQueue(compression));
+            Assert.That(
+                composition.BossActionProvider.TryCommitCompletedAction(),
+                Is.True);
+            Assert.That(composition.KragmorRuntimeState.CurrentVisualStateId,
+                Is.EqualTo(KragmorRules.CoreCompressionVisualStateId));
+            hudController.RefreshInitialSnapshot();
+            Assert.That(hudController.BossImage.sprite,
+                Is.SameAs(defaultBossSprite));
+
+            composition.BossIntentSource.GetIntentForecast(10);
+            hudController.RefreshInitialSnapshot();
+            Assert.That(hudController.BossImage.sprite,
+                Is.SameAs(defaultBossSprite));
+
+            IReadOnlyList<CombatAction> collapse =
+                composition.BossActionProvider.CreateActions(
+                    composition.Boss,
+                    composition.Party,
+                    composition.ActionIds);
+            composition.Executor.Execute(new CombatActionQueue(collapse));
+            Assert.That(composition.KragmorRuntimeState.CurrentVisualStateId,
+                Is.EqualTo(KragmorRules.CoreCompressionVisualStateId));
+            hudController.RefreshInitialSnapshot();
+            Assert.That(hudController.BossImage.sprite,
+                Is.SameAs(defaultBossSprite));
+
+            Assert.That(
+                KragmorDefenseEffectFactory.GetRequiredActiveEffect(
+                    composition.Boss,
+                    KragmorDefenseState.CoreExposure),
+                Is.Not.Null);
+            Assert.That(
+                composition.BossActionProvider.TryCommitCompletedAction(),
+                Is.True);
+            Assert.That(composition.KragmorRuntimeState.CurrentVisualStateId,
+                Is.EqualTo(KragmorRules.CoreExposureVisualStateId));
+            hudController.RefreshInitialSnapshot();
+            Assert.That(hudController.BossImage.sprite,
+                Is.SameAs(exposedBossSprite));
         }
 
         [Test]
@@ -1281,8 +1429,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 1,
                 3,
                 2));
-            Assert.That(flowController.Coordinator.TryBeginBoardResolution(),
-                Is.True);
+            hudController.RefreshInitialSnapshot();
 
             Assert.That(
                 hudController.PartyShieldImage.rectTransform.sizeDelta.x,
@@ -1366,7 +1513,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             var cooldowns = new int[activeAbilityCount];
             for (int index = 0; index < cooldowns.Length; index++)
             {
-                cooldowns[index] = MareaBluefangRules.ActiveCooldownTurns;
+                cooldowns[index] = 8;
             }
 
             flowController.Initialize(
@@ -1387,14 +1534,15 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                         ElementType.Fire,
                         bossMaxHp,
                         bossAttack);
-                    WaterElementResource.Register(boss.Resources);
+                    WaterElementResource.Register(boss.Resources, 5);
                     var actionIds = new CombatActionIdSequence();
                     var providers =
                         new ActiveAbilityActionProviderRegistry();
                     providers.Register(
                         MareaBluefangRules.CharacterId,
                         MareaBluefangRules.ActiveAbilityId,
-                        new MareaBluefangActiveActionProvider());
+                        new MareaBluefangActiveActionProvider(
+                            MareaBluefangTestConfig.Create()));
                     IReadOnlyList<ActiveAbilityBinding> bindings;
                     if (!includeActiveBinding)
                     {
@@ -1450,7 +1598,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 });
         }
 
-        private BattleSceneCombatComposition CreateProductionComposition()
+        private BattleSceneCombatComposition CreateProductionComposition(
+            double bossAttack = 850d)
         {
             BossDefinition bossDefinition =
                 ScriptableObject.CreateInstance<BossDefinition>();
@@ -1461,11 +1610,17 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             var difficulty = new BossDifficultyStats(
                 "difficulty_normal",
                 66000,
-                850d);
+                bossAttack);
             SetField(
                 bossDefinition,
                 "difficultyStats",
                 new[] { difficulty });
+            KragmorCombatConfig kragmorConfig =
+                KragmorTestConfig.Create();
+            createdObjects.Add(kragmorConfig);
+            KragmorTestConfig.Assign(
+                bossDefinition,
+                kragmorConfig);
 
             CharacterDefinition mareaDefinition =
                 ScriptableObject.CreateInstance<CharacterDefinition>();
@@ -1479,11 +1634,17 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             SetField(mareaDefinition, "level1Attack", 180);
             SetField(mareaDefinition, "level100Hp", 3400);
             SetField(mareaDefinition, "level100Attack", 1050);
+            MareaBluefangCombatConfig config =
+                MareaBluefangTestConfig.Create();
+            createdObjects.Add(config);
+            MareaBluefangTestConfig.Assign(mareaDefinition, config);
 
             return new BattleSceneCombatComposition(
                 mareaDefinition,
+                config,
                 1,
                 bossDefinition,
+                kragmorConfig,
                 difficulty,
                 new SeededRandomSource(1));
         }
@@ -1854,6 +2015,125 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             return slots;
         }
 
+        private DefinitionDatabase CreatePresentationDatabase(
+            bool includeIcons,
+            bool includeBossPresentation)
+        {
+            SkillDefinition fist = CreateSkillDefinition(
+                KragmorRules.ColossusIronFistSkillId,
+                includeIcons ? fistIntentSprite : null);
+            SkillDefinition eruption = CreateSkillDefinition(
+                KragmorRules.RockshardEruptionSkillId,
+                includeIcons ? eruptionIntentSprite : null);
+            SkillDefinition compression = CreateSkillDefinition(
+                KragmorRules.CoreCompressionSkillId,
+                includeIcons ? compressionIntentSprite : null);
+            SkillDefinition collapse = CreateSkillDefinition(
+                KragmorRules.EarthCollapseSkillId,
+                includeIcons ? collapseIntentSprite : null);
+
+            EffectDefinition mareaEffect = CreateEffectDefinition(
+                MareaBluefangRules.ActiveEffectId,
+                includeIcons ? darkSprite : null);
+            EffectDefinition carapaceEffect = CreateEffectDefinition(
+                KragmorRules.VolcanicCarapaceEffectId,
+                null);
+            EffectDefinition compressionEffect = CreateEffectDefinition(
+                KragmorRules.CoreCompressionEffectId,
+                null);
+            EffectDefinition exposureEffect = CreateEffectDefinition(
+                KragmorRules.CoreExposureEffectId,
+                null);
+            ResourceDefinition waterResource = CreateResourceDefinition(
+                WaterElementResource.Id,
+                includeIcons ? fireSprite : null);
+
+            BossPresentationDefinition[] presentations =
+                includeBossPresentation
+                    ? new[] { CreateBossPresentationDefinition() }
+                    : Array.Empty<BossPresentationDefinition>();
+            DefinitionDatabase database =
+                ScriptableObject.CreateInstance<DefinitionDatabase>();
+            createdObjects.Add(database);
+            SetField(
+                database,
+                "skills",
+                new[] { fist, eruption, compression, collapse });
+            SetField(
+                database,
+                "effects",
+                new[]
+                {
+                    mareaEffect,
+                    carapaceEffect,
+                    compressionEffect,
+                    exposureEffect
+                });
+            SetField(database, "resources", new[] { waterResource });
+            SetField(database, "bossPresentations", presentations);
+            database.Initialize();
+            return database;
+        }
+
+        private SkillDefinition CreateSkillDefinition(
+            string id,
+            Sprite icon)
+        {
+            SkillDefinition definition =
+                ScriptableObject.CreateInstance<SkillDefinition>();
+            createdObjects.Add(definition);
+            SetField(definition, "id", id);
+            SetField(definition, "icon", icon);
+            SetField(definition, "skillKind", SkillKind.BossAction);
+            return definition;
+        }
+
+        private EffectDefinition CreateEffectDefinition(
+            string id,
+            Sprite icon)
+        {
+            EffectDefinition definition =
+                ScriptableObject.CreateInstance<EffectDefinition>();
+            createdObjects.Add(definition);
+            SetField(definition, "id", id);
+            SetField(definition, "icon", icon);
+            return definition;
+        }
+
+        private ResourceDefinition CreateResourceDefinition(
+            string id,
+            Sprite icon)
+        {
+            ResourceDefinition definition =
+                ScriptableObject.CreateInstance<ResourceDefinition>();
+            createdObjects.Add(definition);
+            SetField(definition, "id", id);
+            SetField(definition, "icon", icon);
+            return definition;
+        }
+
+        private BossPresentationDefinition
+            CreateBossPresentationDefinition()
+        {
+            var exposure = new BossVisualStateEntry();
+            SetField(
+                exposure,
+                "visualStateId",
+                KragmorRules.CoreExposureVisualStateId);
+            SetField(exposure, "sprite", exposedBossSprite);
+            BossPresentationDefinition definition =
+                ScriptableObject.CreateInstance<
+                    BossPresentationDefinition>();
+            createdObjects.Add(definition);
+            SetField(definition, "bossId", KragmorRules.BossId);
+            SetField(definition, "defaultSprite", defaultBossSprite);
+            SetField(
+                definition,
+                "stateVisuals",
+                new[] { exposure });
+            return definition;
+        }
+
         private Sprite CreateSprite(string name)
         {
             var texture = new Texture2D(2, 2)
@@ -1991,17 +2271,27 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             string fieldName,
             object value)
         {
-            FieldInfo field = target.GetType().GetField(
-                fieldName,
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            if (field == null)
+            Type type = target.GetType();
+            while (type != null)
             {
-                throw new MissingFieldException(
-                    target.GetType().FullName,
-                    fieldName);
+                FieldInfo field = type.GetField(
+                    fieldName,
+                    BindingFlags.Instance
+                        | BindingFlags.Public
+                        | BindingFlags.NonPublic
+                        | BindingFlags.DeclaredOnly);
+                if (field != null)
+                {
+                    field.SetValue(target, value);
+                    return;
+                }
+
+                type = type.BaseType;
             }
 
-            field.SetValue(target, value);
+            throw new MissingFieldException(
+                target.GetType().FullName,
+                fieldName);
         }
 
         private static void SetProperty(

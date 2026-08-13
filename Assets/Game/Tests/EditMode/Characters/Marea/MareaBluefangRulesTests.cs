@@ -13,34 +13,39 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
         [Test]
         public void AwakeningZeroRulesExposeConfirmedValues()
         {
+            MareaBluefangCombatConfig config =
+                MareaBluefangTestConfig.Canonical;
+
+            Assert.That(config, Is.Not.Null);
             Assert.That(MareaBluefangRules.CharacterId,
                 Is.EqualTo("character_marea_bluefang"));
             Assert.That(MareaBluefangRules.ActiveAbilityId,
                 Is.EqualTo("active_marea_charge_order"));
             Assert.That(MareaBluefangRules.ActiveEffectId,
                 Is.EqualTo("effect_marea_charge_order"));
-            Assert.That(MareaBluefangRules.Match3Coefficient,
+            Assert.That(config.Match3Coefficient,
                 Is.EqualTo(0.90d));
-            Assert.That(MareaBluefangRules.Match4BaseCoefficient,
+            Assert.That(config.Match4BaseCoefficient,
                 Is.EqualTo(1.50d));
             Assert.That(
-                MareaBluefangRules.Match4WaterElementBonusCoefficient,
+                config.Match4WaterElementBonusCoefficient,
                 Is.EqualTo(0.40d));
-            Assert.That(MareaBluefangRules.Match5BaseCoefficient,
+            Assert.That(config.Match5BaseCoefficient,
                 Is.EqualTo(2.40d));
             Assert.That(
-                MareaBluefangRules.Match5CoefficientPerWaterElement,
+                config.Match5CoefficientPerWaterElement,
                 Is.EqualTo(1.40d));
-            Assert.That(MareaBluefangRules.PassiveDealtDamageIncreaseRate,
+            Assert.That(config.PassiveDealtDamageIncreaseRate,
                 Is.EqualTo(0.15d));
-            Assert.That(MareaBluefangRules.ActiveWaterDamageIncreaseRate,
+            Assert.That(config.ActiveWaterDamageIncreaseRate,
                 Is.EqualTo(0.25d));
-            Assert.That(MareaBluefangRules.ActiveDurationTurns,
+            Assert.That(config.ActiveDurationTurns,
                 Is.EqualTo(3));
-            Assert.That(MareaBluefangRules.ActiveCooldownTurns,
+            Assert.That(config.ActiveCooldownTurns,
                 Is.EqualTo(8));
-            Assert.That(MareaBluefangRules.WaterElementMaxAmount,
+            Assert.That(config.WaterElementMaxAmount,
                 Is.EqualTo(5));
+            Assert.That(config.TryValidate(out _), Is.True);
         }
 
         [Test]
@@ -58,6 +63,8 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
             Assert.That(definition.Level1Attack, Is.EqualTo(180));
             Assert.That(definition.Level100Hp, Is.EqualTo(3400));
             Assert.That(definition.Level100Attack, Is.EqualTo(1050));
+            Assert.That(definition.CombatConfig,
+                Is.SameAs(MareaBluefangTestConfig.Canonical));
         }
     }
 }

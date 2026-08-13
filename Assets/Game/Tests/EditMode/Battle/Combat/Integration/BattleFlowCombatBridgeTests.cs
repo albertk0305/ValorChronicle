@@ -286,7 +286,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             BossBattleState boss = Boss(10000, 100d);
             BattleFlowCoordinator coordinator = StartMatchResolution(
                 25,
-                null);
+                BattleFlowTestSupport.CreateCascade());
             Assert.That(
                 coordinator.TryBeginNextMatchEvent(out _),
                 Is.False);

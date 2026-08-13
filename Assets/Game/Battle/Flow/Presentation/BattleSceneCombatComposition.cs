@@ -19,8 +19,10 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         public BattleSceneCombatComposition(
             CharacterDefinition mareaDefinition,
+            MareaBluefangCombatConfig mareaConfig,
             int mareaLevel,
             BossDefinition bossDefinition,
+            KragmorCombatConfig kragmorConfig,
             BossDifficultyStats bossDifficultyStats,
             IRandomSource randomSource)
         {
@@ -40,9 +42,51 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     nameof(mareaDefinition));
             }
 
+            if (mareaConfig == null)
+            {
+                throw new ArgumentNullException(nameof(mareaConfig));
+            }
+
+            if (!ReferenceEquals(mareaDefinition.CombatConfig, mareaConfig))
+            {
+                throw new ArgumentException(
+                    "Marea config must be the config referenced by the "
+                        + "CharacterDefinition.",
+                    nameof(mareaConfig));
+            }
+
+            if (!mareaConfig.TryValidate(out string configError))
+            {
+                throw new ArgumentException(
+                    configError,
+                    nameof(mareaConfig));
+            }
+
             if (bossDefinition == null)
             {
                 throw new ArgumentNullException(nameof(bossDefinition));
+            }
+
+            if (kragmorConfig == null)
+            {
+                throw new ArgumentNullException(nameof(kragmorConfig));
+            }
+
+            if (!ReferenceEquals(
+                bossDefinition.CombatConfig,
+                kragmorConfig))
+            {
+                throw new ArgumentException(
+                    "Kragmor config must be the config referenced by the "
+                        + "BossDefinition.",
+                    nameof(kragmorConfig));
+            }
+
+            if (!kragmorConfig.TryValidate(out string kragmorConfigError))
+            {
+                throw new ArgumentException(
+                    kragmorConfigError,
+                    nameof(kragmorConfig));
             }
 
             if (bossDifficultyStats == null)
@@ -65,11 +109,16 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 bossDefinition.Element,
                 bossDifficultyStats.MaxHp,
                 bossDifficultyStats.Attack);
-            WaterElement = WaterElementResource.Register(Boss.Resources);
+            MareaConfig = mareaConfig;
+            WaterElement = WaterElementResource.Register(
+                Boss.Resources,
+                mareaConfig.WaterElementMaxAmount);
             Party = new PartyBattleState(new[] { Marea });
 
             ActionIds = new CombatActionIdSequence();
-            KragmorRuntimeState = new KragmorBattleRuntimeState();
+            KragmorConfig = kragmorConfig;
+            KragmorRuntimeState = new KragmorBattleRuntimeState(
+                kragmorConfig);
             KragmorDefenseEffectFactory.InitializeBattle(
                 Boss,
                 KragmorRuntimeState,
@@ -88,7 +137,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 KragmorRuntimeState);
             MareaBluefangCombatProviderRegistration.Register(
                 MatchProviders,
-                ActiveProviders);
+                ActiveProviders,
+                mareaConfig);
             activeBindings = Array.AsReadOnly(new[]
             {
                 new ActiveAbilityBinding(
@@ -99,11 +149,13 @@ namespace ValorChronicle.Battle.Flow.Presentation
             });
             FlowSetup = new BattleFlowSetup(
                 bossDefinition.TurnLimit,
-                new[] { MareaBluefangRules.ActiveCooldownTurns });
+                new[] { mareaConfig.ActiveCooldownTurns });
         }
 
         public BattleFlowSetup FlowSetup { get; }
         public CharacterBattleState Marea { get; }
+        public MareaBluefangCombatConfig MareaConfig { get; }
+        public KragmorCombatConfig KragmorConfig { get; }
         public PartyBattleState Party { get; }
         public BossBattleState Boss { get; }
         public ResourceState WaterElement { get; }
@@ -116,6 +168,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         public KragmorBossCombatActionProvider BossActionProvider { get; }
         public IKragmorBossIntentSource BossIntentSource =>
             BossActionProvider;
+        public IBossVisualStateSource BossVisualStateSource =>
+            KragmorRuntimeState;
         public IReadOnlyList<ActiveAbilityBinding> ActiveBindings =>
             activeBindings;
         public BattleFlowCombatBridge Bridge { get; private set; }

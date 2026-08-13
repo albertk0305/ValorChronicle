@@ -20,12 +20,27 @@ namespace ValorChronicle.Data.Database
         private SkillDefinition[] skills = Array.Empty<SkillDefinition>();
 
         [SerializeField]
+        private EffectDefinition[] effects = Array.Empty<EffectDefinition>();
+
+        [SerializeField]
+        private ResourceDefinition[] resources =
+            Array.Empty<ResourceDefinition>();
+
+        [SerializeField]
         private RelicDefinition[] relics = Array.Empty<RelicDefinition>();
+
+        [SerializeField]
+        private BossPresentationDefinition[] bossPresentations =
+            Array.Empty<BossPresentationDefinition>();
 
         private Dictionary<string, CharacterDefinition> charactersById;
         private Dictionary<string, BossDefinition> bossesById;
         private Dictionary<string, SkillDefinition> skillsById;
+        private Dictionary<string, EffectDefinition> effectsById;
+        private Dictionary<string, ResourceDefinition> resourcesById;
         private Dictionary<string, RelicDefinition> relicsById;
+        private Dictionary<string, BossPresentationDefinition>
+            bossPresentationsByBossId;
 
         public IReadOnlyList<CharacterDefinition> Characters =>
             Array.AsReadOnly(characters ?? Array.Empty<CharacterDefinition>());
@@ -36,8 +51,20 @@ namespace ValorChronicle.Data.Database
         public IReadOnlyList<SkillDefinition> Skills =>
             Array.AsReadOnly(skills ?? Array.Empty<SkillDefinition>());
 
+        public IReadOnlyList<EffectDefinition> Effects =>
+            Array.AsReadOnly(effects ?? Array.Empty<EffectDefinition>());
+
+        public IReadOnlyList<ResourceDefinition> Resources =>
+            Array.AsReadOnly(
+                resources ?? Array.Empty<ResourceDefinition>());
+
         public IReadOnlyList<RelicDefinition> Relics =>
             Array.AsReadOnly(relics ?? Array.Empty<RelicDefinition>());
+
+        public IReadOnlyList<BossPresentationDefinition> BossPresentations =>
+            Array.AsReadOnly(
+                bossPresentations
+                    ?? Array.Empty<BossPresentationDefinition>());
 
         public bool IsInitialized { get; private set; }
 
@@ -49,13 +76,23 @@ namespace ValorChronicle.Data.Database
                 BuildLookup(Bosses, nameof(BossDefinition));
             Dictionary<string, SkillDefinition> newSkills =
                 BuildLookup(Skills, nameof(SkillDefinition));
+            Dictionary<string, EffectDefinition> newEffects =
+                BuildLookup(Effects, nameof(EffectDefinition));
+            Dictionary<string, ResourceDefinition> newResources =
+                BuildLookup(Resources, nameof(ResourceDefinition));
             Dictionary<string, RelicDefinition> newRelics =
                 BuildLookup(Relics, nameof(RelicDefinition));
+            Dictionary<string, BossPresentationDefinition>
+                newBossPresentations = BuildBossPresentationLookup(
+                    BossPresentations);
 
             charactersById = newCharacters;
             bossesById = newBosses;
             skillsById = newSkills;
+            effectsById = newEffects;
+            resourcesById = newResources;
             relicsById = newRelics;
+            bossPresentationsByBossId = newBossPresentations;
             IsInitialized = true;
         }
 
@@ -81,6 +118,36 @@ namespace ValorChronicle.Data.Database
         {
             EnsureInitialized();
             return TryGet(relicsById, id, out definition);
+        }
+
+        public bool TryGetEffect(string id, out EffectDefinition definition)
+        {
+            EnsureInitialized();
+            return TryGet(effectsById, id, out definition);
+        }
+
+        public bool TryGetResource(
+            string id,
+            out ResourceDefinition definition)
+        {
+            EnsureInitialized();
+            return TryGet(resourcesById, id, out definition);
+        }
+
+        public bool TryGetBossPresentation(
+            string bossId,
+            out BossPresentationDefinition definition)
+        {
+            EnsureInitialized();
+            if (string.IsNullOrEmpty(bossId))
+            {
+                definition = null;
+                return false;
+            }
+
+            return bossPresentationsByBossId.TryGetValue(
+                bossId,
+                out definition);
         }
 
         private static Dictionary<string, TDefinition> BuildLookup<TDefinition>(
@@ -133,6 +200,46 @@ namespace ValorChronicle.Data.Database
             }
 
             return lookup.TryGetValue(id, out definition);
+        }
+
+        private static Dictionary<string, BossPresentationDefinition>
+            BuildBossPresentationLookup(
+                IReadOnlyList<BossPresentationDefinition> definitions)
+        {
+            var lookup =
+                new Dictionary<string, BossPresentationDefinition>(
+                    definitions.Count,
+                    StringComparer.Ordinal);
+
+            for (int index = 0; index < definitions.Count; index++)
+            {
+                BossPresentationDefinition definition = definitions[index];
+                if (definition == null)
+                {
+                    throw new InvalidOperationException(
+                        "Cannot initialize BossPresentationDefinition "
+                            + $"lookup: entry {index} is null.");
+                }
+
+                if (string.IsNullOrEmpty(definition.BossId))
+                {
+                    throw new InvalidOperationException(
+                        "Cannot initialize BossPresentationDefinition "
+                            + $"lookup: entry {index} has no Boss ID.");
+                }
+
+                if (lookup.ContainsKey(definition.BossId))
+                {
+                    throw new InvalidOperationException(
+                        "Cannot initialize BossPresentationDefinition "
+                            + $"lookup: duplicate Boss ID "
+                            + $"'{definition.BossId}'.");
+                }
+
+                lookup.Add(definition.BossId, definition);
+            }
+
+            return lookup;
         }
 
         private void EnsureInitialized()

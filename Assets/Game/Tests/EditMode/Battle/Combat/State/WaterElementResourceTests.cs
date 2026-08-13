@@ -10,7 +10,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.State
         {
             var resources = new ResourceCollection();
 
-            ResourceState water = WaterElementResource.Register(resources);
+            ResourceState water = WaterElementResource.Register(
+                resources,
+                5);
 
             Assert.That(water.ResourceId,
                 Is.EqualTo(WaterElementResource.Id));
@@ -22,7 +24,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.State
         public void AddClampsAtFiveAndReportsExistingOverflowContract()
         {
             var resources = new ResourceCollection();
-            ResourceState water = WaterElementResource.Register(resources);
+            ResourceState water = WaterElementResource.Register(
+                resources,
+                5);
 
             ResourceAddResult first = water.Add(1);
             ResourceAddResult second = water.Add(3);
@@ -43,7 +47,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.State
         public void ConsumeAllClearsWaterWithoutChangingOtherResources()
         {
             var resources = new ResourceCollection();
-            ResourceState water = WaterElementResource.Register(resources);
+            ResourceState water = WaterElementResource.Register(
+                resources,
+                5);
             ResourceState other = resources.Register("fire_charge", 9);
             water.Add(5);
             other.Add(4);
@@ -55,6 +61,28 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.State
             Assert.That(result.AmountAfter, Is.Zero);
             Assert.That(water.CurrentAmount, Is.Zero);
             Assert.That(other.CurrentAmount, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void RegisterUsesInjectedMaximum()
+        {
+            var resources = new ResourceCollection();
+
+            ResourceState water = WaterElementResource.Register(
+                resources,
+                7);
+
+            Assert.That(water.MaxAmount, Is.EqualTo(7));
+        }
+
+        [TestCase(0)]
+        [TestCase(-1)]
+        public void RegisterRejectsNonPositiveMaximum(int maximum)
+        {
+            Assert.Throws<System.ArgumentOutOfRangeException>(() =>
+                WaterElementResource.Register(
+                    new ResourceCollection(),
+                    maximum));
         }
     }
 }

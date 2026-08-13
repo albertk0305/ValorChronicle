@@ -6,6 +6,7 @@ namespace ValorChronicle.Bosses.Kragmor
     {
         internal KragmorBossIntent(
             KragmorActionKind actionKind,
+            string skillId,
             bool hasDirectDamage,
             bool isHeavy,
             double damageCoefficient)
@@ -13,6 +14,13 @@ namespace ValorChronicle.Bosses.Kragmor
             if (!Enum.IsDefined(typeof(KragmorActionKind), actionKind))
             {
                 throw new ArgumentOutOfRangeException(nameof(actionKind));
+            }
+
+            if (string.IsNullOrWhiteSpace(skillId))
+            {
+                throw new ArgumentException(
+                    "Skill ID cannot be null or whitespace.",
+                    nameof(skillId));
             }
 
             if (double.IsNaN(damageCoefficient)
@@ -31,12 +39,14 @@ namespace ValorChronicle.Bosses.Kragmor
             }
 
             ActionKind = actionKind;
+            SkillId = skillId;
             HasDirectDamage = hasDirectDamage;
             IsHeavy = isHeavy;
             DamageCoefficient = damageCoefficient;
         }
 
         public KragmorActionKind ActionKind { get; }
+        public string SkillId { get; }
         public bool HasDirectDamage { get; }
         public bool IsHeavy { get; }
         public double DamageCoefficient { get; }

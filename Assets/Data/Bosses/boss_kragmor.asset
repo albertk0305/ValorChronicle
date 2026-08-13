@@ -16,7 +16,11 @@ MonoBehaviour:
   displayNameKey: kragmor
   element: 0
   turnLimit: 25
-  actionOrSkillIds: []
+  actionOrSkillIds:
+  - boss_action_kragmor_colossus_iron_fist
+  - boss_action_kragmor_rockshard_eruption
+  - boss_action_kragmor_core_compression
+  - boss_action_kragmor_earth_collapse
   difficultyStats:
   - difficultyId: difficulty_intro
     maxHp: 33000
@@ -33,3 +37,4 @@ MonoBehaviour:
   - difficultyId: difficulty_challenge
     maxHp: 198000
     attack: 2100
+  combatConfig: {fileID: 11400000, guid: 50ec6d92ab0d4d8189b99680e7000cb1, type: 2}

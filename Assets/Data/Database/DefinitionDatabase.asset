@@ -16,5 +16,21 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 215b927139a0b284db55387800956e46, type: 2}
   bosses:
   - {fileID: 11400000, guid: c9740748b1c32254788603fedb0a224b, type: 2}
-  skills: []
+  skills:
+  - {fileID: 11400000, guid: b985a44b8f5f49ac87c550dab32d212d, type: 2}
+  - {fileID: 11400000, guid: 49477266962e4603a9b4b61852a30129, type: 2}
+  - {fileID: 11400000, guid: 0f46653463a7435e9ba306fb54331e6c, type: 2}
+  - {fileID: 11400000, guid: d0da142a882144e2bc732487f65f73d9, type: 2}
+  - {fileID: 11400000, guid: 86b8922d45b64da4ba44edc3cb221d28, type: 2}
+  - {fileID: 11400000, guid: 8ed959ba732946dcbd40dc78e0fe2590, type: 2}
+  - {fileID: 11400000, guid: 103d9cddd1524e968581ef62dbb18565, type: 2}
+  effects:
+  - {fileID: 11400000, guid: 575d814cdc84482cb91219cdea43fb56, type: 2}
+  - {fileID: 11400000, guid: d67e292ae6ba40e7b51fc9a9a54dca91, type: 2}
+  - {fileID: 11400000, guid: cd8e77bafcc54cae9ac70b24d240d4f8, type: 2}
+  - {fileID: 11400000, guid: f02a919d628b45e6961823bcd668af14, type: 2}
+  resources:
+  - {fileID: 11400000, guid: 6b76300afa0442b7ac50b60cbb9736b7, type: 2}
   relics: []
+  bossPresentations:
+  - {fileID: 11400000, guid: 36bf445134a546f1b77d55bda4a0bd01, type: 2}

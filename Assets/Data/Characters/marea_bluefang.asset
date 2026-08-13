@@ -19,4 +19,8 @@ MonoBehaviour:
   level1Attack: 180
   level100Hp: 3400
   level100Attack: 1050
-  skillIds: []
+  skillIds:
+  - skill_marea_bluefang_match
+  - passive_marea_water_element
+  - active_marea_charge_order
+  combatConfig: {fileID: 11400000, guid: 93887ca0a3ad4b80bf80b280819ee475, type: 2}

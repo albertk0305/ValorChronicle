@@ -38,15 +38,27 @@ namespace ValorChronicle.Bosses.Kragmor
             long runtimeId = actionIds.Next();
             EffectInstance effect = Create(
                 KragmorDefenseState.VolcanicCarapace,
-                runtimeId);
+                runtimeId,
+                runtimeState.Config);
             boss.Effects.ApplyEffect(effect);
             return effect;
         }
 
         public static EffectInstance Create(
             KragmorDefenseState defenseState,
-            long runtimeId)
+            long runtimeId,
+            KragmorCombatConfig config)
         {
+            if (config == null)
+            {
+                throw new ArgumentNullException(nameof(config));
+            }
+
+            if (!config.TryValidate(out string errorMessage))
+            {
+                throw new ArgumentException(errorMessage, nameof(config));
+            }
+
             string effectId;
             EffectCategory category;
             EffectModifierType modifierType;
@@ -59,21 +71,21 @@ namespace ValorChronicle.Bosses.Kragmor
                     modifierType =
                         EffectModifierType.TargetTakenDamageReduction;
                     magnitude =
-                        KragmorRules.VolcanicCarapaceReductionRate;
+                        config.VolcanicCarapaceReductionRate;
                     break;
                 case KragmorDefenseState.CoreCompression:
                     effectId = KragmorRules.CoreCompressionEffectId;
                     category = EffectCategory.Buff;
                     modifierType =
                         EffectModifierType.TargetTakenDamageReduction;
-                    magnitude = KragmorRules.CoreCompressionReductionRate;
+                    magnitude = config.CoreCompressionReductionRate;
                     break;
                 case KragmorDefenseState.CoreExposure:
                     effectId = KragmorRules.CoreExposureEffectId;
                     category = EffectCategory.Debuff;
                     modifierType =
                         EffectModifierType.TargetTakenDamageIncrease;
-                    magnitude = KragmorRules.CoreExposureIncreaseRate;
+                    magnitude = config.CoreExposureIncreaseRate;
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(

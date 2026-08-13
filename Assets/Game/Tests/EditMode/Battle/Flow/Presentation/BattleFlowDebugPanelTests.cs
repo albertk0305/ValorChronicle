@@ -160,7 +160,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 null,
                 new object[]
                 {
-                    KragmorRules.GetIntent(KragmorActionKind.EarthCollapse)
+                    new KragmorBattleRuntimeState(
+                        KragmorTestConfig.Create())
+                        .GetIntentForecast(4)[3].Intent
                 });
 
             Assert.That(formatted, Is.EqualTo(

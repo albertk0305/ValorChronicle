@@ -11,6 +11,14 @@ namespace ValorChronicle.Characters.Marea
     public sealed class MareaBluefangActiveActionProvider
         : IActiveAbilityActionProvider
     {
+        private readonly MareaBluefangCombatConfig config;
+
+        public MareaBluefangActiveActionProvider(
+            MareaBluefangCombatConfig config)
+        {
+            this.config = ValidateConfig(config);
+        }
+
         public IReadOnlyList<CombatAction> CreateRootActions(
             ActiveAbilityActionContext context)
         {
@@ -35,8 +43,8 @@ namespace ValorChronicle.Characters.Marea
                 actor.CharacterId,
                 EffectCategory.Buff,
                 EffectModifierType.ElementDamageIncrease,
-                MareaBluefangRules.ActiveWaterDamageIncreaseRate,
-                MareaBluefangRules.ActiveDurationTurns,
+                config.ActiveWaterDamageIncreaseRate,
+                config.ActiveDurationTurns,
                 actionId,
                 EffectStackPolicy.RefreshDuration,
                 elementFilter: ElementType.Water);
@@ -48,6 +56,22 @@ namespace ValorChronicle.Characters.Marea
                     actor,
                     effect)
             };
+        }
+
+        private static MareaBluefangCombatConfig ValidateConfig(
+            MareaBluefangCombatConfig value)
+        {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
+            if (!value.TryValidate(out string errorMessage))
+            {
+                throw new ArgumentException(errorMessage, nameof(value));
+            }
+
+            return value;
         }
 
         private static void ValidateInputs(

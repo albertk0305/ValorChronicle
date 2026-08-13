@@ -138,7 +138,7 @@ namespace ValorChronicle.Tests.PlayMode
 
             Assert.That(flow.TryUseActive(0), Is.True);
             Assert.That(active.RemainingCooldown,
-                Is.EqualTo(MareaBluefangRules.ActiveCooldownTurns));
+                Is.EqualTo(combat.MareaConfig.ActiveCooldownTurns));
             Assert.That(combat.Marea.Effects.FindByEffectId(
                 MareaBluefangRules.ActiveEffectId), Has.Count.EqualTo(1));
             Assert.That(combat.Bridge.LastActiveExecutionResult

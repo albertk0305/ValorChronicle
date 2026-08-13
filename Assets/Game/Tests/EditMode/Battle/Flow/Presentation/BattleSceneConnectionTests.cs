@@ -201,10 +201,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(hudController.ResultText.name,
                 Is.EqualTo("ResultText"));
             Assert.That(hudController.BossImage, Is.Not.Null);
-            Assert.That(hudController.CoreCompressionBossSprite, Is.Null);
-            Assert.That(hudController.CoreExposureBossSprite, Is.Not.Null);
-            Assert.That(hudController.CoreExposureBossSprite.name,
-                Is.EqualTo("KragmorExposed_0"));
+            Assert.That(hudController.ResourceFallbackIcon, Is.Not.Null);
             Assert.That(hudController.BossHpSlider, Is.Not.Null);
             Assert.That(hudController.BossHpText, Is.Not.Null);
             Assert.That(hudController.BossShieldImage, Is.Not.Null);
@@ -228,10 +225,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     .objectReferenceValue));
 
             Assert.That(hudController.BossIntentSlotCount, Is.EqualTo(10));
-            Assert.That(hudController.ColossusIronFistIcon, Is.Null);
-            Assert.That(hudController.RockshardEruptionIcon, Is.Null);
-            Assert.That(hudController.CoreCompressionIntentIcon, Is.Null);
-            Assert.That(hudController.EarthCollapseIcon, Is.Null);
             for (int index = 0;
                 index < hudController.BossIntentSlotCount;
                 index++)

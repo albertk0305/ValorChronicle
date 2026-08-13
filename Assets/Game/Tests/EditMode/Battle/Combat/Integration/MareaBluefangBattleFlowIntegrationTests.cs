@@ -25,7 +25,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
 
             MareaBluefangCombatProviderRegistration.Register(
                 matchProviders,
-                activeProviders);
+                activeProviders,
+                MareaBluefangTestConfig.Create());
 
             Assert.That(matchProviders.Count, Is.EqualTo(1));
             Assert.That(matchProviders.TryResolve(
@@ -126,7 +127,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                 new[] { marea, generator });
             BossBattleState boss = Boss();
             ResourceState water = WaterElementResource.Register(
-                boss.Resources);
+                boss.Resources,
+                5);
             var matchProviders = new MatchEventActionProviderRegistry();
             matchProviders.Register(
                 generator.CharacterId,
@@ -144,7 +146,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             matchProviders.Register(
                 MareaBluefangRules.CharacterId,
                 new ObservingMatchProvider(
-                    new MareaBluefangMatchActionProvider(),
+                    new MareaBluefangMatchActionProvider(
+                        MareaBluefangTestConfig.Create()),
                     context => waterSeenByMarea = context.Boss.Resources
                         .Get(WaterElementResource.Id).CurrentAmount));
             BattleFlowCoordinator coordinator = BeginMatchResolution(
@@ -178,7 +181,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             PartyBattleState party = new PartyBattleState(
                 new[] { generator, marea });
             BossBattleState boss = Boss();
-            WaterElementResource.Register(boss.Resources);
+            WaterElementResource.Register(boss.Resources, 5);
             var actionIds = new CombatActionIdSequence();
             var matchProviders = new MatchEventActionProviderRegistry();
             matchProviders.Register(
@@ -192,7 +195,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             matchProviders.Register(
                 MareaBluefangRules.CharacterId,
                 new ObservingMatchProvider(
-                    new MareaBluefangMatchActionProvider(),
+                    new MareaBluefangMatchActionProvider(
+                        MareaBluefangTestConfig.Create()),
                     context => waterSeenByMarea = context.Boss.Resources
                         .Get(WaterElementResource.Id).CurrentAmount));
             var derivedWater = new DelegateIntegrationTriggerRule(context =>
@@ -257,7 +261,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             PartyBattleState party = new PartyBattleState(
                 new[] { killer, marea });
             BossBattleState boss = Boss(50);
-            WaterElementResource.Register(boss.Resources);
+            WaterElementResource.Register(boss.Resources, 5);
             int mareaCalls = 0;
             var matchProviders = new MatchEventActionProviderRegistry();
             matchProviders.Register(
@@ -270,7 +274,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             matchProviders.Register(
                 MareaBluefangRules.CharacterId,
                 new ObservingMatchProvider(
-                    new MareaBluefangMatchActionProvider(),
+                    new MareaBluefangMatchActionProvider(
+                        MareaBluefangTestConfig.Create()),
                     context => mareaCalls++));
             BattleFlowCoordinator coordinator = BeginMatchResolution(
                 WaterMatch(3));
@@ -309,7 +314,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             BossBattleState boss = Boss();
             var coordinator = new BattleFlowCoordinator(
                 25,
-                new[] { MareaBluefangRules.ActiveCooldownTurns });
+                new[] { 8 });
             var actionIds = new CombatActionIdSequence();
             BattleFlowCombatBridge bridge = CreateBridge(
                 coordinator,
@@ -384,14 +389,15 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                 25,
                 new[]
                 {
-                    MareaBluefangRules.ActiveCooldownTurns,
-                    MareaBluefangRules.ActiveCooldownTurns
+                    8,
+                    8
                 });
             var activeProviders = new ActiveAbilityActionProviderRegistry();
             activeProviders.Register(
                 MareaBluefangRules.CharacterId,
                 MareaBluefangRules.ActiveAbilityId,
-                new MareaBluefangActiveActionProvider());
+                new MareaBluefangActiveActionProvider(
+                    MareaBluefangTestConfig.Create()));
             BattleFlowCombatBridge bridge = CreateBridge(
                 coordinator,
                 party,
@@ -498,16 +504,18 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             var party = new PartyBattleState(new[] { marea });
             BossBattleState boss = Boss(1000000);
             ResourceState water = WaterElementResource.Register(
-                boss.Resources);
+                boss.Resources,
+                5);
             var coordinator = new BattleFlowCoordinator(
                 turnLimit,
-                new[] { MareaBluefangRules.ActiveCooldownTurns });
+                new[] { 8 });
             var actionIds = new CombatActionIdSequence();
             var matchProviders = new MatchEventActionProviderRegistry();
             var activeProviders = new ActiveAbilityActionProviderRegistry();
             MareaBluefangCombatProviderRegistration.Register(
                 matchProviders,
-                activeProviders);
+                activeProviders,
+                MareaBluefangTestConfig.Create());
             BattleFlowCombatBridge bridge = CreateBridge(
                 coordinator,
                 party,

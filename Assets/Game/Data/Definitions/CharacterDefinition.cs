@@ -30,6 +30,9 @@ namespace ValorChronicle.Data.Definitions
         [SerializeField]
         private string[] skillIds = Array.Empty<string>();
 
+        [SerializeField]
+        private CombatConfigDefinition combatConfig;
+
         public string DisplayNameKey => displayNameKey;
         public ElementType Element => element;
         public int Level1Hp => level1Hp;
@@ -38,5 +41,6 @@ namespace ValorChronicle.Data.Definitions
         public int Level100Attack => level100Attack;
         public IReadOnlyList<string> SkillIds =>
             Array.AsReadOnly(skillIds ?? Array.Empty<string>());
+        public CombatConfigDefinition CombatConfig => combatConfig;
     }
 }

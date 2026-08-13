@@ -10683,13 +10683,8 @@ MonoBehaviour:
   - root: {fileID: 1164972161}
     actionImage: {fileID: 575553354}
     remainingTurnText: {fileID: 1347195102}
-  colossusIronFistIcon: {fileID: 0}
-  rockshardEruptionIcon: {fileID: 0}
-  coreCompressionIntentIcon: {fileID: 0}
-  earthCollapseIcon: {fileID: 0}
   bossImage: {fileID: 1041746698}
-  coreCompressionBossSprite: {fileID: 0}
-  coreExposureBossSprite: {fileID: -7487157830298141877, guid: a87414aac6d212a48bc857dfa8214261, type: 3}
+  resourceFallbackIcon: {fileID: 21300000, guid: cd4a89e7d23e878409a9ace4153274ef, type: 3}
   bossStatusSlots:
   - root: {fileID: 1732615078}
     iconImage: {fileID: 1732615081}
@@ -11022,13 +11017,8 @@ MonoBehaviour:
   - root: {fileID: 0}
     actionImage: {fileID: 0}
     remainingTurnText: {fileID: 0}
-  colossusIronFistIcon: {fileID: 0}
-  rockshardEruptionIcon: {fileID: 0}
-  coreCompressionIntentIcon: {fileID: 0}
-  earthCollapseIcon: {fileID: 0}
   bossImage: {fileID: 0}
-  coreCompressionBossSprite: {fileID: 0}
-  coreExposureBossSprite: {fileID: -7487157830298141877, guid: a87414aac6d212a48bc857dfa8214261, type: 3}
+  resourceFallbackIcon: {fileID: 21300000, guid: cd4a89e7d23e878409a9ace4153274ef, type: 3}
   bossStatusSlots:
   - root: {fileID: 0}
     iconImage: {fileID: 0}

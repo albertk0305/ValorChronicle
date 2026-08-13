@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7a7eaf2f6604ec3aef28232b8c19c70, type: 3}
+  m_Name: kragmor_presentation
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Data.Definitions.BossPresentationDefinition
+  bossId: kragmor
+  defaultSprite: {fileID: 5024001228010453062, guid: 00b50c2e12e3b4c4faf3cb7b0a9ff568, type: 3}
+  stateVisuals:
+  - visualStateId: kragmor_core_exposure
+    sprite: {fileID: -7487157830298141877, guid: a87414aac6d212a48bc857dfa8214261, type: 3}

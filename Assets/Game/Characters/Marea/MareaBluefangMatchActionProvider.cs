@@ -13,6 +13,14 @@ namespace ValorChronicle.Characters.Marea
     public sealed class MareaBluefangMatchActionProvider
         : IMatchEventActionProvider
     {
+        private readonly MareaBluefangCombatConfig config;
+
+        public MareaBluefangMatchActionProvider(
+            MareaBluefangCombatConfig config)
+        {
+            this.config = ValidateConfig(config);
+        }
+
         public IReadOnlyList<CombatAction> CreateRootActions(
             MatchEventActionContext context)
         {
@@ -52,7 +60,7 @@ namespace ValorChronicle.Characters.Marea
 
             ResourceState water = boss.Resources.Get(
                 WaterElementResource.Id);
-            if (water.MaxAmount != WaterElementResource.MaxAmount)
+            if (water.MaxAmount != config.WaterElementMaxAmount)
             {
                 throw new InvalidOperationException(
                     "WaterElement must use the shared maximum amount.");
@@ -61,7 +69,7 @@ namespace ValorChronicle.Characters.Marea
             int waterAtAttackStart = water.CurrentAmount;
             bool hasWaterAtAttackStart = waterAtAttackStart > 0;
             double localDealtDamageIncrease = hasWaterAtAttackStart
-                ? MareaBluefangRules.PassiveDealtDamageIncreaseRate
+                ? config.PassiveDealtDamageIncreaseRate
                 : 0d;
             AttackTag matchTag = ResolveMatchTag(matchTier);
             double skillCoefficient = ResolveSkillCoefficient(
@@ -123,24 +131,22 @@ namespace ValorChronicle.Characters.Marea
             };
         }
 
-        private static double ResolveSkillCoefficient(
+        private double ResolveSkillCoefficient(
             BoardMatchTier matchTier,
             int waterAtAttackStart)
         {
             switch (matchTier)
             {
                 case BoardMatchTier.Three:
-                    return MareaBluefangRules.Match3Coefficient;
+                    return config.Match3Coefficient;
                 case BoardMatchTier.Four:
-                    return MareaBluefangRules.Match4BaseCoefficient
+                    return config.Match4BaseCoefficient
                         + (waterAtAttackStart > 0
-                            ? MareaBluefangRules
-                                .Match4WaterElementBonusCoefficient
+                            ? config.Match4WaterElementBonusCoefficient
                             : 0d);
                 case BoardMatchTier.FiveOrMore:
-                    return MareaBluefangRules.Match5BaseCoefficient
-                        + MareaBluefangRules
-                            .Match5CoefficientPerWaterElement
+                    return config.Match5BaseCoefficient
+                        + config.Match5CoefficientPerWaterElement
                         * waterAtAttackStart;
                 default:
                     throw new ArgumentOutOfRangeException(
@@ -148,6 +154,22 @@ namespace ValorChronicle.Characters.Marea
                         matchTier,
                         "Match tier must be defined.");
             }
+        }
+
+        private static MareaBluefangCombatConfig ValidateConfig(
+            MareaBluefangCombatConfig value)
+        {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
+            if (!value.TryValidate(out string errorMessage))
+            {
+                throw new ArgumentException(errorMessage, nameof(value));
+            }
+
+            return value;
         }
 
         private static AttackTag ResolveMatchTag(BoardMatchTier matchTier)

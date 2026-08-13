@@ -22,12 +22,23 @@ namespace ValorChronicle.Data.Validation
             }
 
             var globalIds = new Dictionary<string, string>(StringComparer.Ordinal);
-            var skillIds = CollectSkillIds(database.Skills);
+            Dictionary<string, SkillDefinition> skillsById =
+                CollectSkillsById(database.Skills);
 
-            ValidateCharacters(database.Characters, skillIds, globalIds, report);
-            ValidateBosses(database.Bosses, skillIds, globalIds, report);
+            ValidateCharacters(
+                database.Characters,
+                skillsById,
+                globalIds,
+                report);
+            ValidateBosses(database.Bosses, skillsById, globalIds, report);
             ValidateSkills(database.Skills, globalIds, report);
+            ValidateEffects(database.Effects, globalIds, report);
+            ValidateResources(database.Resources, globalIds, report);
             ValidateRelics(database.Relics, globalIds, report);
+            ValidateBossPresentations(
+                database.BossPresentations,
+                database.Bosses,
+                report);
 
             return report;
         }
@@ -54,10 +65,11 @@ namespace ValorChronicle.Data.Validation
             }
         }
 
-        private static HashSet<string> CollectSkillIds(
+        private static Dictionary<string, SkillDefinition> CollectSkillsById(
             IReadOnlyList<SkillDefinition> skills)
         {
-            var ids = new HashSet<string>(StringComparer.Ordinal);
+            var definitions = new Dictionary<string, SkillDefinition>(
+                StringComparer.Ordinal);
 
             for (int i = 0; i < skills.Count; i++)
             {
@@ -65,16 +77,19 @@ namespace ValorChronicle.Data.Validation
 
                 if (skill != null && !string.IsNullOrEmpty(skill.Id))
                 {
-                    ids.Add(skill.Id);
+                    if (!definitions.ContainsKey(skill.Id))
+                    {
+                        definitions.Add(skill.Id, skill);
+                    }
                 }
             }
 
-            return ids;
+            return definitions;
         }
 
         private static void ValidateCharacters(
             IReadOnlyList<CharacterDefinition> characters,
-            ISet<string> skillIds,
+            IReadOnlyDictionary<string, SkillDefinition> skillsById,
             IDictionary<string, string> globalIds,
             ValidationReport report)
         {
@@ -92,6 +107,22 @@ namespace ValorChronicle.Data.Validation
 
                 ValidateCommon(definition, nameof(CharacterDefinition), typeIds, globalIds, report);
                 WarnIfDisplayNameKeyMissing(definition.DisplayNameKey, definition, report);
+
+                if (definition.CombatConfig == null)
+                {
+                    AddWarning(
+                        report,
+                        definition,
+                        "Combat config is missing");
+                }
+                else if (!definition.CombatConfig.TryValidate(
+                    out string configError))
+                {
+                    AddError(
+                        report,
+                        definition,
+                        $"Combat config is invalid. {configError}");
+                }
 
                 if (definition.Level1Hp <= 0)
                 {
@@ -123,10 +154,11 @@ namespace ValorChronicle.Data.Validation
                     AddError(report, definition, "Lv.100 ATK cannot be lower than Lv.1 ATK");
                 }
 
-                ValidateReferences(
+                ValidateSkillReferences(
                     definition.SkillIds,
-                    skillIds,
+                    skillsById,
                     "skill",
+                    SkillReferenceOwner.Character,
                     definition,
                     report);
 
@@ -139,7 +171,7 @@ namespace ValorChronicle.Data.Validation
 
         private static void ValidateBosses(
             IReadOnlyList<BossDefinition> bosses,
-            ISet<string> skillIds,
+            IReadOnlyDictionary<string, SkillDefinition> skillsById,
             IDictionary<string, string> globalIds,
             ValidationReport report)
         {
@@ -158,6 +190,22 @@ namespace ValorChronicle.Data.Validation
                 ValidateCommon(definition, nameof(BossDefinition), typeIds, globalIds, report);
                 WarnIfDisplayNameKeyMissing(definition.DisplayNameKey, definition, report);
 
+                if (definition.CombatConfig == null)
+                {
+                    AddWarning(
+                        report,
+                        definition,
+                        "Combat config is missing");
+                }
+                else if (!definition.CombatConfig.TryValidate(
+                    out string configError))
+                {
+                    AddError(
+                        report,
+                        definition,
+                        $"Combat config is invalid. {configError}");
+                }
+
                 if (definition.TurnLimit <= 0)
                 {
                     AddError(report, definition, "Turn limit must be greater than zero");
@@ -165,10 +213,11 @@ namespace ValorChronicle.Data.Validation
 
                 ValidateBossDifficulties(definition, report);
 
-                ValidateReferences(
+                ValidateSkillReferences(
                     definition.ActionOrSkillIds,
-                    skillIds,
+                    skillsById,
                     "action or skill",
+                    SkillReferenceOwner.Boss,
                     definition,
                     report);
 
@@ -263,6 +312,89 @@ namespace ValorChronicle.Data.Validation
 
                 ValidateCommon(definition, nameof(SkillDefinition), typeIds, globalIds, report);
                 WarnIfDisplayNameKeyMissing(definition.DisplayNameKey, definition, report);
+                WarnIfDescriptionKeyMissing(
+                    definition.DescriptionKey,
+                    definition,
+                    report);
+                WarnIfIconMissing(definition.Icon, definition, report);
+                if (!Enum.IsDefined(
+                        typeof(SkillKind),
+                        definition.SkillKind))
+                {
+                    AddError(report, definition, "Skill kind is invalid");
+                }
+            }
+        }
+
+        private static void ValidateEffects(
+            IReadOnlyList<EffectDefinition> effects,
+            IDictionary<string, string> globalIds,
+            ValidationReport report)
+        {
+            var typeIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < effects.Count; index++)
+            {
+                EffectDefinition definition = effects[index];
+                if (definition == null)
+                {
+                    AddNullDefinition(
+                        report,
+                        nameof(EffectDefinition),
+                        index);
+                    continue;
+                }
+
+                ValidateCommon(
+                    definition,
+                    nameof(EffectDefinition),
+                    typeIds,
+                    globalIds,
+                    report);
+                WarnIfDisplayNameKeyMissing(
+                    definition.DisplayNameKey,
+                    definition,
+                    report);
+                WarnIfDescriptionKeyMissing(
+                    definition.DescriptionKey,
+                    definition,
+                    report);
+                WarnIfIconMissing(definition.Icon, definition, report);
+            }
+        }
+
+        private static void ValidateResources(
+            IReadOnlyList<ResourceDefinition> resources,
+            IDictionary<string, string> globalIds,
+            ValidationReport report)
+        {
+            var typeIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < resources.Count; index++)
+            {
+                ResourceDefinition definition = resources[index];
+                if (definition == null)
+                {
+                    AddNullDefinition(
+                        report,
+                        nameof(ResourceDefinition),
+                        index);
+                    continue;
+                }
+
+                ValidateCommon(
+                    definition,
+                    nameof(ResourceDefinition),
+                    typeIds,
+                    globalIds,
+                    report);
+                WarnIfDisplayNameKeyMissing(
+                    definition.DisplayNameKey,
+                    definition,
+                    report);
+                WarnIfDescriptionKeyMissing(
+                    definition.DescriptionKey,
+                    definition,
+                    report);
+                WarnIfIconMissing(definition.Icon, definition, report);
             }
         }
 
@@ -335,28 +467,207 @@ namespace ValorChronicle.Data.Validation
             }
         }
 
-        private static void ValidateReferences(
+        private static void ValidateSkillReferences(
             IReadOnlyList<string> referenceIds,
-            ISet<string> validSkillIds,
+            IReadOnlyDictionary<string, SkillDefinition> skillsById,
             string referenceType,
+            SkillReferenceOwner ownerType,
             GameDefinition owner,
             ValidationReport report)
         {
+            var referencedIds = new HashSet<string>(StringComparer.Ordinal);
             for (int i = 0; i < referenceIds.Count; i++)
             {
                 string referenceId = referenceIds[i];
 
-                if (!string.IsNullOrEmpty(referenceId) && validSkillIds.Contains(referenceId))
+                if (!string.IsNullOrEmpty(referenceId)
+                    && !referencedIds.Add(referenceId))
                 {
+                    AddError(
+                        report,
+                        owner,
+                        $"Duplicate {referenceType} reference: "
+                            + referenceId);
                     continue;
                 }
 
-                string displayedId = string.IsNullOrEmpty(referenceId) ? "<empty>" : referenceId;
-                report.Add(
-                    ValidationSeverity.Error,
-                    $"[DataValidator] Missing {referenceType} reference: {displayedId}",
-                    owner.Id,
-                    owner);
+                if (string.IsNullOrEmpty(referenceId)
+                    || !skillsById.TryGetValue(
+                        referenceId,
+                        out SkillDefinition skill))
+                {
+                    string displayedId = string.IsNullOrEmpty(referenceId)
+                        ? "<empty>"
+                        : referenceId;
+                    report.Add(
+                        ValidationSeverity.Error,
+                        $"[DataValidator] Missing {referenceType} "
+                            + $"reference: {displayedId}",
+                        owner.Id,
+                        owner);
+                    continue;
+                }
+
+                if (ownerType == SkillReferenceOwner.Character
+                    && skill.SkillKind == SkillKind.BossAction)
+                {
+                    AddError(
+                        report,
+                        owner,
+                        $"Character cannot reference BossAction skill: "
+                            + referenceId);
+                }
+                else if (ownerType == SkillReferenceOwner.Boss
+                    && skill.SkillKind != SkillKind.BossAction)
+                {
+                    AddError(
+                        report,
+                        owner,
+                        $"Boss action list must reference BossAction skill: "
+                            + referenceId);
+                }
+            }
+        }
+
+        private static void ValidateBossPresentations(
+            IReadOnlyList<BossPresentationDefinition> presentations,
+            IReadOnlyList<BossDefinition> bosses,
+            ValidationReport report)
+        {
+            var bossIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < bosses.Count; index++)
+            {
+                BossDefinition boss = bosses[index];
+                if (boss != null && !string.IsNullOrEmpty(boss.Id))
+                {
+                    bossIds.Add(boss.Id);
+                }
+            }
+
+            var presentedBossIds = new HashSet<string>(
+                StringComparer.Ordinal);
+            for (int index = 0; index < presentations.Count; index++)
+            {
+                BossPresentationDefinition presentation =
+                    presentations[index];
+                if (presentation == null)
+                {
+                    report.Add(
+                        ValidationSeverity.Error,
+                        $"[DataValidator] Null "
+                            + $"{nameof(BossPresentationDefinition)} at "
+                            + $"index {index}.");
+                    continue;
+                }
+
+                string bossId = presentation.BossId;
+                if (!ContentIdValidator.TryValidate(
+                        bossId,
+                        out string bossIdError))
+                {
+                    string displayedId = string.IsNullOrEmpty(bossId)
+                        ? "<empty>"
+                        : bossId;
+                    report.Add(
+                        ValidationSeverity.Error,
+                        $"[DataValidator] Invalid BossPresentation Boss ID "
+                            + $"{displayedId}. {bossIdError}",
+                        bossId,
+                        presentation);
+                }
+                else
+                {
+                    if (!bossIds.Contains(bossId))
+                    {
+                        report.Add(
+                            ValidationSeverity.Error,
+                            $"[DataValidator] Missing boss reference: "
+                                + bossId,
+                            bossId,
+                            presentation);
+                    }
+
+                    if (!presentedBossIds.Add(bossId))
+                    {
+                        report.Add(
+                            ValidationSeverity.Error,
+                            $"[DataValidator] Duplicate boss presentation "
+                                + $"for Boss ID: {bossId}",
+                            bossId,
+                            presentation);
+                    }
+                }
+
+                if (presentation.DefaultSprite == null)
+                {
+                    report.Add(
+                        ValidationSeverity.Error,
+                        $"[DataValidator] Boss presentation default sprite "
+                            + $"is missing: {bossId}",
+                        bossId,
+                        presentation);
+                }
+
+                ValidateBossVisualStates(presentation, report);
+            }
+        }
+
+        private static void ValidateBossVisualStates(
+            BossPresentationDefinition presentation,
+            ValidationReport report)
+        {
+            var visualStateIds = new HashSet<string>(
+                StringComparer.Ordinal);
+            IReadOnlyList<BossVisualStateEntry> visuals =
+                presentation.StateVisuals;
+            for (int index = 0; index < visuals.Count; index++)
+            {
+                BossVisualStateEntry entry = visuals[index];
+                if (entry == null)
+                {
+                    report.Add(
+                        ValidationSeverity.Error,
+                        $"[DataValidator] Null boss visual state at index "
+                            + $"{index}: {presentation.BossId}",
+                        presentation.BossId,
+                        presentation);
+                    continue;
+                }
+
+                if (!ContentIdValidator.TryValidate(
+                        entry.VisualStateId,
+                        out string stateIdError))
+                {
+                    string displayedId = string.IsNullOrEmpty(
+                        entry.VisualStateId)
+                        ? "<empty>"
+                        : entry.VisualStateId;
+                    report.Add(
+                        ValidationSeverity.Error,
+                        $"[DataValidator] Invalid boss visual state ID "
+                            + $"{displayedId}. {stateIdError}",
+                        presentation.BossId,
+                        presentation);
+                }
+                else if (!visualStateIds.Add(entry.VisualStateId))
+                {
+                    report.Add(
+                        ValidationSeverity.Error,
+                        $"[DataValidator] Duplicate boss visual state ID: "
+                            + entry.VisualStateId,
+                        presentation.BossId,
+                        presentation);
+                }
+
+                if (entry.Sprite == null)
+                {
+                    report.Add(
+                        ValidationSeverity.Error,
+                        $"[DataValidator] Boss visual state sprite is "
+                            + $"missing: {entry.VisualStateId}",
+                        presentation.BossId,
+                        presentation);
+                }
             }
         }
 
@@ -368,6 +679,31 @@ namespace ValorChronicle.Data.Validation
             if (string.IsNullOrWhiteSpace(displayNameKey))
             {
                 AddWarning(report, definition, "Display name localization key is empty");
+            }
+        }
+
+        private static void WarnIfDescriptionKeyMissing(
+            string descriptionKey,
+            GameDefinition definition,
+            ValidationReport report)
+        {
+            if (string.IsNullOrWhiteSpace(descriptionKey))
+            {
+                AddWarning(
+                    report,
+                    definition,
+                    "Description localization key is empty");
+            }
+        }
+
+        private static void WarnIfIconMissing(
+            UnityEngine.Sprite icon,
+            GameDefinition definition,
+            ValidationReport report)
+        {
+            if (icon == null)
+            {
+                AddWarning(report, definition, "Icon is missing");
             }
         }
 
@@ -403,6 +739,12 @@ namespace ValorChronicle.Data.Validation
                 $"[DataValidator] {message}: {definition.Id}",
                 definition.Id,
                 definition);
+        }
+
+        private enum SkillReferenceOwner
+        {
+            Character,
+            Boss
         }
     }
 }

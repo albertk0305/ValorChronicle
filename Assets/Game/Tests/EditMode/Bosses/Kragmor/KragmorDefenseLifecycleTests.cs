@@ -26,7 +26,7 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
         public void InitializationAppliesOneIndefiniteCarapaceAndMultiplier()
         {
             BossBattleState boss = Boss();
-            var runtime = new KragmorBattleRuntimeState();
+            var runtime = new KragmorBattleRuntimeState(KragmorTestConfig.Create());
             var actionIds = new CombatActionIdSequence();
 
             EffectInstance effect =
@@ -58,7 +58,10 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
         {
             BossBattleState boss = Boss();
             boss.Effects.ApplyEffect(
-                KragmorDefenseEffectFactory.Create(state, runtimeId: 1));
+                KragmorDefenseEffectFactory.Create(
+                    state,
+                    runtimeId: 1,
+                    config: KragmorTestConfig.Create()));
 
             Assert.That(PlayerDamageMultiplier(boss),
                 Is.EqualTo(expectedKragmorOnly).Within(0.000000001d));
@@ -120,7 +123,7 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
             Assert.That(battle.Provider.NextIntent.HasDirectDamage, Is.True);
             Assert.That(battle.Provider.NextIntent.IsHeavy, Is.True);
             Assert.That(battle.Provider.NextIntent.DamageCoefficient,
-                Is.EqualTo(KragmorRules.EarthCollapseCoefficient));
+                Is.EqualTo(2.40d));
             Assert.That(PlayerDamageMultiplier(battle.Boss),
                 Is.EqualTo(0.95d).Within(0.000000001d));
 
@@ -320,7 +323,7 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
             CharacterBattleState character = Character(partyHp);
             var party = new PartyBattleState(new[] { character });
             BossBattleState boss = Boss();
-            var runtime = new KragmorBattleRuntimeState();
+            var runtime = new KragmorBattleRuntimeState(KragmorTestConfig.Create());
             var actionIds = new CombatActionIdSequence();
             KragmorDefenseEffectFactory.InitializeBattle(
                 boss,

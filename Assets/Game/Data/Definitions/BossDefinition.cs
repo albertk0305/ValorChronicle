@@ -25,6 +25,9 @@ namespace ValorChronicle.Data.Definitions
         private BossDifficultyStats[] difficultyStats =
             Array.Empty<BossDifficultyStats>();
 
+        [SerializeField]
+        private CombatConfigDefinition combatConfig;
+
         public string DisplayNameKey => displayNameKey;
         public ElementType Element => element;
         public int TurnLimit => turnLimit;
@@ -33,6 +36,7 @@ namespace ValorChronicle.Data.Definitions
         public IReadOnlyList<BossDifficultyStats> DifficultyStats =>
             Array.AsReadOnly(
                 difficultyStats ?? Array.Empty<BossDifficultyStats>());
+        public CombatConfigDefinition CombatConfig => combatConfig;
 
         public bool TryGetDifficultyStats(
             string difficultyId,
