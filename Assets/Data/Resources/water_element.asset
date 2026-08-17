@@ -15,4 +15,4 @@ MonoBehaviour:
   id: water_element
   displayNameKey: resource.water_element.name
   descriptionKey: resource.water_element.description
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: ba89eca5d6224224291ab55b80541de4, type: 3}

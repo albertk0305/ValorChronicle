@@ -42,6 +42,7 @@ namespace ValorChronicle.Battle.Board.Presentation
         private float shuffleDuration = 0.16f;
 
         private bool initialized;
+        private bool observesCascadeStepPresentation;
         private bool isActionInProgress;
         private bool initialBoardReadyPublished;
         private bool activeActionStarted;
@@ -59,9 +60,12 @@ namespace ValorChronicle.Battle.Board.Presentation
         private BoardActionPresentationTimings actionTimings;
         private IEnumerator activePresentationSequence;
         private BoardSwapActionResult activeActionResult;
+        private int nextCascadeStepPresentationIndex;
 
         public event Action InitialBoardReady;
         public event Action<BoardActionExecution> BoardActionStarted;
+        public event Action<BoardCascadeStepPresentation>
+            CascadeStepPresented;
         public event Action<BoardActionCompletion> BoardActionFinished;
 
         public BoardState CurrentBoard { get; private set; }
@@ -146,6 +150,11 @@ namespace ValorChronicle.Battle.Board.Presentation
                 interruptionFailure);
         }
 
+        private void OnDestroy()
+        {
+            StopObservingCascadeStepPresentation();
+        }
+
         public void Initialize()
         {
             if (initialized)
@@ -221,6 +230,7 @@ namespace ValorChronicle.Battle.Board.Presentation
             rockMutationResolver = rockResolver;
             swapActionResolver = actionResolver;
             actionTimings = timings;
+            StartObservingCascadeStepPresentation();
             initialized = true;
             int version = ++initializationVersion;
             StartCoroutine(RenderInitialBoard(initialDrop, version));
@@ -530,6 +540,7 @@ namespace ValorChronicle.Battle.Board.Presentation
             long actionId = checked(++nextActionId);
             activeActionId = actionId;
             activeActionResult = result;
+            nextCascadeStepPresentationIndex = 0;
             activeActionStarted = true;
             BoardActionStarted?.Invoke(new BoardActionExecution(
                 actionId,
@@ -553,12 +564,88 @@ namespace ValorChronicle.Battle.Board.Presentation
             activeActionStarted = false;
             activeActionId = 0;
             activeActionResult = null;
+            nextCascadeStepPresentationIndex = 0;
             BoardActionFinished?.Invoke(new BoardActionCompletion(
                 actionId,
                 result,
                 status,
                 failure));
             return true;
+        }
+
+        private void StartObservingCascadeStepPresentation()
+        {
+            if (observesCascadeStepPresentation)
+            {
+                return;
+            }
+
+            boardView.CascadeStepPresented += HandleCascadeStepPresented;
+            observesCascadeStepPresentation = true;
+        }
+
+        private void StopObservingCascadeStepPresentation()
+        {
+            if (!observesCascadeStepPresentation || boardView == null)
+            {
+                return;
+            }
+
+            boardView.CascadeStepPresented -= HandleCascadeStepPresented;
+            observesCascadeStepPresentation = false;
+        }
+
+        private void HandleCascadeStepPresented(
+            int cascadeStepIndex,
+            BoardCascadeStep step)
+        {
+            if (!activeActionStarted
+                || activeActionId <= 0
+                || activeActionResult?.Status
+                    != BoardSwapActionStatus.Resolved
+                || activeActionResult.Cascade == null
+                || cascadeStepIndex != nextCascadeStepPresentationIndex
+                || cascadeStepIndex >= activeActionResult.Cascade.Steps.Count
+                || !ReferenceEquals(
+                    activeActionResult.Cascade.Steps[cascadeStepIndex],
+                    step))
+            {
+                return;
+            }
+
+            nextCascadeStepPresentationIndex++;
+            PublishCascadeStepPresented(
+                new BoardCascadeStepPresentation(
+                    activeActionId,
+                    cascadeStepIndex,
+                    step));
+        }
+
+        private void PublishCascadeStepPresented(
+            BoardCascadeStepPresentation presentation)
+        {
+            Action<BoardCascadeStepPresentation> observers =
+                CascadeStepPresented;
+            if (observers == null)
+            {
+                return;
+            }
+
+            foreach (Action<BoardCascadeStepPresentation> observer
+                in observers.GetInvocationList())
+            {
+                try
+                {
+                    observer(presentation);
+                }
+                catch (Exception exception)
+                {
+                    GameLogger.Exception(exception, this);
+                    GameLogger.Error(
+                        "[BattleBoard] Cascade presentation observer failed.",
+                        this);
+                }
+            }
         }
 
         private void UpdateReadyStateAfterPresentation(string failureMessage)

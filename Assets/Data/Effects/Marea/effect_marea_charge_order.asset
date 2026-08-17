@@ -15,4 +15,4 @@ MonoBehaviour:
   id: effect_marea_charge_order
   displayNameKey: effect.marea.charge_order.name
   descriptionKey: effect.marea.charge_order.description
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: caecd5469dfb01148a2cc3957af437f6, type: 3}

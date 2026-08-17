@@ -52,42 +52,37 @@ namespace ValorChronicle.Battle.Combat.Actions
                 throw new ArgumentNullException(nameof(queue));
             }
 
-            var results = new List<CombatActionResult>();
-            if (boss.IsDefeated || party.IsIncapacitated)
+            CombatActionExecutionSession session = BeginExecution(queue);
+            while (session.TryExecuteNext(out _))
             {
-                bool cleared = queue.Count > 0;
-                queue.Clear();
-                return BuildResult(results, true, cleared);
             }
 
-            while (queue.TryDequeue(out CombatAction action))
-            {
-                int executionOrder = results.Count + 1;
-                CombatActionResult completedResult =
-                    ExecuteAction(action, executionOrder);
-                results.Add(completedResult);
-                if (boss.IsDefeated || party.IsIncapacitated)
-                {
-                    bool cleared = queue.Count > 0;
-                    queue.Clear();
-                    return BuildResult(results, true, cleared);
-                }
-
-                var history = new CombatActionExecutionHistory(results);
-                var triggerContext = new CombatActionTriggerContext(
-                    completedResult,
-                    boss,
-                    party,
-                    history);
-                IReadOnlyList<CombatAction> derivedActions =
-                    triggerResolver.Resolve(triggerContext);
-                queue.EnqueueNextRange(derivedActions);
-            }
-
-            return BuildResult(results, false, false);
+            return session.Result;
         }
 
-        private CombatActionResult ExecuteAction(
+        public CombatActionExecutionSession BeginExecution(
+            IReadOnlyList<CombatAction> rootActions)
+        {
+            if (rootActions == null)
+            {
+                throw new ArgumentNullException(nameof(rootActions));
+            }
+
+            return BeginExecution(new CombatActionQueue(rootActions));
+        }
+
+        private CombatActionExecutionSession BeginExecution(
+            CombatActionQueue queue)
+        {
+            return new CombatActionExecutionSession(
+                this,
+                queue,
+                boss,
+                party,
+                triggerResolver);
+        }
+
+        internal CombatActionResult ExecuteAction(
             CombatAction action,
             int executionOrder)
         {
@@ -374,7 +369,7 @@ namespace ValorChronicle.Battle.Combat.Actions
                 "Action character does not belong to this executor's party.");
         }
 
-        private CombatActionExecutionResult BuildResult(
+        internal CombatActionExecutionResult BuildResult(
             IReadOnlyList<CombatActionResult> results,
             bool stoppedEarly,
             bool clearedRemainingActions)

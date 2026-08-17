@@ -15,5 +15,5 @@ MonoBehaviour:
   id: boss_action_kragmor_core_compression
   displayNameKey: boss_action.kragmor.core_compression.name
   descriptionKey: boss_action.kragmor.core_compression.description
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 5f0da10fb482182489b00fa7ce9814bc, type: 3}
   skillKind: 3

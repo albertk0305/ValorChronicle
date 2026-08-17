@@ -230,6 +230,352 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         }
 
         [Test]
+        public void StagedMatchAppliesOneStepBeforeBatchNotification()
+        {
+            CharacterBattleState character = Character("fire", 0, 100d);
+            var party = new PartyBattleState(new[] { character });
+            BossBattleState boss = Boss(10000, 0d);
+            boss.Resources.Register("test_resource", 5);
+            BattleFlowCoordinator coordinator = StartMatchResolution(
+                2,
+                SingleFireMatchCascade());
+            var actionIds = new CombatActionIdSequence();
+            int providerCalls = 0;
+            BattleFlowCombatBridge bridge = Bridge(
+                coordinator,
+                party,
+                boss,
+                actionIds,
+                new DelegateMatchEventActionProvider(context =>
+                {
+                    providerCalls++;
+                    return new CombatAction[]
+                    {
+                        CombatIntegrationTestSupport.MatchDamage(
+                            context,
+                            1d),
+                        new AddResourceAction(
+                            context.ActionIds.Next(),
+                            ActionOrigin.Match,
+                            context.Boss,
+                            "test_resource",
+                            1)
+                    };
+                }),
+                EmptyBossProvider());
+            int stepCount = 0;
+            int batchCount = 0;
+            var observedActionIds = new List<long>();
+            bridge.CombatActionStepApplied += step =>
+            {
+                stepCount++;
+                observedActionIds.Add(step.ActionStep.Action.ActionId);
+            };
+            bridge.CombatActionsApplied += () => batchCount++;
+            coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution);
+
+            Assert.That(bridge.TryBeginMatchEventCombat(
+                execution,
+                out bool hasMatchingCharacter), Is.True);
+            Assert.That(hasMatchingCharacter, Is.True);
+            Assert.That(providerCalls, Is.Zero);
+
+            Assert.That(bridge.TryGetNextMatchCombatAction(
+                out CharacterBattleState actingCharacter,
+                out CombatAction firstAction), Is.True);
+            Assert.That(actingCharacter, Is.SameAs(character));
+            Assert.That(firstAction, Is.TypeOf<DamageAction>());
+            Assert.That(providerCalls, Is.EqualTo(1));
+            Assert.That(boss.CurrentHp, Is.EqualTo(boss.MaxHp));
+
+            Assert.That(bridge.TryApplyNextMatchCombatAction(
+                out var firstStep), Is.True);
+            Assert.That(firstStep.PartySlotIndex, Is.Zero);
+            Assert.That(boss.CurrentHp, Is.LessThan(boss.MaxHp));
+            Assert.That(stepCount, Is.EqualTo(1));
+            Assert.That(batchCount, Is.Zero);
+            Assert.That(boss.Resources.GetAmount("test_resource"), Is.Zero);
+
+            Assert.That(bridge.TryGetNextMatchCombatAction(
+                out _,
+                out CombatAction secondAction), Is.True);
+            Assert.That(secondAction, Is.TypeOf<AddResourceAction>());
+            Assert.That(bridge.TryApplyNextMatchCombatAction(out _), Is.True);
+            Assert.That(stepCount, Is.EqualTo(2));
+            Assert.That(batchCount, Is.Zero);
+            Assert.That(boss.Resources.GetAmount("test_resource"),
+                Is.EqualTo(1));
+            Assert.That(bridge.TryGetNextMatchCombatAction(
+                out _,
+                out _), Is.False);
+
+            Assert.That(bridge.TryCompleteMatchEventCombat(execution),
+                Is.True);
+            Assert.That(batchCount, Is.EqualTo(1));
+            Assert.That(observedActionIds, Is.EqualTo(new long[] { 1, 2 }));
+            Assert.That(bridge.LastMatchExecutionResult.CompletedActionCount,
+                Is.EqualTo(2));
+        }
+
+        [Test]
+        public void StagedMatchReportsNoMatchingCharacterWithoutMutation()
+        {
+            CharacterBattleState character = Character("fire", 0, 100d);
+            var party = new PartyBattleState(new[] { character });
+            BossBattleState boss = Boss(10000, 0d);
+            BattleFlowCoordinator coordinator = StartMatchResolution(
+                2,
+                BattleFlowTestSupport.CreateCascade(new[]
+                {
+                    BattleFlowTestSupport.Match(
+                        ElementType.Water,
+                        new BoardPosition(0, 0),
+                        new BoardPosition(1, 0),
+                        new BoardPosition(2, 0))
+                }));
+            int providerCalls = 0;
+            BattleFlowCombatBridge bridge = Bridge(
+                coordinator,
+                party,
+                boss,
+                new CombatActionIdSequence(),
+                new DelegateMatchEventActionProvider(context =>
+                {
+                    providerCalls++;
+                    return Array.Empty<CombatAction>();
+                }),
+                EmptyBossProvider());
+            int stepCount = 0;
+            int batchCount = 0;
+            bridge.CombatActionStepApplied += step => stepCount++;
+            bridge.CombatActionsApplied += () => batchCount++;
+            coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution);
+
+            Assert.That(bridge.TryBeginMatchEventCombat(
+                execution,
+                out bool hasMatchingCharacter), Is.True);
+
+            Assert.That(hasMatchingCharacter, Is.False);
+            Assert.That(bridge.TryGetNextMatchCombatAction(
+                out _,
+                out _), Is.False);
+            Assert.That(bridge.TryApplyNextMatchCombatAction(out _), Is.False);
+            Assert.That(bridge.TryCompleteMatchEventCombat(execution),
+                Is.True);
+            Assert.That(providerCalls, Is.Zero);
+            Assert.That(stepCount, Is.Zero);
+            Assert.That(batchCount, Is.Zero);
+            Assert.That(boss.CurrentHp, Is.EqualTo(boss.MaxHp));
+            Assert.That(party.CurrentHp, Is.EqualTo(party.MaxHp));
+            Assert.That(coordinator.Context.Phase,
+                Is.EqualTo(BattlePhase.BossActing));
+        }
+
+        [Test]
+        public void StagedBossPeeksWithoutMutationAndNotifiesAfterBatch()
+        {
+            var party = new PartyBattleState(new[]
+            {
+                Character("fire", 0, 100d)
+            });
+            BossBattleState boss = Boss(10000, 100d);
+            boss.Resources.Register("test_resource", 5);
+            BattleFlowCoordinator coordinator = StartMatchResolution(
+                2,
+                BattleFlowTestSupport.CreateCascade());
+            Assert.That(coordinator.TryBeginNextMatchEvent(out _), Is.False);
+            var actionIds = new CombatActionIdSequence();
+            var bossProvider = new CompletionTrackingBossProvider(context =>
+                new CombatAction[]
+                {
+                    CombatIntegrationTestSupport.BossDamage(context),
+                    new AddResourceAction(
+                        context.ActionIds.Next(),
+                        ActionOrigin.System,
+                        context.Boss,
+                        "test_resource",
+                        1)
+                });
+            BattleFlowCombatBridge bridge = Bridge(
+                coordinator,
+                party,
+                boss,
+                actionIds,
+                EmptyMatchProvider(),
+                bossProvider);
+            int batchCount = 0;
+            int stepCount = 0;
+            bridge.CombatActionsApplied += () => batchCount++;
+            bridge.BossCombatActionStepApplied += step => stepCount++;
+            long initialPartyHp = party.CurrentHp;
+
+            Assert.That(bridge.TryBeginBossActionCombat(1), Is.True);
+            Assert.That(bridge.TryBeginBossActionCombat(1), Is.False);
+            Assert.That(bridge.TryGetNextBossCombatAction(
+                out CombatAction firstAction), Is.True);
+            Assert.That(firstAction, Is.TypeOf<BossDamageAction>());
+            Assert.That(party.CurrentHp, Is.EqualTo(initialPartyHp));
+            Assert.That(stepCount, Is.Zero);
+            Assert.That(batchCount, Is.Zero);
+
+            Assert.That(bridge.TryApplyNextBossCombatAction(
+                out CombatActionExecutionStepResult firstStep), Is.True);
+            Assert.That(firstStep.Action, Is.SameAs(firstAction));
+            Assert.That(party.CurrentHp, Is.LessThan(initialPartyHp));
+            Assert.That(stepCount, Is.EqualTo(1));
+            Assert.That(batchCount, Is.Zero);
+            Assert.That(coordinator.Context.Phase,
+                Is.EqualTo(BattlePhase.BossActing));
+
+            Assert.That(bridge.TryGetNextBossCombatAction(
+                out CombatAction secondAction), Is.True);
+            Assert.That(secondAction, Is.TypeOf<AddResourceAction>());
+            Assert.That(boss.Resources.GetAmount("test_resource"), Is.Zero);
+            Assert.That(bridge.TryApplyNextBossCombatAction(out _), Is.True);
+            Assert.That(boss.Resources.GetAmount("test_resource"),
+                Is.EqualTo(1));
+            Assert.That(stepCount, Is.EqualTo(2));
+            Assert.That(batchCount, Is.Zero);
+            Assert.That(bossProvider.CommitCount, Is.Zero);
+            Assert.That(bridge.TryGetNextBossCombatAction(out _), Is.False);
+
+            Assert.That(bridge.TryCompleteBossActionCombat(), Is.True);
+            Assert.That(batchCount, Is.EqualTo(1));
+            Assert.That(bossProvider.CommitCount, Is.EqualTo(1));
+            Assert.That(ActionIds(bridge.LastBossExecutionResult),
+                Is.EqualTo(new long[] { 1, 2 }));
+            Assert.That(actionIds.LastIssuedId, Is.EqualTo(2));
+            Assert.That(coordinator.Context.CurrentTurn, Is.EqualTo(2));
+            Assert.That(coordinator.Context.Phase,
+                Is.EqualTo(BattlePhase.PlayerInput));
+        }
+
+        [Test]
+        public void StagedBossEnqueuesDerivedActionImmediatelyAfterSource()
+        {
+            var party = new PartyBattleState(new[]
+            {
+                Character("fire", 0, 100d)
+            });
+            BossBattleState boss = Boss(10000, 100d);
+            boss.Resources.Register("test_resource", 5);
+            BattleFlowCoordinator coordinator = StartMatchResolution(
+                2,
+                BattleFlowTestSupport.CreateCascade());
+            Assert.That(coordinator.TryBeginNextMatchEvent(out _), Is.False);
+            var actionIds = new CombatActionIdSequence();
+            var trigger = new DelegateIntegrationTriggerRule(context =>
+            {
+                if (!(context.CompletedAction is BossDamageAction))
+                {
+                    return Array.Empty<CombatAction>();
+                }
+
+                return new CombatAction[]
+                {
+                    new AddResourceAction(
+                        actionIds.Next(),
+                        ActionOrigin.Additional,
+                        boss,
+                        "test_resource",
+                        1,
+                        context.RootActionId,
+                        context.ActionId)
+                };
+            });
+            BattleFlowCombatBridge bridge = Bridge(
+                coordinator,
+                party,
+                boss,
+                actionIds,
+                EmptyMatchProvider(),
+                new DelegateBossCombatActionProvider(context =>
+                    new CombatAction[]
+                    {
+                        CombatIntegrationTestSupport.BossDamage(context)
+                    }),
+                trigger);
+
+            Assert.That(bridge.TryBeginBossActionCombat(1), Is.True);
+            Assert.That(bridge.TryGetNextBossCombatAction(
+                out CombatAction rootAction), Is.True);
+            Assert.That(rootAction.ActionId, Is.EqualTo(1));
+            Assert.That(bridge.TryApplyNextBossCombatAction(out _), Is.True);
+
+            Assert.That(bridge.TryGetNextBossCombatAction(
+                out CombatAction derivedAction), Is.True);
+            Assert.That(derivedAction, Is.TypeOf<AddResourceAction>());
+            Assert.That(derivedAction.ActionId, Is.EqualTo(2));
+            Assert.That(derivedAction.RootActionId, Is.EqualTo(1));
+            Assert.That(derivedAction.SourceActionId, Is.EqualTo(1));
+            Assert.That(bridge.TryApplyNextBossCombatAction(out _), Is.True);
+            Assert.That(bridge.TryCompleteBossActionCombat(), Is.True);
+
+            Assert.That(boss.Resources.GetAmount("test_resource"),
+                Is.EqualTo(1));
+            Assert.That(ActionIds(bridge.LastBossExecutionResult),
+                Is.EqualTo(new long[] { 1, 2 }));
+            Assert.That(actionIds.LastIssuedId, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void StagedBossTerminalStepClearsRemainingActions()
+        {
+            var party = new PartyBattleState(new[]
+            {
+                Character("fire", 0, 100d, hp: 1)
+            });
+            BossBattleState boss = Boss(10000, 100d);
+            boss.Resources.Register("test_resource", 5);
+            BattleFlowCoordinator coordinator = StartMatchResolution(
+                2,
+                BattleFlowTestSupport.CreateCascade());
+            Assert.That(coordinator.TryBeginNextMatchEvent(out _), Is.False);
+            var actionIds = new CombatActionIdSequence();
+            var bossProvider = new CompletionTrackingBossProvider(context =>
+                new CombatAction[]
+                {
+                    CombatIntegrationTestSupport.BossDamage(context),
+                    new AddResourceAction(
+                        context.ActionIds.Next(),
+                        ActionOrigin.System,
+                        context.Boss,
+                        "test_resource",
+                        1)
+                });
+            BattleFlowCombatBridge bridge = Bridge(
+                coordinator,
+                party,
+                boss,
+                actionIds,
+                EmptyMatchProvider(),
+                bossProvider);
+
+            Assert.That(bridge.TryBeginBossActionCombat(1), Is.True);
+            Assert.That(bridge.TryApplyNextBossCombatAction(
+                out CombatActionExecutionStepResult terminalStep), Is.True);
+            Assert.That(terminalStep.WasTerminalAfterStep, Is.True);
+            Assert.That(terminalStep.IsCompleted, Is.True);
+            Assert.That(bridge.TryGetNextBossCombatAction(out _), Is.False);
+            Assert.That(bridge.TryApplyNextBossCombatAction(out _), Is.False);
+            Assert.That(boss.Resources.GetAmount("test_resource"), Is.Zero);
+
+            Assert.That(bridge.TryCompleteBossActionCombat(), Is.True);
+            Assert.That(coordinator.Context.Result,
+                Is.EqualTo(BattleResultKind.Defeat));
+            Assert.That(bridge.LastBossExecutionResult.ActionResults,
+                Has.Count.EqualTo(1));
+            Assert.That(bridge.LastBossExecutionResult.StoppedEarly,
+                Is.True);
+            Assert.That(bridge.LastBossExecutionResult
+                .ClearedRemainingActions, Is.True);
+            Assert.That(boss.Resources.GetAmount("test_resource"), Is.Zero);
+            Assert.That(bossProvider.CommitCount, Is.Zero);
+        }
+
+        [Test]
         public void BossDefeatStopsCurrentAndRemainingEventsAndSkipsBoss()
         {
             PartyBattleState party = PartyWithFireSlots();
@@ -544,6 +890,36 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                     new BoardPosition(1, 3),
                     new BoardPosition(2, 3))
             });
+        }
+
+        private sealed class CompletionTrackingBossProvider
+            : IBossCombatActionProvider,
+                IBossCombatActionCompletionHandler
+        {
+            private readonly Func<BossCombatActionContext,
+                IReadOnlyList<CombatAction>> createActions;
+
+            public CompletionTrackingBossProvider(
+                Func<BossCombatActionContext,
+                    IReadOnlyList<CombatAction>> createActions)
+            {
+                this.createActions = createActions
+                    ?? throw new ArgumentNullException(nameof(createActions));
+            }
+
+            public int CommitCount { get; private set; }
+
+            public IReadOnlyList<CombatAction> CreateRootActions(
+                BossCombatActionContext context)
+            {
+                return createActions(context);
+            }
+
+            public bool TryCommitCompletedAction()
+            {
+                CommitCount++;
+                return true;
+            }
         }
     }
 }

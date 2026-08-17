@@ -165,6 +165,8 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                     out BoardState board);
             boardView.Render(board);
             int createdCount = pool.TotalCreatedCount;
+            int cascadeSignalCount = 0;
+            ObserveCascadeSteps((_, _) => cascadeSignalCount++);
 
             IEnumerator animation = boardView.PlaySwapActionSequence(
                 board,
@@ -174,6 +176,7 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(animation.MoveNext(), Is.False);
             Assert.That(boardView.IsAnimating, Is.False);
             Assert.That(pool.TotalCreatedCount, Is.EqualTo(createdCount));
+            Assert.That(cascadeSignalCount, Is.Zero);
             AssertAllInput(true);
             AssertViewsMatchBoard(board);
         }
@@ -186,6 +189,8 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                     out BoardState board);
             boardView.Render(board);
             var views = CaptureViews();
+            int cascadeSignalCount = 0;
+            ObserveCascadeSteps((_, _) => cascadeSignalCount++);
 
             IEnumerator animation = boardView.PlaySwapActionSequence(
                 board,
@@ -194,6 +199,7 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(animation.MoveNext(), Is.False);
 
             AssertViewsMatchBoard(result.Board);
+            Assert.That(cascadeSignalCount, Is.Zero);
             AssertSameViews(views);
             Assert.That(boardView.IsAnimating, Is.False);
             AssertAllInput(true);
@@ -207,6 +213,33 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                     out BoardState board);
             Assert.That(result.Cascade.CascadeCount, Is.EqualTo(1));
             boardView.Render(board);
+            int signalCount = 0;
+            bool removedViewsReleased = false;
+            bool refillViewsNotCreated = false;
+            bool animatingAtSignal = false;
+            ObserveCascadeSteps((stepIndex, step) =>
+            {
+                signalCount++;
+                Assert.That(stepIndex, Is.Zero);
+                Assert.That(step, Is.SameAs(result.Cascade.Steps[0]));
+                removedViewsReleased = true;
+                foreach (BoardBlockRemoval removal in step.Collapse.Removals)
+                {
+                    removedViewsReleased &= !boardView.TryGetView(
+                        removal.RuntimeId,
+                        out _);
+                }
+
+                refillViewsNotCreated = true;
+                foreach (BoardBlockSpawn spawn in step.Refill.Spawns)
+                {
+                    refillViewsNotCreated &= !boardView.TryGetView(
+                        spawn.RuntimeId,
+                        out _);
+                }
+
+                animatingAtSignal = boardView.IsAnimating;
+            });
 
             IEnumerator animation = boardView.PlaySwapActionSequence(
                 board,
@@ -215,6 +248,10 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(animation.MoveNext(), Is.False);
 
             AssertViewsMatchBoard(result.Board);
+            Assert.That(signalCount, Is.EqualTo(1));
+            Assert.That(removedViewsReleased, Is.True);
+            Assert.That(refillViewsNotCreated, Is.True);
+            Assert.That(animatingAtSignal, Is.True);
             Assert.That(boardView.IsAnimating, Is.False);
             Assert.That(pool.TotalCreatedCount, Is.EqualTo(30));
             AssertAllInput(true);
@@ -229,6 +266,13 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(result.Cascade.CascadeCount,
                 Is.GreaterThanOrEqualTo(2));
             boardView.Render(board);
+            var presentedIndices = new List<int>();
+            var presentedSteps = new List<BoardCascadeStep>();
+            ObserveCascadeSteps((stepIndex, step) =>
+            {
+                presentedIndices.Add(stepIndex);
+                presentedSteps.Add(step);
+            });
 
             IEnumerator animation = boardView.PlaySwapActionSequence(
                 board,
@@ -240,6 +284,34 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                 result.Cascade.Steps.Count - 1].Board);
             AssertViewsMatchBoard(result.Board);
             Assert.That(pool.TotalCreatedCount, Is.EqualTo(30));
+            Assert.That(presentedIndices, Is.EqualTo(
+                CreateExpectedStepIndices(result.Cascade.Steps.Count)));
+            Assert.That(presentedSteps, Is.EqualTo(result.Cascade.Steps));
+        }
+
+        [Test]
+        public void ActionSequence_InterruptedRemovalPublishesNoStaleSignal()
+        {
+            BoardSwapActionResult result =
+                BoardSwapPresentationTestSupport.CreateResolved(
+                    out BoardState board);
+            boardView.Render(board);
+            int signalCount = 0;
+            ObserveCascadeSteps((_, _) => signalCount++);
+            IEnumerator animation = boardView.PlaySwapActionSequence(
+                board,
+                result,
+                new BoardActionPresentationTimings(
+                    0f, 1f, 0f, 0f, 0f));
+
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(signalCount, Is.Zero);
+            InvokeOnDisable();
+            Dispose(animation);
+
+            Assert.That(signalCount, Is.Zero);
+            Assert.That(boardView.IsAnimating, Is.False);
+            AssertViewsMatchBoard(result.Board);
         }
 
         [UnityTest]
@@ -531,6 +603,31 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                     "EditMode Time.deltaTime did not advance the animation.");
                 yield return animation.Current;
             }
+        }
+
+        private void ObserveCascadeSteps(
+            Action<int, BoardCascadeStep> observer)
+        {
+            FieldInfo signal = typeof(BattleBoardView).GetField(
+                "CascadeStepPresented",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(signal, Is.Not.Null);
+            var current = (Action<int, BoardCascadeStep>)signal.GetValue(
+                boardView);
+            signal.SetValue(
+                boardView,
+                Delegate.Combine(current, observer));
+        }
+
+        private static int[] CreateExpectedStepIndices(int count)
+        {
+            var indices = new int[count];
+            for (int index = 0; index < count; index++)
+            {
+                indices[index] = index;
+            }
+
+            return indices;
         }
 
         private static void AssertSpawnedRuntimeIdIsProcessedByNextStep(

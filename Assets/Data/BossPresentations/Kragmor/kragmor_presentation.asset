@@ -13,7 +13,9 @@ MonoBehaviour:
   m_Name: kragmor_presentation
   m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Data.Definitions.BossPresentationDefinition
   bossId: kragmor
-  defaultSprite: {fileID: 5024001228010453062, guid: 00b50c2e12e3b4c4faf3cb7b0a9ff568, type: 3}
+  defaultSprite: {fileID: 21300000, guid: 00b50c2e12e3b4c4faf3cb7b0a9ff568, type: 3}
   stateVisuals:
   - visualStateId: kragmor_core_exposure
-    sprite: {fileID: -7487157830298141877, guid: a87414aac6d212a48bc857dfa8214261, type: 3}
+    sprite: {fileID: 21300000, guid: a87414aac6d212a48bc857dfa8214261, type: 3}
+  - visualStateId: kragmor_core_compression
+    sprite: {fileID: 21300000, guid: 37dcee2800229fe4ba952083cfde148b, type: 3}

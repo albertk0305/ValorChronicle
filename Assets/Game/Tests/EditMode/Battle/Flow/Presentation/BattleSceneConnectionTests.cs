@@ -3,6 +3,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Data.Definitions;
@@ -37,7 +38,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                         FindObjectsSortMode.None);
                 BattleFlowDebugPanel[] debugPanels =
                     Object.FindObjectsByType<BattleFlowDebugPanel>(
-                        FindObjectsInactive.Exclude,
+                        FindObjectsInactive.Include,
                         FindObjectsSortMode.None);
                 BattleHudController[] hudControllers =
                     Object.FindObjectsByType<BattleHudController>(
@@ -47,29 +48,46 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     Object.FindObjectsByType<BattleSceneCombatBootstrap>(
                         FindObjectsInactive.Exclude,
                         FindObjectsSortMode.None);
+                BattleCombatPresentationController[]
+                    combatPresentationControllers =
+                        Object.FindObjectsByType<
+                            BattleCombatPresentationController>(
+                            FindObjectsInactive.Exclude,
+                            FindObjectsSortMode.None);
+                AttackProjectilePool[] projectilePools =
+                    Object.FindObjectsByType<AttackProjectilePool>(
+                        FindObjectsInactive.Exclude,
+                        FindObjectsSortMode.None);
+                DamageNumberPool[] damageNumberPools =
+                    Object.FindObjectsByType<DamageNumberPool>(
+                        FindObjectsInactive.Exclude,
+                        FindObjectsSortMode.None);
 
                 Assert.That(boardControllers, Has.Length.EqualTo(1));
                 Assert.That(flowControllers, Has.Length.EqualTo(1));
-                Assert.That(debugPanels, Has.Length.EqualTo(1));
+                Assert.That(debugPanels, Is.Empty);
                 Assert.That(hudControllers, Has.Length.EqualTo(1));
                 Assert.That(combatBootstraps, Has.Length.EqualTo(1));
+                Assert.That(combatPresentationControllers,
+                    Has.Length.EqualTo(1));
+                Assert.That(projectilePools, Has.Length.EqualTo(1));
+                Assert.That(damageNumberPools, Has.Length.EqualTo(1));
 
                 BattleBoardController boardController = boardControllers[0];
                 BattleFlowController flowController = flowControllers[0];
-                BattleFlowDebugPanel debugPanel = debugPanels[0];
                 BattleHudController hudController = hudControllers[0];
                 BattleSceneCombatBootstrap combatBootstrap =
                     combatBootstraps[0];
+                BattleCombatPresentationController combatPresentation =
+                    combatPresentationControllers[0];
+                AttackProjectilePool projectilePool = projectilePools[0];
+                DamageNumberPool damageNumberPool = damageNumberPools[0];
                 Assert.That(flowController.gameObject.name,
                     Is.EqualTo("GameContent"));
-                Assert.That(debugPanel.gameObject,
-                    Is.SameAs(flowController.gameObject));
-                Assert.That(debugPanel.enabled, Is.False);
                 Assert.That(hudController.gameObject,
                     Is.SameAs(flowController.gameObject));
                 Assert.That(combatBootstrap.gameObject,
                     Is.SameAs(flowController.gameObject));
-                Assert.That(IsBelowSafeArea(debugPanel.transform), Is.True);
                 Assert.That(IsBelowSafeArea(hudController.transform), Is.True);
 
                 var flowObject = new SerializedObject(flowController);
@@ -80,15 +98,57 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Assert.That(
                     flowObject.FindProperty("requireCombatBridge").boolValue,
                     Is.True);
-
-                var panelObject = new SerializedObject(debugPanel);
                 Assert.That(
-                    panelObject.FindProperty("battleFlowController")
+                    flowObject.FindProperty("combatPresentationController")
                         .objectReferenceValue,
-                    Is.SameAs(flowController));
-                Assert.That(
-                    panelObject.FindProperty("fallbackBossDefinition"),
+                    Is.SameAs(combatPresentation));
+                Assert.That(combatPresentation.gameObject.name,
+                    Is.EqualTo("BattleEffectLayer"));
+                Assert.That(combatPresentation.HudController,
+                    Is.SameAs(hudController));
+                Assert.That(combatPresentation.EffectLayer,
+                    Is.SameAs(combatPresentation.transform));
+                Assert.That(combatPresentation.ProjectilePool,
+                    Is.SameAs(projectilePool));
+                Assert.That(combatPresentation.DamageNumberPool,
+                    Is.SameAs(damageNumberPool));
+                Assert.That(combatPresentation.ProjectileSprite,
+                    Is.Not.Null);
+                Assert.That(combatPresentation.ProjectileSprite.name,
+                    Does.StartWith("AttackProjectile"));
+                Assert.That(combatPresentation.ProjectileDuration,
+                    Is.EqualTo(0.18f).Within(0.000001f));
+                Assert.That(combatPresentation.GetComponent<Graphic>(),
                     Is.Null);
+                var effectRect = (RectTransform)combatPresentation.transform;
+                Assert.That(effectRect.anchorMin, Is.EqualTo(Vector2.zero));
+                Assert.That(effectRect.anchorMax, Is.EqualTo(Vector2.one));
+                Assert.That(effectRect.sizeDelta, Is.EqualTo(Vector2.zero));
+                Assert.That(
+                    combatPresentation.transform.GetSiblingIndex(),
+                    Is.EqualTo(hudController.ResultOverlay.transform
+                        .GetSiblingIndex() - 1));
+
+                var poolObject = new SerializedObject(projectilePool);
+                var projectilePrefab = poolObject.FindProperty(
+                    "projectilePrefab").objectReferenceValue
+                    as AttackProjectileView;
+                Assert.That(projectilePrefab, Is.Not.Null);
+                Assert.That(projectilePrefab.Image.raycastTarget, Is.False);
+                Assert.That(
+                    poolObject.FindProperty("prewarmCount").intValue,
+                    Is.EqualTo(1));
+
+                var damagePoolObject = new SerializedObject(
+                    damageNumberPool);
+                var damageNumberPrefab = damagePoolObject.FindProperty(
+                    "damageNumberPrefab").objectReferenceValue
+                    as DamageNumberView;
+                Assert.That(damageNumberPrefab, Is.Not.Null);
+                Assert.That(damageNumberPrefab.Text.raycastTarget, Is.False);
+                Assert.That(
+                    damagePoolObject.FindProperty("prewarmCount").intValue,
+                    Is.EqualTo(DamageNumberPool.DefaultPrewarmCount));
 
                 AssertHudReferences(
                     hudController,
@@ -148,32 +208,35 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             }
             finally
             {
-                try
+                if (CanRestoreSceneManagerSetup(previousSetup))
                 {
                     EditorSceneManager.RestoreSceneManagerSetup(previousSetup);
                 }
-                catch (System.ArgumentException) when (
-                    !HasLoadedScene(previousSetup))
+                else
                 {
-                    if (scene.IsValid() && scene.isLoaded)
-                    {
-                        EditorSceneManager.CloseScene(scene, true);
-                    }
+                    EditorSceneManager.NewScene(
+                        NewSceneSetup.EmptyScene,
+                        NewSceneMode.Single);
                 }
             }
         }
 
-        private static bool HasLoadedScene(SceneSetup[] setup)
+        private static bool CanRestoreSceneManagerSetup(SceneSetup[] setup)
         {
-            foreach (SceneSetup sceneSetup in setup)
+            if (setup == null || setup.Length == 0)
             {
-                if (sceneSetup.isLoaded)
-                {
-                    return true;
-                }
+                return false;
             }
 
-            return false;
+            bool hasLoadedScene = false;
+            bool hasActiveScene = false;
+            foreach (SceneSetup sceneSetup in setup)
+            {
+                hasLoadedScene |= sceneSetup.isLoaded;
+                hasActiveScene |= sceneSetup.isActive;
+            }
+
+            return hasLoadedScene && hasActiveScene;
         }
 
         private static void AssertHudReferences(
@@ -209,7 +272,11 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(hudController.PartyHpSlider, Is.Not.Null);
             Assert.That(hudController.PartyHpText, Is.Not.Null);
             Assert.That(hudController.PartyShieldImage, Is.Not.Null);
-            Assert.That(hudController.PartyShieldImage.sprite, Is.Null);
+            Assert.That(hudController.PartyShieldImage.sprite, Is.Not.Null);
+            Assert.That(hudController.PartyShieldImage.sprite,
+                Is.SameAs(hudController.BossShieldImage.sprite));
+            Assert.That(hudController.PartyShieldImage.sprite.name,
+                Does.StartWith("Shield"));
             Assert.That(hudController.PartyShieldImage.type,
                 Is.EqualTo(UnityEngine.UI.Image.Type.Simple));
             Assert.That(hudController.ElementSpriteSet, Is.Not.Null);

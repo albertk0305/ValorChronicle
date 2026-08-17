@@ -31,11 +31,15 @@ namespace ValorChronicle.Battle.Flow.Presentation
         [NonSerialized]
         private UnityAction activeListener;
 
+        [NonSerialized]
+        private string characterId;
+
         public GameObject Root => root;
         public Button ActiveButton => activeButton;
         public Image CharacterImage => characterImage;
         public Image TypeImage => typeImage;
         public TMP_Text CooldownText => cooldownText;
+        public string CharacterId => characterId;
         public int StatusSlotCount => statusSlots?.Length ?? 0;
         public bool HasActiveListener => activeListener != null;
         public bool IsConfigured =>
@@ -82,6 +86,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         public void RenderEmpty()
         {
+            characterId = null;
             SetCharacterAvailable(false);
             if (characterImage != null)
             {
@@ -99,10 +104,12 @@ namespace ValorChronicle.Battle.Flow.Presentation
         }
 
         public void RenderCharacter(
+            string runtimeCharacterId,
             Sprite elementSprite,
             int remainingCooldown,
             bool activeAvailable)
         {
+            characterId = runtimeCharacterId;
             if (characterImage != null)
             {
                 characterImage.enabled = true;

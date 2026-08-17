@@ -235,8 +235,10 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             yield return InitializeReadyBoard();
             int startedCount = 0;
             int finishedCount = 0;
+            int cascadeSignalCount = 0;
             controller.BoardActionStarted += _ => startedCount++;
             controller.BoardActionFinished += _ => finishedCount++;
+            controller.CascadeStepPresented += _ => cascadeSignalCount++;
             BoardState beforeBoard = controller.CurrentBoard;
             int randomCalls = randomSource.NextCallCount;
             long nextId = GetNextId();
@@ -256,6 +258,7 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(GetNextId(), Is.EqualTo(nextId));
             Assert.That(startedCount, Is.Zero);
             Assert.That(finishedCount, Is.Zero);
+            Assert.That(cascadeSignalCount, Is.Zero);
         }
 
         [UnityTest]
@@ -292,6 +295,7 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             var eventOrder = new List<string>();
             BoardActionExecution execution = null;
             BoardActionCompletion completion = null;
+            int cascadeSignalCount = 0;
             bool inputLockedAtStart = false;
             controller.BoardActionStarted += value =>
             {
@@ -304,6 +308,7 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                 completion = value;
                 eventOrder.Add("Finished");
             };
+            controller.CascadeStepPresented += _ => cascadeSignalCount++;
             BoardSwap swap = FindNoMatchSwap(controller.CurrentBoard);
             int randomCalls = randomSource.NextCallCount;
             long nextId = GetNextId();
@@ -327,6 +332,7 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                 "Started",
                 "Finished"
             }));
+            Assert.That(cascadeSignalCount, Is.Zero);
             Assert.That(completion.ActionId, Is.EqualTo(execution.ActionId));
             Assert.That(completion.Result, Is.SameAs(
                 controller.LastSwapActionResult));
@@ -344,15 +350,25 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             BoardActionCompletion completion = null;
             int startedCount = 0;
             int finishedCount = 0;
+            var presentations =
+                new List<BoardCascadeStepPresentation>();
+            var eventOrder = new List<string>();
             controller.BoardActionStarted += value =>
             {
                 execution = value;
                 startedCount++;
+                eventOrder.Add("Started");
+            };
+            controller.CascadeStepPresented += value =>
+            {
+                presentations.Add(value);
+                eventOrder.Add($"Cascade[{value.CascadeStepIndex}]");
             };
             controller.BoardActionFinished += value =>
             {
                 completion = value;
                 finishedCount++;
+                eventOrder.Add("Finished");
             };
             BoardSwap swap = FindValidSwap(controller.CurrentBoard);
             object resolver = GetField(controller, "swapActionResolver");
@@ -401,6 +417,66 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(completion.Result.ConsumesTurn, Is.True);
             Assert.That(completion.Result.Cascade, Is.SameAs(result.Cascade));
             Assert.That(completion.Result.Shuffle, Is.SameAs(result.Shuffle));
+            Assert.That(presentations.Count,
+                Is.EqualTo(result.Cascade.Steps.Count));
+            for (int index = 0; index < presentations.Count; index++)
+            {
+                Assert.That(presentations[index].ActionId,
+                    Is.EqualTo(execution.ActionId));
+                Assert.That(presentations[index].CascadeStepIndex,
+                    Is.EqualTo(index));
+                Assert.That(presentations[index].Step,
+                    Is.SameAs(result.Cascade.Steps[index]));
+            }
+
+            Assert.That(eventOrder[0], Is.EqualTo("Started"));
+            Assert.That(eventOrder[eventOrder.Count - 1],
+                Is.EqualTo("Finished"));
+            Assert.That(eventOrder.Count,
+                Is.EqualTo(result.Cascade.Steps.Count + 2));
+        }
+
+        [UnityTest]
+        public IEnumerator CascadeSignalObserverFailureDoesNotBreakAction()
+        {
+            yield return InitializeReadyBoard();
+            bool hasThrown = false;
+            int successfulObservationCount = 0;
+            BoardActionCompletion completion = null;
+            controller.CascadeStepPresented += _ =>
+            {
+                if (!hasThrown)
+                {
+                    hasThrown = true;
+                    throw new InvalidOperationException(
+                        "Injected cascade presentation observer failure.");
+                }
+            };
+            controller.CascadeStepPresented += _ =>
+                successfulObservationCount++;
+            controller.BoardActionFinished += value => completion = value;
+            LogAssert.Expect(
+                LogType.Exception,
+                new Regex(
+                    "Injected cascade presentation observer failure\\."));
+            LogAssert.Expect(
+                LogType.Error,
+                "[BattleBoard] Cascade presentation observer failed.");
+
+            Assert.That(controller.TryExecuteSwap(
+                FindValidSwap(controller.CurrentBoard)), Is.True);
+            yield return null;
+
+            Assert.That(hasThrown, Is.True);
+            Assert.That(successfulObservationCount,
+                Is.EqualTo(controller.LastSwapActionResult
+                    .Cascade.Steps.Count));
+            Assert.That(completion, Is.Not.Null);
+            Assert.That(completion.CompletionStatus,
+                Is.EqualTo(BoardActionCompletionStatus.Completed));
+            Assert.That(controller.IsBoardReady, Is.True);
+            Assert.That(boardView.MatchesBoard(controller.CurrentBoard),
+                Is.True);
         }
 
         [UnityTest]
@@ -553,7 +629,10 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
         {
             yield return InitializeReadyBoard();
             var finished = new List<BoardActionCompletion>();
+            var presentations =
+                new List<BoardCascadeStepPresentation>();
             controller.BoardActionFinished += finished.Add;
+            controller.CascadeStepPresented += presentations.Add;
             SetField(
                 controller,
                 "actionTimings",
@@ -574,10 +653,12 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(finished.Count, Is.EqualTo(1));
             Assert.That(finished[0].CompletionStatus, Is.EqualTo(
                 BoardActionCompletionStatus.Interrupted));
+            Assert.That(presentations, Is.Empty);
 
             InvokePrivate(controller, "OnDisable");
             yield return null;
             Assert.That(finished.Count, Is.EqualTo(1));
+            Assert.That(presentations, Is.Empty);
         }
 
         [UnityTest]

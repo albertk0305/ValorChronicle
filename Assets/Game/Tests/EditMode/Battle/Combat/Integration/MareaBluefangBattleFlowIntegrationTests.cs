@@ -174,6 +174,78 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         }
 
         [Test]
+        public void StagedMareaProviderWaitsForEarlierCharacterCompletion()
+        {
+            CharacterBattleState generator = Character("generator", 0);
+            CharacterBattleState marea = Marea(2);
+            PartyBattleState party = new PartyBattleState(
+                new[] { marea, generator });
+            BossBattleState boss = Boss();
+            WaterElementResource.Register(boss.Resources, 5);
+            var providers = new MatchEventActionProviderRegistry();
+            providers.Register(
+                generator.CharacterId,
+                new DelegateMatchEventActionProvider(context =>
+                    new CombatAction[]
+                    {
+                        new AddResourceAction(
+                            context.ActionIds.Next(),
+                            ActionOrigin.Match,
+                            context.Boss,
+                            WaterElementResource.Id,
+                            1)
+                    }));
+            int waterSeenByMarea = -1;
+            providers.Register(
+                MareaBluefangRules.CharacterId,
+                new ObservingMatchProvider(
+                    new MareaBluefangMatchActionProvider(
+                        MareaBluefangTestConfig.Create()),
+                    context => waterSeenByMarea = context.Boss.Resources
+                        .Get(WaterElementResource.Id).CurrentAmount));
+            BattleFlowCoordinator coordinator = BeginMatchResolution(
+                WaterMatch(4));
+            BattleFlowCombatBridge bridge = CreateBridge(
+                coordinator,
+                party,
+                boss,
+                providers,
+                new CombatActionIdSequence());
+            coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution);
+
+            Assert.That(bridge.TryBeginMatchEventCombat(
+                execution,
+                out bool hasMatchingCharacter), Is.True);
+            Assert.That(hasMatchingCharacter, Is.True);
+            Assert.That(waterSeenByMarea, Is.EqualTo(-1));
+
+            Assert.That(bridge.TryGetNextMatchCombatAction(
+                out CharacterBattleState firstCharacter,
+                out _), Is.True);
+            Assert.That(firstCharacter.PartySlotIndex, Is.Zero);
+            Assert.That(waterSeenByMarea, Is.EqualTo(-1));
+            Assert.That(bridge.TryApplyNextMatchCombatAction(out _), Is.True);
+            Assert.That(boss.Resources.GetAmount(WaterElementResource.Id),
+                Is.EqualTo(1));
+            Assert.That(waterSeenByMarea, Is.EqualTo(-1));
+
+            Assert.That(bridge.TryGetNextMatchCombatAction(
+                out CharacterBattleState secondCharacter,
+                out _), Is.True);
+            Assert.That(secondCharacter.PartySlotIndex, Is.EqualTo(2));
+            Assert.That(waterSeenByMarea, Is.EqualTo(1));
+            while (bridge.TryGetNextMatchCombatAction(out _, out _))
+            {
+                Assert.That(bridge.TryApplyNextMatchCombatAction(out _),
+                    Is.True);
+            }
+
+            Assert.That(bridge.TryCompleteMatchEventCombat(execution),
+                Is.True);
+        }
+
+        [Test]
         public void TriggerDerivedActionCompletesBeforeMareaProviderCall()
         {
             CharacterBattleState generator = Character("generator", 0);

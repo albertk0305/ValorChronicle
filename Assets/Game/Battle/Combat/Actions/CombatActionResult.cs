@@ -39,6 +39,10 @@ namespace ValorChronicle.Battle.Combat.Actions
         public DamageContext Context { get; }
         public DamageResult DamageResult { get; }
         public BossDamageApplicationResult ApplicationResult { get; }
+        public long AppliedDamage => ApplicationResult.AppliedDamage;
+        public bool WasCritical => Context.IsCritical;
+        public bool WasWeakness =>
+            DamageResult.ElementAffinityMultiplier > 1d;
         public bool BecameDefeated => ApplicationResult.BecameDefeated;
     }
 
@@ -60,6 +64,7 @@ namespace ValorChronicle.Battle.Combat.Actions
         public BossDamageContext Context { get; }
         public BossDamageResult DamageResult { get; }
         public PartyDamageApplicationResult ApplicationResult { get; }
+        public long AppliedHpDamage => ApplicationResult.HpDamage;
         public bool BecameIncapacitated =>
             ApplicationResult.BecameIncapacitated;
     }

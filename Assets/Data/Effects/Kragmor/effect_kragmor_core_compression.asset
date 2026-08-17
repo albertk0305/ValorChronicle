@@ -15,4 +15,4 @@ MonoBehaviour:
   id: effect_kragmor_core_compression
   displayNameKey: effect.kragmor.core_compression.name
   descriptionKey: effect.kragmor.core_compression.description
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 1fa0af81bb043b84daa01af53c16b2e1, type: 3}

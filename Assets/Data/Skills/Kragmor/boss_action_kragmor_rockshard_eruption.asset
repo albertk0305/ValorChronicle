@@ -15,5 +15,5 @@ MonoBehaviour:
   id: boss_action_kragmor_rockshard_eruption
   displayNameKey: boss_action.kragmor.rockshard_eruption.name
   descriptionKey: boss_action.kragmor.rockshard_eruption.description
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 82b225f34a47a10448fcde8665d275aa, type: 3}
   skillKind: 3

@@ -25,7 +25,6 @@ namespace ValorChronicle.Tests.PlayMode
 {
     public sealed class BattleSceneCombatPlayModeTests
     {
-        private BattleFlowDebugPanel panel;
         private BattleSceneCombatBootstrap combatBootstrap;
         private BattleFlowController flow;
         private BattleSceneCombatComposition combat;
@@ -42,10 +41,10 @@ namespace ValorChronicle.Tests.PlayMode
                 "Battle",
                 LoadSceneMode.Additive);
 
-            panel = UnityEngine.Object.FindFirstObjectByType<
-                BattleFlowDebugPanel>();
-            Assert.That(panel, Is.Not.Null);
-            Assert.That(panel.enabled, Is.False);
+            Assert.That(UnityEngine.Object.FindObjectsByType<
+                BattleFlowDebugPanel>(
+                    FindObjectsInactive.Include,
+                    FindObjectsSortMode.None), Is.Empty);
             combatBootstrap = UnityEngine.Object.FindFirstObjectByType<
                 BattleSceneCombatBootstrap>();
             Assert.That(combatBootstrap, Is.Not.Null);
@@ -156,15 +155,152 @@ namespace ValorChronicle.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator RemovingDebugPanelDoesNotAffectProductionCombat()
+        public IEnumerator PlayerProjectileUsesScenePoolAndCompletes()
+        {
+            BattleCombatPresentationController presentation =
+                flow.CombatPresentationController;
+            Assert.That(presentation, Is.Not.Null);
+            Assert.That(presentation.ProjectilePool.ActiveCount, Is.Zero);
+            bool completed = false;
+            MatchDamageProjectileCompletion completion =
+                MatchDamageProjectileCompletion.Cancelled;
+
+            bool started = presentation.TryPresent(
+                new MatchDamageProjectileRequest(
+                    combat.Marea.PartySlotIndex,
+                    combat.Marea.CharacterId,
+                    ElementType.Water),
+                result =>
+                {
+                    completion = result;
+                    completed = true;
+                });
+
+            Assert.That(started, Is.True);
+            Assert.That(presentation.IsPresenting, Is.True);
+            Assert.That(presentation.ProjectilePool.ActiveCount,
+                Is.EqualTo(1));
+            float deadline = Time.realtimeSinceStartup + 2f;
+            while (!completed && Time.realtimeSinceStartup < deadline)
+            {
+                yield return null;
+            }
+
+            Assert.That(completed, Is.True);
+            Assert.That(completion,
+                Is.EqualTo(MatchDamageProjectileCompletion.Arrived));
+            Assert.That(presentation.IsPresenting, Is.False);
+            Assert.That(presentation.ProjectilePool.ActiveCount, Is.Zero);
+            Assert.That(presentation.ProjectilePool.AvailableCount,
+                Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator BossProjectileUsesScenePoolAndCompletes()
+        {
+            BattleCombatPresentationController presentation =
+                flow.CombatPresentationController;
+            Assert.That(presentation, Is.Not.Null);
+            Assert.That(presentation.BossProjectileColor,
+                Is.EqualTo(Color.white));
+            Assert.That(presentation.ProjectilePool.ActiveCount, Is.Zero);
+            bool completed = false;
+            BossDamageProjectileCompletion completion =
+                BossDamageProjectileCompletion.Cancelled;
+
+            bool started = presentation.TryPresent(
+                new BossDamageProjectileRequest(1, 1),
+                result =>
+                {
+                    completion = result;
+                    completed = true;
+                });
+
+            Assert.That(started, Is.True);
+            Assert.That(presentation.IsPresenting, Is.True);
+            Assert.That(presentation.ProjectilePool.ActiveCount,
+                Is.EqualTo(1));
+            float deadline = Time.realtimeSinceStartup + 2f;
+            while (!completed && Time.realtimeSinceStartup < deadline)
+            {
+                yield return null;
+            }
+
+            Assert.That(completed, Is.True);
+            Assert.That(completion,
+                Is.EqualTo(BossDamageProjectileCompletion.Arrived));
+            Assert.That(presentation.IsPresenting, Is.False);
+            Assert.That(presentation.ProjectilePool.ActiveCount, Is.Zero);
+            Assert.That(presentation.ProjectilePool.AvailableCount,
+                Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator AppliedStepsSpawnNonBlockingFloatingNumbersAndRelease()
+        {
+            BattleCombatPresentationController presentation =
+                flow.CombatPresentationController;
+            presentation.SetDamageNumberRandomSource(
+                new SystemPresentationRandomSource(7357));
+            Assert.That(presentation.DamageNumberPool, Is.Not.Null);
+            Assert.That(presentation.DamageNumberPool.ActiveCount, Is.Zero);
+
+            CombatActionExecutionResult match = ResolveWaterMatch(
+                blockCount: 3);
+            DamageActionResult playerDamage = match.ActionResults
+                .OfType<DamageActionResult>()
+                .Single();
+            BossDamageActionResult bossDamage = combat.Bridge
+                .LastBossExecutionResult.ActionResults
+                .OfType<BossDamageActionResult>()
+                .Single();
+
+            Assert.That(flow.Context.Phase,
+                Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(presentation.IsPresenting, Is.False,
+                "Floating numbers must not hold the projectile gate.");
+            Assert.That(presentation.DamageNumberPool.ActiveCount,
+                Is.EqualTo(2));
+            DamageNumberView[] activeNumbers =
+                UnityEngine.Object.FindObjectsByType<DamageNumberView>(
+                        FindObjectsInactive.Include,
+                        FindObjectsSortMode.None)
+                    .Where(view => view.gameObject.activeInHierarchy)
+                    .ToArray();
+            Assert.That(activeNumbers, Has.Length.EqualTo(2));
+            Assert.That(activeNumbers.Select(view => view.DisplayText),
+                Is.EquivalentTo(new[]
+                {
+                    playerDamage.AppliedDamage.ToString(),
+                    bossDamage.AppliedHpDamage.ToString()
+                }));
+            Assert.That(activeNumbers,
+                Has.All.Matches<DamageNumberView>(view =>
+                    !view.BlocksRaycasts));
+
+            float deadline = Time.realtimeSinceStartup + 2f;
+            while (presentation.DamageNumberPool.ActiveCount > 0
+                && Time.realtimeSinceStartup < deadline)
+            {
+                yield return null;
+            }
+
+            Assert.That(presentation.DamageNumberPool.ActiveCount, Is.Zero);
+            Assert.That(presentation.DamageNumberPool.AvailableCount,
+                Is.EqualTo(DamageNumberPool.DefaultPrewarmCount));
+        }
+
+        [UnityTest]
+        public IEnumerator ProductionCombatRunsWithoutDebugPanel()
         {
             BattleFlowCombatBridge bridge = flow.CombatBridge;
             BattleContext context = flow.Context;
-            UnityEngine.Object.Destroy(panel);
             yield return null;
 
-            Assert.That(UnityEngine.Object.FindFirstObjectByType<
-                BattleFlowDebugPanel>(), Is.Null);
+            Assert.That(UnityEngine.Object.FindObjectsByType<
+                BattleFlowDebugPanel>(
+                    FindObjectsInactive.Include,
+                    FindObjectsSortMode.None), Is.Empty);
             Assert.That(combatBootstrap, Is.Not.Null);
             Assert.That(combatBootstrap.HasInitializedCombat, Is.True);
             Assert.That(flow.Context, Is.SameAs(context));

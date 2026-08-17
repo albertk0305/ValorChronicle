@@ -49,6 +49,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             boardController.enabled = false;
             flowController = root.AddComponent<BattleFlowController>();
             SetField(flowController, "boardController", boardController);
+            SetField(flowController, "preAttackDelaySeconds", 0f);
+            SetField(flowController, "emptyQueueItemDelaySeconds", 0f);
         }
 
         [TearDown]
@@ -188,6 +190,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 CreateExecution(1, result));
             Assert.That(flowController.Context.Phase,
                 Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(flowController.MatchQueuePresentation.Count, Is.Zero);
+            Assert.That(flowController.MatchQueuePresentation.ActiveActionId,
+                Is.Zero);
 
             LogAssert.Expect(
                 LogType.Warning,
@@ -309,6 +314,286 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(boardController.IsExternalInputEnabled, Is.False);
         }
 
+        [Test]
+        public void CascadePresentationRevealsCanonicalEntriesBeforeResolve()
+        {
+            InitializeStarted(Array.Empty<int>());
+            BoardCascadeResult cascade = BattleFlowTestSupport.CreateCascade(
+                new[]
+                {
+                    BattleFlowTestSupport.Match(
+                        ElementType.Water,
+                        new BoardPosition(0, 0),
+                        new BoardPosition(1, 0),
+                        new BoardPosition(2, 0)),
+                    BattleFlowTestSupport.Match(
+                        ElementType.Fire,
+                        new BoardPosition(0, 1),
+                        new BoardPosition(1, 1),
+                        new BoardPosition(2, 1),
+                        new BoardPosition(3, 1))
+                });
+            BoardSwapActionResult result = CreateResolvedResult(cascade);
+
+            InvokePrivate(
+                flowController,
+                "HandleBoardActionStarted",
+                CreateExecution(1, result));
+
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.BoardResolving));
+            Assert.That(flowController.Coordinator.PendingMatchEventCount,
+                Is.Zero);
+            RevealStep(1, cascade, 0);
+
+            IReadOnlyList<BattleMatchQueuePresentationEntry> entries =
+                flowController.MatchQueuePresentation.GetSnapshot();
+            Assert.That(entries, Has.Count.EqualTo(2));
+            AssertPresentationEntry(entries[0], 0, 0, ElementType.Water, 3);
+            AssertPresentationEntry(entries[1], 1, 0, ElementType.Fire, 4);
+            var mutable = entries as IList<
+                BattleMatchQueuePresentationEntry>;
+            Assert.That(mutable, Is.Not.Null);
+            Assert.Throws<NotSupportedException>(
+                () => mutable.Add(entries[0]));
+            Assert.That(flowController.MatchQueuePresentation.Count,
+                Is.EqualTo(2));
+            Assert.That(flowController.Coordinator.PendingMatchEventCount,
+                Is.Zero);
+        }
+
+        [Test]
+        public void MultiStepRevealAppendsAndRejectsStaleOrDuplicateSignals()
+        {
+            InitializeStarted(Array.Empty<int>());
+            BoardCascadeResult cascade = BattleFlowTestSupport.CreateCascade(
+                new[]
+                {
+                    BattleFlowTestSupport.Match(
+                        ElementType.Water,
+                        new BoardPosition(0, 0),
+                        new BoardPosition(1, 0),
+                        new BoardPosition(2, 0)),
+                    BattleFlowTestSupport.Match(
+                        ElementType.Water,
+                        new BoardPosition(0, 1),
+                        new BoardPosition(1, 1),
+                        new BoardPosition(2, 1),
+                        new BoardPosition(3, 1))
+                },
+                new[]
+                {
+                    BattleFlowTestSupport.Match(
+                        ElementType.Dark,
+                        new BoardPosition(0, 2),
+                        new BoardPosition(1, 2),
+                        new BoardPosition(2, 2))
+                });
+            BoardSwapActionResult result = CreateResolvedResult(cascade);
+            InvokePrivate(
+                flowController,
+                "HandleBoardActionStarted",
+                CreateExecution(1, result));
+
+            RevealStep(1, cascade, 0);
+            Assert.That(flowController.MatchQueuePresentation.Count,
+                Is.EqualTo(2));
+            LogAssert.Expect(
+                LogType.Warning,
+                new Regex("Ignored stale, duplicate, or out-of-order"));
+            RevealStep(1, cascade, 0);
+            LogAssert.Expect(
+                LogType.Warning,
+                new Regex("Ignored stale, duplicate, or out-of-order"));
+            RevealStep(99, cascade, 1);
+            Assert.That(flowController.MatchQueuePresentation.Count,
+                Is.EqualTo(2));
+
+            RevealStep(1, cascade, 1);
+            IReadOnlyList<BattleMatchQueuePresentationEntry> entries =
+                flowController.MatchQueuePresentation.GetSnapshot();
+            Assert.That(entries, Has.Count.EqualTo(3));
+            AssertPresentationEntry(entries[0], 0, 0, ElementType.Water, 3);
+            AssertPresentationEntry(entries[1], 1, 0, ElementType.Water, 4);
+            AssertPresentationEntry(entries[2], 2, 1, ElementType.Dark, 3);
+        }
+
+        [Test]
+        public void MatchExecutionPopsBySequenceEvenForRepeatedElement()
+        {
+            InitializeStarted(Array.Empty<int>());
+            BoardCascadeResult cascade = BattleFlowTestSupport.CreateCascade(
+                new[]
+                {
+                    BattleFlowTestSupport.Match(
+                        ElementType.Water,
+                        new BoardPosition(0, 0),
+                        new BoardPosition(1, 0),
+                        new BoardPosition(2, 0)),
+                    BattleFlowTestSupport.Match(
+                        ElementType.Water,
+                        new BoardPosition(0, 1),
+                        new BoardPosition(1, 1),
+                        new BoardPosition(2, 1),
+                        new BoardPosition(3, 1))
+                });
+            BoardSwapActionResult result = CreateResolvedResult(cascade);
+            InvokePrivate(
+                flowController,
+                "HandleBoardActionStarted",
+                CreateExecution(1, result));
+            RevealStep(1, cascade, 0);
+            Assert.That(flowController.Coordinator.NotifyBoardActionResolved(
+                cascade,
+                true), Is.True);
+
+            Assert.That(flowController.Coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution), Is.True);
+
+            Assert.That(execution.MatchEvent.SequenceIndex, Is.Zero);
+            IReadOnlyList<BattleMatchQueuePresentationEntry> remaining =
+                flowController.MatchQueuePresentation.GetSnapshot();
+            Assert.That(remaining, Has.Count.EqualTo(1));
+            AssertPresentationEntry(
+                remaining[0],
+                1,
+                0,
+                ElementType.Water,
+                4);
+        }
+
+        [Test]
+        public void MissingOrInconsistentRevealRebuildsFromAuthoritativeQueue()
+        {
+            InitializeStarted(Array.Empty<int>());
+            BoardCascadeResult canonical = CreateTwoMatchCascade();
+            BoardSwapActionResult result = CreateResolvedResult(canonical);
+            InvokePrivate(
+                flowController,
+                "HandleBoardActionStarted",
+                CreateExecution(1, result));
+            LogAssert.Expect(
+                LogType.Warning,
+                new Regex("Rebuilt presentation MatchEvent queue"));
+
+            Assert.That(flowController.Coordinator.NotifyBoardActionResolved(
+                canonical,
+                true), Is.True);
+
+            AssertPresentationMatchesAuthoritative();
+
+            flowController.Coordinator.AbortBattle();
+            InitializeReplacementControllerForReconcile();
+            BoardCascadeResult wrong = BattleFlowTestSupport.CreateCascade(
+                new[]
+                {
+                    BattleFlowTestSupport.Match(
+                        ElementType.Dark,
+                        new BoardPosition(0, 0),
+                        new BoardPosition(1, 0),
+                        new BoardPosition(2, 0),
+                        new BoardPosition(3, 0))
+                });
+            result = CreateResolvedResult(canonical);
+            InvokePrivate(
+                flowController,
+                "HandleBoardActionStarted",
+                CreateExecution(1, result));
+            RevealStep(1, wrong, 0);
+            LogAssert.Expect(
+                LogType.Warning,
+                new Regex("Rebuilt presentation MatchEvent queue"));
+
+            Assert.That(flowController.Coordinator.NotifyBoardActionResolved(
+                canonical,
+                true), Is.True);
+
+            AssertPresentationMatchesAuthoritative();
+        }
+
+        [Test]
+        public void MatchExecutionMismatchRecoversWithoutBlockingGameplay()
+        {
+            InitializeStarted(Array.Empty<int>());
+            BoardCascadeResult cascade = CreateTwoMatchCascade();
+            BoardSwapActionResult result = CreateResolvedResult(cascade);
+            InvokePrivate(
+                flowController,
+                "HandleBoardActionStarted",
+                CreateExecution(1, result));
+            RevealStep(1, cascade, 0);
+            Assert.That(flowController.Coordinator.NotifyBoardActionResolved(
+                cascade,
+                true), Is.True);
+            InvokePrivate(
+                flowController.MatchQueuePresentation,
+                "BeginAction",
+                99L);
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex(
+                    "Presentation MatchEvent did not match the "
+                        + "authoritative execution"));
+            LogAssert.Expect(
+                LogType.Warning,
+                new Regex("Rebuilt presentation MatchEvent queue"));
+
+            Assert.That(flowController.Coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution), Is.True);
+
+            Assert.That(execution.MatchEvent.SequenceIndex, Is.Zero);
+            Assert.That(flowController.Coordinator.PendingMatchEventCount,
+                Is.EqualTo(1));
+            AssertPresentationMatchesAuthoritative();
+        }
+
+        [Test]
+        public void EnableDoesNotDuplicateCascadePresentationSubscription()
+        {
+            InitializeStarted(Array.Empty<int>());
+            Assert.That(CountTargetSubscribers(
+                boardController,
+                "CascadeStepPresented",
+                flowController), Is.EqualTo(1));
+
+            InvokePrivate(flowController, "OnEnable");
+
+            Assert.That(CountTargetSubscribers(
+                boardController,
+                "CascadeStepPresented",
+                flowController), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TerminalAndDisableClearPresentationAndSubscriptions()
+        {
+            InitializeStarted(Array.Empty<int>());
+            BoardCascadeResult cascade = CreateSingleMatchCascade();
+            BoardSwapActionResult result = CreateResolvedResult(cascade);
+            InvokePrivate(
+                flowController,
+                "HandleBoardActionStarted",
+                CreateExecution(1, result));
+            RevealStep(1, cascade, 0);
+            Assert.That(flowController.MatchQueuePresentation.Count,
+                Is.EqualTo(1));
+            Assert.That(CountTargetSubscribers(
+                boardController,
+                "CascadeStepPresented",
+                flowController), Is.EqualTo(1));
+
+            Assert.That(flowController.AbortBattle(), Is.True);
+
+            Assert.That(flowController.MatchQueuePresentation.Count, Is.Zero);
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Aborted));
+            DeactivateFixture();
+            Assert.That(CountTargetSubscribers(
+                boardController,
+                "CascadeStepPresented",
+                flowController), Is.Zero);
+        }
+
         [UnityTest]
         public IEnumerator ResolvedActionExecutesMatchesInOrderThenBossAndNextTurn()
         {
@@ -353,6 +638,866 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Context.Phase,
                 Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(boardController.IsExternalInputEnabled, Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator PreAttackDelayKeepsQueueBeforeFirstDequeue()
+        {
+            InitializeStarted(Array.Empty<int>());
+            SetField(flowController, "preAttackDelaySeconds", 0.05f);
+            var executed = new List<MatchEvent>();
+            flowController.Coordinator.MatchEventExecuting += executed.Add;
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateTwoMatchCascade()));
+
+            Assert.That(executed, Is.Empty);
+            Assert.That(flowController.Coordinator.PendingMatchEventCount,
+                Is.EqualTo(2));
+            Assert.That(flowController.MatchQueuePresentation.Count,
+                Is.EqualTo(2));
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.MatchEventResolving));
+
+            yield return WaitUntil(
+                () => executed.Count > 0,
+                "Pre-attack delay did not release the first MatchEvent.",
+                maximumFrames: 120);
+
+            Assert.That(executed[0].SequenceIndex, Is.Zero);
+            Assert.That(flowController.MatchQueuePresentation.Count,
+                Is.LessThan(2));
+        }
+
+        [UnityTest]
+        public IEnumerator PreAttackDelayIsNotRepeatedBetweenMatchEvents()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var executed = new List<MatchEvent>();
+            flowController.Coordinator.MatchEventExecuting += matchEvent =>
+            {
+                executed.Add(matchEvent);
+                if (executed.Count == 1)
+                {
+                    SetField(
+                        flowController,
+                        "preAttackDelaySeconds",
+                        10f);
+                }
+            };
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateTwoMatchCascade()));
+
+            Assert.That(executed, Has.Count.EqualTo(1));
+            yield return WaitUntil(
+                () => executed.Count == 2,
+                "Pre-attack delay was repeated between MatchEvents.",
+                maximumFrames: 8);
+            Assert.That(executed[1].SequenceIndex, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator ConsecutiveEmptyItemsPopAcrossSeparateDelays()
+        {
+            InitializeStarted(Array.Empty<int>());
+            SetField(flowController, "emptyQueueItemDelaySeconds", 0.04f);
+            var character = new CharacterBattleState(
+                "fire",
+                0,
+                ElementType.Fire,
+                1000,
+                100d);
+            AttachCombatBridge(
+                new PartyBattleState(new[] { character }),
+                new BossBattleState(
+                    "boss",
+                    ElementType.Fire,
+                    1000,
+                    0d),
+                new ControllerMatchActionProvider());
+            var executed = new List<MatchEvent>();
+            flowController.Coordinator.MatchEventExecuting += executed.Add;
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateTwoWaterMatchCascade()));
+
+            Assert.That(executed, Has.Count.EqualTo(1));
+            Assert.That(flowController.MatchQueuePresentation.Count,
+                Is.EqualTo(1));
+            Assert.That(flowController.Coordinator.HasMatchEventInFlight,
+                Is.True);
+
+            yield return WaitUntil(
+                () => executed.Count == 2,
+                "The second empty queue item was not released.",
+                maximumFrames: 120);
+
+            Assert.That(executed[1].SequenceIndex, Is.EqualTo(1));
+            Assert.That(flowController.MatchQueuePresentation.Count,
+                Is.Zero);
+            Assert.That(flowController.Coordinator.HasMatchEventInFlight,
+                Is.True);
+        }
+
+        [Test]
+        public void MatchingCharacterDoesNotUseEmptyQueueItemDelay()
+        {
+            InitializeStarted(Array.Empty<int>());
+            SetField(flowController, "emptyQueueItemDelaySeconds", 10f);
+            var character = new CharacterBattleState(
+                "fire",
+                0,
+                ElementType.Fire,
+                1000,
+                100d);
+            var provider = new ControllerMatchActionProvider();
+            BattleFlowCombatBridge bridge = AttachCombatBridge(
+                new PartyBattleState(new[] { character }),
+                new BossBattleState(
+                    "boss",
+                    ElementType.Fire,
+                    1000,
+                    0d),
+                provider);
+            int stepCount = 0;
+            int batchCount = 0;
+            bridge.CombatActionStepApplied += step => stepCount++;
+            bridge.CombatActionsApplied += () => batchCount++;
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+
+            Assert.That(provider.CallCount, Is.EqualTo(1));
+            Assert.That(stepCount, Is.EqualTo(1));
+            Assert.That(batchCount, Is.EqualTo(1));
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.BossActing));
+            Assert.That(flowController.Coordinator.HasMatchEventInFlight,
+                Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator DamageWaitsForProjectileArrivalBeforeApplying()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var character = new CharacterBattleState(
+                "fire",
+                0,
+                ElementType.Fire,
+                1000,
+                100d);
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Fire,
+                1000,
+                0d);
+            BattleFlowCombatBridge bridge = AttachCombatBridge(
+                new PartyBattleState(new[] { character }),
+                boss,
+                new ControllerMatchActionProvider());
+            var presenter = new ControllableProjectilePresenter();
+            SetField(
+                flowController,
+                "projectilePresenterOverride",
+                presenter);
+            int stepCount = 0;
+            bridge.CombatActionStepApplied += step => stepCount++;
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+
+            Assert.That(presenter.Requests, Has.Count.EqualTo(1));
+            Assert.That(presenter.Requests[0].PartySlotIndex, Is.Zero);
+            Assert.That(presenter.Requests[0].CharacterId, Is.EqualTo("fire"));
+            Assert.That(presenter.Requests[0].AttackElement,
+                Is.EqualTo(ElementType.Fire));
+            Assert.That(boss.CurrentHp, Is.EqualTo(1000));
+            Assert.That(stepCount, Is.Zero);
+
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(boss.CurrentHp, Is.EqualTo(900));
+            Assert.That(stepCount, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator EachDamageActionRequestsOneProjectileInOrder()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var character = new CharacterBattleState(
+                "fire",
+                2,
+                ElementType.Fire,
+                1000,
+                100d);
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Fire,
+                1000,
+                0d);
+            AttachCombatBridge(
+                new PartyBattleState(new[] { character }),
+                boss,
+                new ControllerMultiDamageActionProvider());
+            var presenter = new ControllableProjectilePresenter();
+            SetField(
+                flowController,
+                "projectilePresenterOverride",
+                presenter);
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+
+            Assert.That(presenter.Requests, Has.Count.EqualTo(1));
+            Assert.That(boss.CurrentHp, Is.EqualTo(1000));
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(presenter.Requests, Has.Count.EqualTo(2));
+            Assert.That(presenter.Requests[0].PartySlotIndex, Is.EqualTo(2));
+            Assert.That(presenter.Requests[1].PartySlotIndex, Is.EqualTo(2));
+            Assert.That(boss.CurrentHp, Is.EqualTo(900));
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(boss.CurrentHp, Is.EqualTo(800));
+        }
+
+        [UnityTest]
+        public IEnumerator MatchingCharactersRequestProjectilesLeftToRight()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var characters = new[]
+            {
+                new CharacterBattleState(
+                    "slot_4", 4, ElementType.Fire, 1000, 100d),
+                new CharacterBattleState(
+                    "slot_0", 0, ElementType.Fire, 1000, 100d),
+                new CharacterBattleState(
+                    "slot_2", 2, ElementType.Fire, 1000, 100d)
+            };
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Fire,
+                10000,
+                0d);
+            AttachCombatBridge(
+                new PartyBattleState(characters),
+                boss,
+                new ControllerMatchActionProvider());
+            var presenter = new ControllableProjectilePresenter();
+            SetField(
+                flowController,
+                "projectilePresenterOverride",
+                presenter);
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+            Assert.That(presenter.Requests[0].PartySlotIndex, Is.Zero);
+
+            presenter.Arrive();
+            yield return null;
+            Assert.That(presenter.Requests[1].PartySlotIndex, Is.EqualTo(2));
+
+            presenter.Arrive();
+            yield return null;
+            Assert.That(presenter.Requests[2].PartySlotIndex, Is.EqualTo(4));
+
+            presenter.Arrive();
+            yield return null;
+            Assert.That(
+                presenter.Requests.ConvertAll(item => item.CharacterId),
+                Is.EqualTo(new[] { "slot_0", "slot_2", "slot_4" }));
+        }
+
+        [UnityTest]
+        public IEnumerator TerminalDamageDoesNotRequestRemainingProjectile()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var character = new CharacterBattleState(
+                "fire",
+                0,
+                ElementType.Fire,
+                1000,
+                100d);
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Fire,
+                100,
+                0d);
+            AttachCombatBridge(
+                new PartyBattleState(new[] { character }),
+                boss,
+                new ControllerMultiDamageActionProvider());
+            var presenter = new ControllableProjectilePresenter();
+            SetField(
+                flowController,
+                "projectilePresenterOverride",
+                presenter);
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+
+            Assert.That(presenter.Requests, Has.Count.EqualTo(1));
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(boss.IsDefeated, Is.True);
+            Assert.That(presenter.Requests, Has.Count.EqualTo(1));
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Victory));
+        }
+
+        [UnityTest]
+        public IEnumerator DerivedDamageUsesTheSameProjectileGate()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var character = new CharacterBattleState(
+                "fire",
+                0,
+                ElementType.Fire,
+                1000,
+                100d);
+            var party = new PartyBattleState(new[] { character });
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Fire,
+                1000,
+                0d);
+            var actionIds = new CombatActionIdSequence();
+            var executor = new CombatActionExecutor(
+                boss,
+                party,
+                new DamageContextFactory(new SeededRandomSource(1)),
+                new CombatTriggerResolver(
+                    new ICombatTriggerRule[]
+                    {
+                        new DerivedDamageTriggerRule(actionIds)
+                    }));
+            var bridge = new BattleFlowCombatBridge(
+                flowController.Coordinator,
+                party,
+                boss,
+                executor,
+                new ControllerMatchActionProvider(),
+                new ControllerBossActionProvider(),
+                actionIds);
+            flowController.AttachCombatBridge(bridge);
+            var presenter = new ControllableProjectilePresenter();
+            SetField(
+                flowController,
+                "projectilePresenterOverride",
+                presenter);
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(presenter.Requests, Has.Count.EqualTo(2));
+            Assert.That(boss.CurrentHp, Is.EqualTo(900));
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(boss.CurrentHp, Is.EqualTo(800));
+            Assert.That(bridge.LastMatchExecutionResult, Is.Not.Null);
+            Assert.That(
+                bridge.LastMatchExecutionResult.ActionResults,
+                Has.Count.EqualTo(2));
+            Assert.That(
+                bridge.LastMatchExecutionResult.ActionResults[0]
+                    .Action.ActionId,
+                Is.EqualTo(1));
+            Assert.That(
+                bridge.LastMatchExecutionResult.ActionResults[1]
+                    .Action.ActionId,
+                Is.EqualTo(2));
+            Assert.That(actionIds.LastIssuedId, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void NonDamageActionAppliesWithoutProjectile()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var character = new CharacterBattleState(
+                "fire",
+                0,
+                ElementType.Fire,
+                1000,
+                100d);
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Fire,
+                1000,
+                0d);
+            boss.Resources.Register("test_resource", 10);
+            AttachCombatBridge(
+                new PartyBattleState(new[] { character }),
+                boss,
+                new ControllerResourceActionProvider());
+            var presenter = new ControllableProjectilePresenter();
+            SetField(
+                flowController,
+                "projectilePresenterOverride",
+                presenter);
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+
+            Assert.That(presenter.Requests, Is.Empty);
+            Assert.That(boss.Resources.GetAmount("test_resource"),
+                Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator BossDamageWaitsForProjectileArrivalBeforeApplying()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "hero", 0, ElementType.Water, 1000, 0d)
+            });
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 100d);
+            BattleFlowCombatBridge bridge = AttachCombatBridge(
+                party,
+                boss,
+                new ControllerResourceActionProvider(),
+                new ControllerBossDamageActionProvider(1));
+            var presenter = new ControllableBossProjectilePresenter();
+            SetField(
+                flowController,
+                "bossProjectilePresenterOverride",
+                presenter);
+            int stepCount = 0;
+            int batchCount = 0;
+            bridge.BossCombatActionStepApplied += step => stepCount++;
+            bridge.CombatActionsApplied += () => batchCount++;
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+            yield return null;
+
+            Assert.That(presenter.Requests, Has.Count.EqualTo(1));
+            Assert.That(presenter.Requests[0].CurrentTurn, Is.EqualTo(1));
+            Assert.That(presenter.Requests[0].ActionId, Is.EqualTo(1));
+            Assert.That(party.CurrentHp, Is.EqualTo(1000));
+            Assert.That(stepCount, Is.Zero);
+            Assert.That(batchCount, Is.Zero);
+
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(party.CurrentHp, Is.LessThan(1000));
+            Assert.That(stepCount, Is.EqualTo(1));
+            Assert.That(batchCount, Is.EqualTo(1));
+            Assert.That(flowController.Context.CurrentTurn, Is.EqualTo(2));
+        }
+
+        [UnityTest]
+        public IEnumerator EachBossDamageRequestsOneProjectileInOrder()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "hero", 0, ElementType.Water, 1000, 0d)
+            });
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 100d);
+            AttachCombatBridge(
+                party,
+                boss,
+                new ControllerResourceActionProvider(),
+                new ControllerBossDamageActionProvider(2));
+            var presenter = new ControllableBossProjectilePresenter();
+            SetField(
+                flowController,
+                "bossProjectilePresenterOverride",
+                presenter);
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+            yield return null;
+            Assert.That(presenter.Requests, Has.Count.EqualTo(1));
+            Assert.That(party.CurrentHp, Is.EqualTo(1000));
+
+            presenter.Arrive();
+            yield return null;
+            Assert.That(presenter.Requests, Has.Count.EqualTo(2));
+            long hpAfterFirst = party.CurrentHp;
+            Assert.That(hpAfterFirst, Is.LessThan(1000));
+
+            presenter.Arrive();
+            yield return null;
+            Assert.That(party.CurrentHp, Is.LessThan(hpAfterFirst));
+            Assert.That(presenter.Requests.ConvertAll(item => item.ActionId),
+                Is.EqualTo(new long[] { 1, 2 }));
+        }
+
+        [UnityTest]
+        public IEnumerator TerminalBossDamageDoesNotRequestNextProjectile()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "hero", 0, ElementType.Water, 1, 0d)
+            });
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 100d);
+            AttachCombatBridge(
+                party,
+                boss,
+                new ControllerResourceActionProvider(),
+                new ControllerBossDamageActionProvider(2));
+            var presenter = new ControllableBossProjectilePresenter();
+            SetField(
+                flowController,
+                "bossProjectilePresenterOverride",
+                presenter);
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+            yield return null;
+            Assert.That(presenter.Requests, Has.Count.EqualTo(1));
+
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(party.IsIncapacitated, Is.True);
+            Assert.That(presenter.Requests, Has.Count.EqualTo(1));
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Defeat));
+        }
+
+        [UnityTest]
+        public IEnumerator DerivedBossDamageUsesTheSameProjectileGate()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "hero", 0, ElementType.Water, 1000, 0d)
+            });
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 100d);
+            var actionIds = new CombatActionIdSequence();
+            var executor = new CombatActionExecutor(
+                boss,
+                party,
+                new DamageContextFactory(new SeededRandomSource(1)),
+                new CombatTriggerResolver(new ICombatTriggerRule[]
+                {
+                    new DerivedBossDamageTriggerRule(actionIds)
+                }));
+            var bridge = new BattleFlowCombatBridge(
+                flowController.Coordinator,
+                party,
+                boss,
+                executor,
+                new ControllerResourceActionProvider(),
+                new ControllerBossDamageActionProvider(1),
+                actionIds);
+            flowController.AttachCombatBridge(bridge);
+            var presenter = new ControllableBossProjectilePresenter();
+            SetField(
+                flowController,
+                "bossProjectilePresenterOverride",
+                presenter);
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+            yield return null;
+            Assert.That(presenter.Requests, Has.Count.EqualTo(1));
+
+            presenter.Arrive();
+            yield return null;
+            Assert.That(presenter.Requests, Has.Count.EqualTo(2));
+            long hpAfterRoot = party.CurrentHp;
+
+            presenter.Arrive();
+            yield return null;
+            Assert.That(party.CurrentHp, Is.LessThan(hpAfterRoot));
+            Assert.That(presenter.Requests.ConvertAll(item => item.ActionId),
+                Is.EqualTo(new long[] { 1, 2 }));
+            Assert.That(actionIds.LastIssuedId, Is.EqualTo(2));
+        }
+
+        [UnityTest]
+        public IEnumerator BossDamageFullShieldAbsorbWaitsForArrival()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "hero", 0, ElementType.Water, 1000, 0d)
+            });
+            party.Shields.Add(new ShieldInstance(
+                1, "hero", 1000, 1, 5, 1));
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 100d);
+            AttachCombatBridge(
+                party,
+                boss,
+                new ControllerResourceActionProvider(),
+                new ControllerBossDamageActionProvider(1));
+            var presenter = new ControllableBossProjectilePresenter();
+            SetField(
+                flowController,
+                "bossProjectilePresenterOverride",
+                presenter);
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+            yield return null;
+            Assert.That(party.CurrentHp, Is.EqualTo(1000));
+            Assert.That(party.Shields.TotalShield, Is.EqualTo(1000));
+
+            presenter.Arrive();
+            yield return null;
+            Assert.That(party.CurrentHp, Is.EqualTo(1000));
+            Assert.That(party.Shields.TotalShield, Is.LessThan(1000));
+        }
+
+        [UnityTest]
+        public IEnumerator AbortDuringBossProjectilePreventsDamage()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "hero", 0, ElementType.Water, 1000, 0d)
+            });
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 100d);
+            AttachCombatBridge(
+                party,
+                boss,
+                new ControllerResourceActionProvider(),
+                new ControllerBossDamageActionProvider(1));
+            var presenter = new ControllableBossProjectilePresenter();
+            SetField(
+                flowController,
+                "bossProjectilePresenterOverride",
+                presenter);
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+            yield return null;
+            Assert.That(presenter.HasActiveRequest, Is.True);
+
+            Assert.That(flowController.AbortBattle(), Is.True);
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(presenter.CancelCount, Is.EqualTo(1));
+            Assert.That(party.CurrentHp, Is.EqualTo(1000));
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Aborted));
+        }
+
+        [UnityTest]
+        public IEnumerator MissingBossPresenterAppliesDamageImmediately()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "hero", 0, ElementType.Water, 1000, 0d)
+            });
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 100d);
+            AttachCombatBridge(
+                party,
+                boss,
+                new ControllerResourceActionProvider(),
+                new ControllerBossDamageActionProvider(1));
+            LogAssert.Expect(
+                LogType.Warning,
+                "[BattleFlow] Boss damage projectile presenter is "
+                    + "unavailable; applying immediately.");
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+            yield return null;
+
+            Assert.That(party.CurrentHp, Is.LessThan(1000));
+            Assert.That(flowController.Context.CurrentTurn, Is.EqualTo(2));
+        }
+
+        [UnityTest]
+        public IEnumerator BossNonDamageActionSkipsProjectile()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "hero", 0, ElementType.Water, 1000, 0d)
+            });
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 100d);
+            boss.Resources.Register("test_resource", 5);
+            AttachCombatBridge(
+                party,
+                boss,
+                new ControllerResourceActionProvider(),
+                new ControllerBossResourceActionProvider());
+            var presenter = new ControllableBossProjectilePresenter();
+            SetField(
+                flowController,
+                "bossProjectilePresenterOverride",
+                presenter);
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+            yield return null;
+
+            Assert.That(presenter.Requests, Is.Empty);
+            Assert.That(boss.Resources.GetAmount("test_resource"),
+                Is.EqualTo(1));
+            Assert.That(flowController.Context.CurrentTurn, Is.EqualTo(2));
+        }
+
+        [UnityTest]
+        public IEnumerator AbortDuringProjectileCancelsWithoutStaleApply()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var character = new CharacterBattleState(
+                "fire",
+                0,
+                ElementType.Fire,
+                1000,
+                100d);
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Fire,
+                1000,
+                0d);
+            AttachCombatBridge(
+                new PartyBattleState(new[] { character }),
+                boss,
+                new ControllerMatchActionProvider());
+            var presenter = new ControllableProjectilePresenter();
+            SetField(
+                flowController,
+                "projectilePresenterOverride",
+                presenter);
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+
+            Assert.That(presenter.HasActiveRequest, Is.True);
+            Assert.That(flowController.AbortBattle(), Is.True);
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(presenter.CancelCount, Is.EqualTo(1));
+            Assert.That(boss.CurrentHp, Is.EqualTo(1000));
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Aborted));
+        }
+
+        [Test]
+        public void StopFlowProgressionCancelsSharedPresenterOnce()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var presenter = new CountingSharedProjectilePresenter();
+            SetField(
+                flowController,
+                "projectilePresenterOverride",
+                presenter);
+            SetField(
+                flowController,
+                "bossProjectilePresenterOverride",
+                presenter);
+
+            InvokePrivate(flowController, "StopFlowProgression");
+
+            Assert.That(presenter.CancelCount, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator AbortDuringPreAttackDelayCancelsContinuation()
+        {
+            InitializeStarted(Array.Empty<int>());
+            SetField(flowController, "preAttackDelaySeconds", 10f);
+            int executionCount = 0;
+            flowController.Coordinator.MatchEventExecuting +=
+                matchEvent => executionCount++;
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+
+            Assert.That(flowController.AbortBattle(), Is.True);
+            yield return null;
+
+            Assert.That(executionCount, Is.Zero);
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Aborted));
+            Assert.That(flowController.MatchQueuePresentation.Count,
+                Is.Zero);
+        }
+
+        [UnityTest]
+        public IEnumerator AbortDuringEmptyItemDelayDropsStagedSession()
+        {
+            InitializeStarted(Array.Empty<int>());
+            SetField(flowController, "emptyQueueItemDelaySeconds", 10f);
+            var character = new CharacterBattleState(
+                "fire",
+                0,
+                ElementType.Fire,
+                1000,
+                100d);
+            BattleFlowCombatBridge bridge = AttachCombatBridge(
+                new PartyBattleState(new[] { character }),
+                new BossBattleState(
+                    "boss",
+                    ElementType.Fire,
+                    1000,
+                    0d),
+                new ControllerMatchActionProvider());
+            int executionCount = 0;
+            flowController.Coordinator.MatchEventExecuting +=
+                matchEvent => executionCount++;
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateTwoWaterMatchCascade()));
+
+            Assert.That(executionCount, Is.EqualTo(1));
+            Assert.That(GetField<object>(
+                bridge,
+                "currentMatchCombatSession"), Is.Not.Null);
+            Assert.That(flowController.AbortBattle(), Is.True);
+            yield return null;
+
+            Assert.That(executionCount, Is.EqualTo(1));
+            Assert.That(GetField<object>(
+                bridge,
+                "currentMatchCombatSession"), Is.Null);
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Aborted));
         }
 
         [UnityTest]
@@ -694,6 +1839,16 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 flowController,
                 "HandleBoardActionStarted",
                 CreateExecution(actionId, result));
+            if (result.ConsumesTurn && result.Cascade != null)
+            {
+                for (int index = 0;
+                    index < result.Cascade.Steps.Count;
+                    index++)
+                {
+                    RevealStep(actionId, result.Cascade, index);
+                }
+            }
+
             InvokePrivate(
                 flowController,
                 "HandleBoardActionFinished",
@@ -701,6 +1856,95 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     actionId,
                     result,
                     BoardActionCompletionStatus.Completed));
+        }
+
+        private void RevealStep(
+            long actionId,
+            BoardCascadeResult cascade,
+            int stepIndex)
+        {
+            InvokePrivate(
+                flowController,
+                "HandleCascadeStepPresented",
+                CreateInternal<BoardCascadeStepPresentation>(
+                    actionId,
+                    stepIndex,
+                    cascade.Steps[stepIndex]));
+        }
+
+        private static void AssertPresentationEntry(
+            BattleMatchQueuePresentationEntry entry,
+            int sequenceIndex,
+            int cascadeStepIndex,
+            ElementType element,
+            int removedBlockCount)
+        {
+            Assert.That(entry.SequenceIndex, Is.EqualTo(sequenceIndex));
+            Assert.That(entry.CascadeStepIndex,
+                Is.EqualTo(cascadeStepIndex));
+            Assert.That(entry.Element, Is.EqualTo(element));
+            Assert.That(entry.RemovedBlockCount,
+                Is.EqualTo(removedBlockCount));
+        }
+
+        private void AssertPresentationMatchesAuthoritative()
+        {
+            IReadOnlyList<MatchEvent> authoritative =
+                flowController.Coordinator.GetPendingMatchEvents();
+            IReadOnlyList<BattleMatchQueuePresentationEntry> presentation =
+                flowController.MatchQueuePresentation.GetSnapshot();
+            Assert.That(presentation.Count,
+                Is.EqualTo(authoritative.Count));
+            for (int index = 0; index < authoritative.Count; index++)
+            {
+                AssertPresentationEntry(
+                    presentation[index],
+                    authoritative[index].SequenceIndex,
+                    authoritative[index].CascadeStepIndex,
+                    authoritative[index].Element,
+                    authoritative[index].RemovedBlockCount);
+            }
+        }
+
+        private void InitializeReplacementControllerForReconcile()
+        {
+            root.SetActive(false);
+            var replacement = new GameObject("ReplacementFlowController");
+            replacement.SetActive(false);
+            createdObjects.Add(replacement);
+            boardController = replacement.AddComponent<
+                BattleBoardController>();
+            boardController.enabled = false;
+            flowController = replacement.AddComponent<BattleFlowController>();
+            SetField(flowController, "boardController", boardController);
+            root = replacement;
+            InitializeStarted(Array.Empty<int>());
+        }
+
+        private static int CountTargetSubscribers(
+            object source,
+            string eventName,
+            object target)
+        {
+            FieldInfo field = source.GetType().GetField(
+                eventName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var callback = field?.GetValue(source) as Delegate;
+            if (callback == null)
+            {
+                return 0;
+            }
+
+            int count = 0;
+            foreach (Delegate subscriber in callback.GetInvocationList())
+            {
+                if (ReferenceEquals(subscriber.Target, target))
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         private static BoardCascadeResult CreateSingleMatchCascade()
@@ -732,6 +1976,45 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                         new BoardPosition(4, 1),
                         new BoardPosition(5, 1))
                 });
+        }
+
+        private static BoardCascadeResult CreateTwoWaterMatchCascade()
+        {
+            return BattleFlowTestSupport.CreateCascade(
+                new[]
+                {
+                    BattleFlowTestSupport.Match(
+                        ElementType.Water,
+                        new BoardPosition(0, 0),
+                        new BoardPosition(1, 0),
+                        new BoardPosition(2, 0)),
+                    BattleFlowTestSupport.Match(
+                        ElementType.Water,
+                        new BoardPosition(3, 1),
+                        new BoardPosition(4, 1),
+                        new BoardPosition(5, 1))
+                });
+        }
+
+        private BattleFlowCombatBridge AttachCombatBridge(
+            PartyBattleState party,
+            BossBattleState boss,
+            IMatchEventActionProvider matchProvider,
+            IBossCombatActionProvider bossProvider = null)
+        {
+            var bridge = new BattleFlowCombatBridge(
+                flowController.Coordinator,
+                party,
+                boss,
+                new CombatActionExecutor(
+                    boss,
+                    party,
+                    new DamageContextFactory(new SeededRandomSource(1))),
+                matchProvider,
+                bossProvider ?? new ControllerBossActionProvider(),
+                new CombatActionIdSequence());
+            flowController.AttachCombatBridge(bridge);
+            return bridge;
         }
 
         private static BoardSwapActionResult CreateNoMatchResult()
@@ -878,6 +2161,303 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             {
                 CallCount++;
                 return Array.Empty<CombatAction>();
+            }
+        }
+
+        private sealed class ControllerBossDamageActionProvider
+            : IBossCombatActionProvider
+        {
+            private readonly int actionCount;
+
+            public ControllerBossDamageActionProvider(int actionCount)
+            {
+                if (actionCount <= 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(actionCount));
+                }
+
+                this.actionCount = actionCount;
+            }
+
+            public IReadOnlyList<CombatAction> CreateRootActions(
+                BossCombatActionContext context)
+            {
+                var actions = new CombatAction[actionCount];
+                for (int index = 0; index < actions.Length; index++)
+                {
+                    actions[index] = new BossDamageAction(
+                        context.ActionIds.Next(),
+                        new BossDamageContextBuildRequest(
+                            context.Boss,
+                            context.Party,
+                            1d,
+                            ValorChronicle.Battle.Combat.Attacks.AttackTag
+                                .None));
+                }
+
+                return actions;
+            }
+        }
+
+        private sealed class ControllerBossResourceActionProvider
+            : IBossCombatActionProvider
+        {
+            public IReadOnlyList<CombatAction> CreateRootActions(
+                BossCombatActionContext context)
+            {
+                return new CombatAction[]
+                {
+                    new AddResourceAction(
+                        context.ActionIds.Next(),
+                        ActionOrigin.System,
+                        context.Boss,
+                        "test_resource",
+                        1)
+                };
+            }
+        }
+
+        private sealed class ControllerMultiDamageActionProvider
+            : IMatchEventActionProvider
+        {
+            public IReadOnlyList<CombatAction> CreateRootActions(
+                MatchEventActionContext context)
+            {
+                return new CombatAction[]
+                {
+                    CreateDamage(context),
+                    CreateDamage(context)
+                };
+            }
+
+            private static DamageAction CreateDamage(
+                MatchEventActionContext context)
+            {
+                return new DamageAction(
+                    context.ActionIds.Next(),
+                    ActionOrigin.Match,
+                    new DamageContextBuildRequest(
+                        context.Character,
+                        context.Party,
+                        context.Boss,
+                        context.Character.Element,
+                        ValorChronicle.Battle.Combat.Attacks.AttackType.Match,
+                        context.MatchAttackTag,
+                        1d,
+                        true,
+                        context.FinalComboCount,
+                        false));
+            }
+        }
+
+        private sealed class ControllerResourceActionProvider
+            : IMatchEventActionProvider
+        {
+            public IReadOnlyList<CombatAction> CreateRootActions(
+                MatchEventActionContext context)
+            {
+                return new CombatAction[]
+                {
+                    new AddResourceAction(
+                        context.ActionIds.Next(),
+                        ActionOrigin.Match,
+                        context.Boss,
+                        "test_resource",
+                        1)
+                };
+            }
+        }
+
+        private sealed class ControllableProjectilePresenter
+            : IMatchDamageProjectilePresenter
+        {
+            private Action<MatchDamageProjectileCompletion> completion;
+
+            public List<MatchDamageProjectileRequest> Requests { get; } =
+                new List<MatchDamageProjectileRequest>();
+            public bool HasActiveRequest => completion != null;
+            public int CancelCount { get; private set; }
+
+            public bool TryPresent(
+                MatchDamageProjectileRequest request,
+                Action<MatchDamageProjectileCompletion> callback)
+            {
+                Assert.That(completion, Is.Null);
+                Requests.Add(request);
+                completion = callback;
+                return true;
+            }
+
+            public void CancelActive()
+            {
+                if (completion == null)
+                {
+                    return;
+                }
+
+                CancelCount++;
+                Action<MatchDamageProjectileCompletion> callback = completion;
+                completion = null;
+                callback(MatchDamageProjectileCompletion.Cancelled);
+            }
+
+            public void Arrive()
+            {
+                if (completion == null)
+                {
+                    return;
+                }
+
+                Action<MatchDamageProjectileCompletion> callback = completion;
+                completion = null;
+                callback(MatchDamageProjectileCompletion.Arrived);
+            }
+        }
+
+        private sealed class ControllableBossProjectilePresenter
+            : IBossDamageProjectilePresenter
+        {
+            private Action<BossDamageProjectileCompletion> completion;
+
+            public List<BossDamageProjectileRequest> Requests { get; } =
+                new List<BossDamageProjectileRequest>();
+            public bool HasActiveRequest => completion != null;
+            public int CancelCount { get; private set; }
+
+            public bool TryPresent(
+                BossDamageProjectileRequest request,
+                Action<BossDamageProjectileCompletion> callback)
+            {
+                Assert.That(completion, Is.Null);
+                Requests.Add(request);
+                completion = callback;
+                return true;
+            }
+
+            public void CancelActive()
+            {
+                if (completion == null)
+                {
+                    return;
+                }
+
+                CancelCount++;
+                Action<BossDamageProjectileCompletion> callback = completion;
+                completion = null;
+                callback(BossDamageProjectileCompletion.Cancelled);
+            }
+
+            public void Arrive()
+            {
+                if (completion == null)
+                {
+                    return;
+                }
+
+                Action<BossDamageProjectileCompletion> callback = completion;
+                completion = null;
+                callback(BossDamageProjectileCompletion.Arrived);
+            }
+        }
+
+        private sealed class CountingSharedProjectilePresenter
+            : IMatchDamageProjectilePresenter, IBossDamageProjectilePresenter
+        {
+            public int CancelCount { get; private set; }
+
+            public bool TryPresent(
+                MatchDamageProjectileRequest request,
+                Action<MatchDamageProjectileCompletion> callback)
+            {
+                return false;
+            }
+
+            public bool TryPresent(
+                BossDamageProjectileRequest request,
+                Action<BossDamageProjectileCompletion> callback)
+            {
+                return false;
+            }
+
+            public void CancelActive()
+            {
+                CancelCount++;
+            }
+        }
+
+        private sealed class DerivedDamageTriggerRule : ICombatTriggerRule
+        {
+            private readonly CombatActionIdSequence actionIds;
+
+            public DerivedDamageTriggerRule(
+                CombatActionIdSequence actionIds)
+            {
+                this.actionIds = actionIds
+                    ?? throw new ArgumentNullException(nameof(actionIds));
+            }
+
+            public IReadOnlyList<CombatAction> CreateDerivedActions(
+                CombatActionTriggerContext context)
+            {
+                if (!(context.CompletedAction is DamageAction source)
+                    || source.Origin != ActionOrigin.Match)
+                {
+                    return Array.Empty<CombatAction>();
+                }
+
+                DamageContextBuildRequest request = source.ContextRequest;
+                return new CombatAction[]
+                {
+                    new DamageAction(
+                        actionIds.Next(),
+                        ActionOrigin.Additional,
+                        new DamageContextBuildRequest(
+                            request.Attacker,
+                            request.Party,
+                            request.TargetBoss,
+                            request.AttackElement,
+                            ValorChronicle.Battle.Combat.Attacks.AttackType
+                                .Additional,
+                            request.AttackTags,
+                            request.SkillCoefficient,
+                            false,
+                            0,
+                            false),
+                        context.RootActionId,
+                        context.ActionId)
+                };
+            }
+        }
+
+        private sealed class DerivedBossDamageTriggerRule
+            : ICombatTriggerRule
+        {
+            private readonly CombatActionIdSequence actionIds;
+
+            public DerivedBossDamageTriggerRule(
+                CombatActionIdSequence actionIds)
+            {
+                this.actionIds = actionIds
+                    ?? throw new ArgumentNullException(nameof(actionIds));
+            }
+
+            public IReadOnlyList<CombatAction> CreateDerivedActions(
+                CombatActionTriggerContext context)
+            {
+                if (!(context.CompletedAction is BossDamageAction source)
+                    || source.SourceActionId.HasValue)
+                {
+                    return Array.Empty<CombatAction>();
+                }
+
+                return new CombatAction[]
+                {
+                    new BossDamageAction(
+                        actionIds.Next(),
+                        source.ContextRequest,
+                        context.RootActionId,
+                        context.ActionId)
+                };
             }
         }
     }

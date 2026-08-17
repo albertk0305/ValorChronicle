@@ -65,6 +65,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Actions
             Assert.That(damage.DamageResult.FinalDamage, Is.EqualTo(500L));
             Assert.That(damage.ApplicationResult.AppliedDamage,
                 Is.EqualTo(500L));
+            Assert.That(damage.AppliedDamage, Is.EqualTo(500L));
+            Assert.That(damage.WasCritical, Is.False);
+            Assert.That(damage.WasWeakness, Is.False);
             Assert.That(healing.FinalHealing, Is.EqualTo(250L));
             Assert.That(healing.AppliedHealing, Is.EqualTo(250L));
             Assert.That(healing.OverhealAmount, Is.Zero);
@@ -75,6 +78,54 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Actions
             Assert.That(party.Shields.TotalShield, Is.EqualTo(200L));
             Assert.That(result.ActionResults[0].ExecutionOrder, Is.EqualTo(1));
             Assert.That(result.ActionResults[2].ExecutionOrder, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void DamageResultExposesResolvedCriticalAndWeaknessWithoutRecalculation()
+        {
+            var character = new CharacterBattleState(
+                "hero",
+                0,
+                ElementType.Fire,
+                1000,
+                1000d);
+            var party = new PartyBattleState(new[] { character });
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Grass,
+                10000,
+                500d);
+            var executor = new CombatActionExecutor(
+                boss,
+                party,
+                new DamageContextFactory(new SeededRandomSource(1)));
+            var action = new DamageAction(
+                1,
+                ActionOrigin.Match,
+                new DamageContextBuildRequest(
+                    character,
+                    party,
+                    boss,
+                    ElementType.Fire,
+                    AttackType.Match,
+                    AttackTag.None,
+                    1d,
+                    false,
+                    0,
+                    true,
+                    baseCriticalChance: 1d));
+
+            var result = (DamageActionResult)executor.Execute(
+                new CombatActionQueue(new CombatAction[] { action }))
+                .ActionResults[0];
+
+            Assert.That(result.WasCritical, Is.True);
+            Assert.That(result.WasWeakness, Is.True);
+            Assert.That(result.Context.IsCritical, Is.True);
+            Assert.That(result.DamageResult.ElementAffinityMultiplier,
+                Is.GreaterThan(1d));
+            Assert.That(result.AppliedDamage,
+                Is.EqualTo(result.ApplicationResult.AppliedDamage));
         }
 
         [Test]

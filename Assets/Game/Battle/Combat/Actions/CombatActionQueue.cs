@@ -82,6 +82,18 @@ namespace ValorChronicle.Battle.Combat.Actions
             return true;
         }
 
+        internal bool TryPeek(out CombatAction action)
+        {
+            if (actions.Count == 0)
+            {
+                action = null;
+                return false;
+            }
+
+            action = actions.First.Value;
+            return true;
+        }
+
         public void Clear()
         {
             actions.Clear();

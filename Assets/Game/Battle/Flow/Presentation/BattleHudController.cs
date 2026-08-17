@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 using ValorChronicle.Battle.Board.Presentation;
+using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
@@ -87,6 +88,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private BattleFlowCoordinator subscribedCoordinator;
         private BattleFlowCombatBridge subscribedBridge;
+        private BattleFlowController subscribedFlowController;
         private UnityAction[] activeButtonListeners =
             Array.Empty<UnityAction>();
         private bool safeDisplayInitialized;
@@ -180,6 +182,125 @@ namespace ValorChronicle.Battle.Flow.Presentation
             return partyStatusSlots[index];
         }
 
+        public bool TryResolvePlayerProjectileAnchors(
+            int partySlotIndex,
+            string characterId,
+            out RectTransform source,
+            out RectTransform target)
+        {
+            source = null;
+            target = null;
+            if (!IsRuntimeConnected
+                || string.IsNullOrWhiteSpace(characterId)
+                || characterSlots == null
+                || partySlotIndex < 0
+                || partySlotIndex >= characterSlots.Length
+                || bossImage == null
+                || !bossImage.enabled
+                || !bossImage.gameObject.activeInHierarchy)
+            {
+                return false;
+            }
+
+            CharacterBattleState character = null;
+            IReadOnlyList<CharacterBattleState> characters =
+                subscribedBridge.Party.Characters;
+            for (int index = 0; index < characters.Count; index++)
+            {
+                CharacterBattleState candidate = characters[index];
+                if (candidate.PartySlotIndex == partySlotIndex
+                    && string.Equals(
+                        candidate.CharacterId,
+                        characterId,
+                        StringComparison.Ordinal))
+                {
+                    character = candidate;
+                    break;
+                }
+            }
+
+            BattleCharacterSlotView slot = characterSlots[partySlotIndex];
+            if (character == null
+                || slot == null
+                || !string.Equals(
+                    slot.CharacterId,
+                    character.CharacterId,
+                    StringComparison.Ordinal)
+                || slot.Root == null
+                || !slot.Root.activeInHierarchy
+                || slot.CharacterImage == null
+                || !slot.CharacterImage.enabled
+                || !slot.CharacterImage.gameObject.activeInHierarchy)
+            {
+                return false;
+            }
+
+            source = slot.CharacterImage.rectTransform;
+            target = bossImage.rectTransform;
+            return true;
+        }
+
+        public bool TryResolveBossProjectileAnchors(
+            out RectTransform source,
+            out IReadOnlyList<RectTransform> targets)
+        {
+            source = null;
+            targets = Array.Empty<RectTransform>();
+            if (!IsRuntimeConnected
+                || bossImage == null
+                || !bossImage.enabled
+                || !bossImage.gameObject.activeInHierarchy
+                || characterSlots == null)
+            {
+                return false;
+            }
+
+            var resolvedTargets = new List<RectTransform>();
+            for (int slotIndex = 0;
+                slotIndex < characterSlots.Length;
+                slotIndex++)
+            {
+                CharacterBattleState character =
+                    FindPartyCharacterAtSlot(slotIndex);
+                BattleCharacterSlotView slot = characterSlots[slotIndex];
+                if (character == null
+                    || string.IsNullOrWhiteSpace(character.CharacterId)
+                    || slot == null
+                    || !string.Equals(
+                        slot.CharacterId,
+                        character.CharacterId,
+                        StringComparison.Ordinal)
+                    || slot.Root == null
+                    || !slot.Root.activeInHierarchy
+                    || slot.CharacterImage == null
+                    || !slot.CharacterImage.enabled
+                    || !slot.CharacterImage.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                resolvedTargets.Add(slot.CharacterImage.rectTransform);
+            }
+
+            if (resolvedTargets.Count == 0
+                && partyHpSlider != null
+                && partyHpSlider.enabled
+                && partyHpSlider.gameObject.activeInHierarchy)
+            {
+                resolvedTargets.Add(partyHpSlider.transform as RectTransform);
+            }
+
+            if (resolvedTargets.Count == 0
+                || resolvedTargets[0] == null)
+            {
+                return false;
+            }
+
+            source = bossImage.rectTransform;
+            targets = resolvedTargets.ToArray();
+            return true;
+        }
+
         public void RefreshInitialSnapshot()
         {
             if (!IsRuntimeConnected)
@@ -226,8 +347,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
             coordinator.BossActionStarted += HandleBossActionStarted;
             coordinator.ResultReached += HandleResultReached;
             bridge.CombatActionsApplied += HandleCombatActionsApplied;
+            bridge.CombatActionStepApplied +=
+                HandleCombatActionStepApplied;
+            bridge.BossCombatActionStepApplied +=
+                HandleBossCombatActionStepApplied;
+            battleFlowController.PresentationMatchQueueChanged +=
+                HandlePresentationMatchQueueChanged;
             subscribedCoordinator = coordinator;
             subscribedBridge = bridge;
+            subscribedFlowController = battleFlowController;
+            subscribedFlowController
+                .ReconcilePresentationMatchQueueForCurrentRuntime();
             RefreshInitialSnapshot();
             return true;
         }
@@ -248,10 +378,21 @@ namespace ValorChronicle.Battle.Flow.Presentation
             {
                 subscribedBridge.CombatActionsApplied -=
                     HandleCombatActionsApplied;
+                subscribedBridge.CombatActionStepApplied -=
+                    HandleCombatActionStepApplied;
+                subscribedBridge.BossCombatActionStepApplied -=
+                    HandleBossCombatActionStepApplied;
+            }
+
+            if (subscribedFlowController != null)
+            {
+                subscribedFlowController.PresentationMatchQueueChanged -=
+                    HandlePresentationMatchQueueChanged;
             }
 
             subscribedCoordinator = null;
             subscribedBridge = null;
+            subscribedFlowController = null;
         }
 
         private void AttachActiveButtonListeners()
@@ -426,6 +567,31 @@ namespace ValorChronicle.Battle.Flow.Presentation
             RefreshStatusSnapshot();
         }
 
+        private void HandleCombatActionStepApplied(
+            MatchEventCharacterCombatExecutionStepResult stepResult)
+        {
+            battleFlowController?.CombatPresentationController?.TryPresent(
+                stepResult.ActionStep.Result);
+            RefreshCombatState();
+            RefreshActiveAvailability();
+            RefreshStatusSnapshot();
+        }
+
+        private void HandleBossCombatActionStepApplied(
+            CombatActionExecutionStepResult stepResult)
+        {
+            battleFlowController?.CombatPresentationController?.TryPresent(
+                stepResult.Result);
+            RefreshCombatState();
+            RefreshActiveAvailability();
+            RefreshStatusSnapshot();
+        }
+
+        private void HandlePresentationMatchQueueChanged()
+        {
+            RefreshMatchQueue();
+        }
+
         private void RefreshTurnAndPhase()
         {
             BattleContext context = battleFlowController?.Context;
@@ -543,15 +709,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
-            IReadOnlyList<MatchEvent> pending =
-                subscribedCoordinator.GetPendingMatchEvents();
+            IReadOnlyList<BattleMatchQueuePresentationEntry> pending =
+                subscribedFlowController?.MatchQueuePresentation
+                    .GetSnapshot()
+                ?? Array.Empty<BattleMatchQueuePresentationEntry>();
             int renderedCount = Math.Min(pending.Count, slotCount);
             for (int index = 0; index < renderedCount; index++)
             {
-                MatchEvent matchEvent = pending[index];
-                if (matchEvent == null
+                BattleMatchQueuePresentationEntry entry = pending[index];
+                if (entry == null
                     || !TryResolveElementSprite(
-                        matchEvent.Element,
+                        entry.Element,
                         out Sprite elementSprite))
                 {
                     matchEventSlots[index]?.SetVisible(false);
@@ -560,7 +728,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
                 matchEventSlots[index]?.Render(
                     elementSprite,
-                    matchEvent.RemovedBlockCount);
+                    entry.RemovedBlockCount);
             }
 
             for (int index = renderedCount; index < slotCount; index++)
@@ -959,6 +1127,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     ? elementSpriteSet.GetSprite(character.Element)
                     : null;
                 slot.RenderCharacter(
+                    character.CharacterId,
                     elementSprite,
                     remainingCooldown,
                     available);

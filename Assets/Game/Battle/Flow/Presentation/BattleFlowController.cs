@@ -1,9 +1,12 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Board.Presentation;
+using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Integration;
+using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Core.Logging;
 
 namespace ValorChronicle.Battle.Flow.Presentation
@@ -14,7 +17,19 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private BattleBoardController boardController = null;
 
         [SerializeField]
+        private BattleCombatPresentationController
+            combatPresentationController = null;
+
+        [SerializeField]
         private bool requireCombatBridge;
+
+        [SerializeField]
+        [Min(0f)]
+        private float preAttackDelaySeconds = 0.20f;
+
+        [SerializeField]
+        [Min(0f)]
+        private float emptyQueueItemDelaySeconds = 0.12f;
 
         private bool connectionEnabled;
         private bool boardEventsSubscribed;
@@ -29,13 +44,26 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private BattleFlowSetup setup;
         private BattleFlowCoordinator coordinator;
         private BattleFlowCombatBridge combatBridge;
+        private IMatchDamageProjectilePresenter projectilePresenterOverride =
+            null;
+        private IBossDamageProjectilePresenter
+            bossProjectilePresenterOverride = null;
+        private readonly BattleMatchQueuePresentationState
+            matchQueuePresentation =
+                new BattleMatchQueuePresentationState();
+
+        public event Action PresentationMatchQueueChanged;
 
         public BattleFlowSetup Setup => setup;
         public BattleFlowCoordinator Coordinator => coordinator;
         public BattleContext Context => coordinator?.Context;
         public BattleFlowCombatBridge CombatBridge => combatBridge;
+        public BattleCombatPresentationController CombatPresentationController =>
+            combatPresentationController;
         public IBattleBoardMutationSink BoardMutationSink => boardController;
         public bool RequiresCombatBridge => requireCombatBridge;
+        public BattleMatchQueuePresentationState MatchQueuePresentation =>
+            matchQueuePresentation;
 
         private void OnEnable()
         {
@@ -54,6 +82,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             SetBoardInputGate(false);
             UnsubscribeBoardEvents();
             StopFlowProgression();
+            ClearPresentationMatchQueue();
 
             if (coordinator != null
                 && coordinator.Context.Result == BattleResultKind.None)
@@ -63,6 +92,11 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
             UnsubscribeCoordinatorEvents();
             waitingActionId = 0;
+        }
+
+        private void OnDestroy()
+        {
+            ClearPresentationMatchQueue();
         }
 
         public void Initialize(BattleFlowSetup battleSetup)
@@ -208,6 +242,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
             boardController.InitialBoardReady += HandleInitialBoardReady;
             boardController.BoardActionStarted += HandleBoardActionStarted;
+            boardController.CascadeStepPresented +=
+                HandleCascadeStepPresented;
             boardController.BoardActionFinished += HandleBoardActionFinished;
             boardEventsSubscribed = true;
         }
@@ -221,6 +257,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
             boardController.InitialBoardReady -= HandleInitialBoardReady;
             boardController.BoardActionStarted -= HandleBoardActionStarted;
+            boardController.CascadeStepPresented -=
+                HandleCascadeStepPresented;
             boardController.BoardActionFinished -= HandleBoardActionFinished;
             boardEventsSubscribed = false;
         }
@@ -332,17 +370,42 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
+            BeginPresentationMatchQueue(execution.ActionId);
+
             if (!coordinator.TryBeginBoardResolution())
             {
                 GameLogger.Error(
                     $"[BattleFlow] Coordinator rejected board action start. " +
                     $"ActionId={execution.ActionId}.",
                     this);
+                ClearPresentationMatchQueue();
                 UpdateBoardInputGate();
                 return;
             }
 
             UpdateBoardInputGate();
+        }
+
+        private void HandleCascadeStepPresented(
+            BoardCascadeStepPresentation presentation)
+        {
+            if (!CanHandleBoardCallback() || presentation == null)
+            {
+                return;
+            }
+
+            if (!matchQueuePresentation.TryAppend(presentation))
+            {
+                GameLogger.Warning(
+                    "[BattleFlow] Ignored stale, duplicate, or out-of-order "
+                        + "cascade presentation. "
+                        + $"ActionId={presentation.ActionId}; "
+                        + $"StepIndex={presentation.CascadeStepIndex}.",
+                    this);
+                return;
+            }
+
+            PublishPresentationMatchQueueChanged();
         }
 
         private void HandleBoardActionFinished(
@@ -372,10 +435,12 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     break;
 
                 case BoardActionCompletionStatus.Failed:
+                    ClearPresentationMatchQueue();
                     HandleFailedBoardAction(completion);
                     break;
 
                 case BoardActionCompletionStatus.Interrupted:
+                    ClearPresentationMatchQueue();
                     AbortForInterruptedBoardAction(completion.ActionId);
                     break;
 
@@ -510,6 +575,19 @@ namespace ValorChronicle.Battle.Flow.Presentation
         {
             try
             {
+                if (preAttackDelaySeconds > 0f)
+                {
+                    yield return new WaitForSeconds(
+                        preAttackDelaySeconds);
+                }
+
+                if (!IsFlowProgressionCurrent(
+                    version,
+                    BattlePhase.MatchEventResolving))
+                {
+                    yield break;
+                }
+
                 while (IsFlowProgressionCurrent(
                     version,
                     BattlePhase.MatchEventResolving))
@@ -533,36 +611,201 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
                     if (execution != null)
                     {
-                        yield return null;
-
-                        if (!IsFlowProgressionCurrent(version))
-                        {
-                            yield break;
-                        }
-
                         bool matchCompleted;
-                        isExecutingFlowStep = true;
-                        try
+                        if (combatBridge != null)
                         {
-                            matchCompleted = combatBridge != null
-                                ? combatBridge.ResolveMatchEvent(execution)
-                                : coordinator.CompleteCurrentMatchEvent(
-                                    execution.ExecutionId);
+                            bool combatBegan;
+                            bool hasMatchingCharacter;
+                            isExecutingFlowStep = true;
+                            try
+                            {
+                                combatBegan = combatBridge
+                                    .TryBeginMatchEventCombat(
+                                        execution,
+                                        out hasMatchingCharacter);
+                            }
+                            finally
+                            {
+                                isExecutingFlowStep = false;
+                            }
+
+                            if (!combatBegan)
+                            {
+                                LogMatchCompletionFailure(execution);
+                                yield break;
+                            }
+
+                            if (!hasMatchingCharacter
+                                && emptyQueueItemDelaySeconds > 0f)
+                            {
+                                yield return new WaitForSeconds(
+                                    emptyQueueItemDelaySeconds);
+                                if (!IsFlowProgressionCurrent(
+                                    version,
+                                    BattlePhase.MatchEventResolving))
+                                {
+                                    yield break;
+                                }
+                            }
+
+                            while (combatBridge.TryGetNextMatchCombatAction(
+                                out CharacterBattleState actingCharacter,
+                                out CombatAction nextAction))
+                            {
+                                if (nextAction is DamageAction damageAction)
+                                {
+                                    var request =
+                                        new MatchDamageProjectileRequest(
+                                            actingCharacter.PartySlotIndex,
+                                            actingCharacter.CharacterId,
+                                            damageAction.ContextRequest
+                                                .AttackElement);
+                                    bool presentationCompleted = false;
+                                    MatchDamageProjectileCompletion completion =
+                                        MatchDamageProjectileCompletion
+                                            .Cancelled;
+                                    IMatchDamageProjectilePresenter presenter =
+                                        projectilePresenterOverride
+                                        ?? combatPresentationController;
+                                    bool presentationStarted = false;
+                                    if (presenter != null)
+                                    {
+                                        try
+                                        {
+                                            presentationStarted =
+                                                presenter.TryPresent(
+                                                    request,
+                                                    result =>
+                                                    {
+                                                        completion = result;
+                                                        presentationCompleted =
+                                                            true;
+                                                    });
+                                        }
+                                        catch (Exception exception)
+                                        {
+                                            GameLogger.Exception(
+                                                exception,
+                                                this);
+                                            GameLogger.Warning(
+                                                "[BattleFlow] Player damage "
+                                                    + "projectile failed to "
+                                                    + "start; applying "
+                                                    + "immediately.",
+                                                this);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        GameLogger.Warning(
+                                            "[BattleFlow] Player damage "
+                                                + "projectile presenter is "
+                                                + "unavailable; applying "
+                                                + "immediately.",
+                                            this);
+                                    }
+
+                                    if (presentationStarted)
+                                    {
+                                        while (!presentationCompleted)
+                                        {
+                                            if (!IsFlowProgressionCurrent(
+                                                version,
+                                                BattlePhase
+                                                    .MatchEventResolving))
+                                            {
+                                                presenter.CancelActive();
+                                                yield break;
+                                            }
+
+                                            yield return null;
+                                        }
+
+                                        if (!IsFlowProgressionCurrent(
+                                            version,
+                                            BattlePhase.MatchEventResolving))
+                                        {
+                                            yield break;
+                                        }
+
+                                        if (completion !=
+                                            MatchDamageProjectileCompletion
+                                                .Arrived)
+                                        {
+                                            GameLogger.Error(
+                                                "[BattleFlow] Player damage "
+                                                    + "projectile was "
+                                                    + "interrupted before "
+                                                    + "combat application.",
+                                                this);
+                                            AbortBattle();
+                                            yield break;
+                                        }
+                                    }
+                                }
+
+                                bool actionApplied;
+                                isExecutingFlowStep = true;
+                                try
+                                {
+                                    actionApplied = combatBridge
+                                        .TryApplyNextMatchCombatAction(
+                                            out _);
+                                }
+                                finally
+                                {
+                                    isExecutingFlowStep = false;
+                                }
+
+                                if (!actionApplied)
+                                {
+                                    LogMatchCompletionFailure(execution);
+                                    yield break;
+                                }
+
+                                if (!IsFlowProgressionCurrent(
+                                    version,
+                                    BattlePhase.MatchEventResolving))
+                                {
+                                    yield break;
+                                }
+                            }
+
+                            isExecutingFlowStep = true;
+                            try
+                            {
+                                matchCompleted = combatBridge
+                                    .TryCompleteMatchEventCombat(execution);
+                            }
+                            finally
+                            {
+                                isExecutingFlowStep = false;
+                            }
                         }
-                        finally
+                        else
                         {
-                            isExecutingFlowStep = false;
+                            yield return null;
+                            if (!IsFlowProgressionCurrent(version))
+                            {
+                                yield break;
+                            }
+
+                            isExecutingFlowStep = true;
+                            try
+                            {
+                                matchCompleted = coordinator
+                                    .CompleteCurrentMatchEvent(
+                                    execution.ExecutionId);
+                            }
+                            finally
+                            {
+                                isExecutingFlowStep = false;
+                            }
                         }
 
                         if (!matchCompleted)
                         {
-                            GameLogger.Error(
-                                $"[BattleFlow] MatchEvent could " +
-                                $"not be completed. " +
-                                $"ExecutionId={execution.ExecutionId}; " +
-                                $"Turn={coordinator.Context.CurrentTurn}; " +
-                                $"Phase={coordinator.Context.Phase}.",
-                                this);
+                            LogMatchCompletionFailure(execution);
                             yield break;
                         }
 
@@ -601,17 +844,142 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 }
 
                 bool completed;
-                isExecutingFlowStep = true;
-                try
+                if (combatBridge == null)
                 {
-                    completed = combatBridge != null
-                        ? combatBridge.ResolveBossAction(
-                            coordinator.Context.CurrentTurn)
-                        : coordinator.CompleteBossAction();
+                    isExecutingFlowStep = true;
+                    try
+                    {
+                        completed = coordinator.CompleteBossAction();
+                    }
+                    finally
+                    {
+                        isExecutingFlowStep = false;
+                    }
                 }
-                finally
+                else
                 {
-                    isExecutingFlowStep = false;
+                    bool bossCombatBegan;
+                    isExecutingFlowStep = true;
+                    try
+                    {
+                        bossCombatBegan = combatBridge
+                            .TryBeginBossActionCombat(
+                                coordinator.Context.CurrentTurn);
+                    }
+                    finally
+                    {
+                        isExecutingFlowStep = false;
+                    }
+
+                    completed = bossCombatBegan;
+                    while (completed
+                        && combatBridge.TryGetNextBossCombatAction(
+                            out CombatAction nextBossAction))
+                    {
+                        if (nextBossAction is BossDamageAction)
+                        {
+                            var request = new BossDamageProjectileRequest(
+                                coordinator.Context.CurrentTurn,
+                                nextBossAction.ActionId);
+                            bool presentationCompleted = false;
+                            BossDamageProjectileCompletion completion =
+                                BossDamageProjectileCompletion.Cancelled;
+                            IBossDamageProjectilePresenter presenter =
+                                bossProjectilePresenterOverride
+                                ?? combatPresentationController;
+                            bool presentationStarted = false;
+                            if (presenter != null)
+                            {
+                                try
+                                {
+                                    presentationStarted = presenter.TryPresent(
+                                        request,
+                                        result =>
+                                        {
+                                            completion = result;
+                                            presentationCompleted = true;
+                                        });
+                                }
+                                catch (Exception exception)
+                                {
+                                    GameLogger.Exception(exception, this);
+                                    GameLogger.Warning(
+                                        "[BattleFlow] Boss damage "
+                                            + "projectile failed to start; "
+                                            + "applying immediately.",
+                                        this);
+                                }
+                            }
+                            else
+                            {
+                                GameLogger.Warning(
+                                    "[BattleFlow] Boss damage projectile "
+                                        + "presenter is unavailable; "
+                                        + "applying immediately.",
+                                    this);
+                            }
+
+                            if (presentationStarted)
+                            {
+                                while (!presentationCompleted)
+                                {
+                                    if (!IsFlowProgressionCurrent(
+                                        version,
+                                        BattlePhase.BossActing))
+                                    {
+                                        presenter.CancelActive();
+                                        yield break;
+                                    }
+
+                                    yield return null;
+                                }
+
+                                if (!IsFlowProgressionCurrent(
+                                    version,
+                                    BattlePhase.BossActing))
+                                {
+                                    yield break;
+                                }
+
+                                if (completion !=
+                                    BossDamageProjectileCompletion.Arrived)
+                                {
+                                    GameLogger.Error(
+                                        "[BattleFlow] Boss damage "
+                                            + "projectile was interrupted "
+                                            + "before combat application.",
+                                        this);
+                                    AbortBattle();
+                                    yield break;
+                                }
+                            }
+                        }
+
+                        isExecutingFlowStep = true;
+                        try
+                        {
+                            completed = combatBridge
+                                .TryApplyNextBossCombatAction(out _);
+                        }
+                        finally
+                        {
+                            isExecutingFlowStep = false;
+                        }
+                    }
+
+                    if (completed)
+                    {
+                        isExecutingFlowStep = true;
+                        try
+                        {
+                            completed = combatBridge
+                                .TryCompleteBossActionCombat();
+                        }
+                        finally
+                        {
+                            isExecutingFlowStep = false;
+                        }
+                    }
                 }
 
                 if (!completed)
@@ -656,6 +1024,18 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private void StopFlowProgression()
         {
             flowVersion++;
+            IMatchDamageProjectilePresenter matchPresenter =
+                projectilePresenterOverride ?? combatPresentationController;
+            IBossDamageProjectilePresenter bossPresenter =
+                bossProjectilePresenterOverride ?? combatPresentationController;
+            matchPresenter?.CancelActive();
+            if (!ReferenceEquals(matchPresenter, bossPresenter))
+            {
+                bossPresenter?.CancelActive();
+            }
+
+            combatBridge?.CancelMatchEventCombat();
+            combatBridge?.CancelBossActionCombat();
             Coroutine activeFlowCoroutine = flowCoroutine;
             flowCoroutine = null;
             isAdvancingFlow = false;
@@ -663,6 +1043,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
             {
                 StopCoroutine(activeFlowCoroutine);
             }
+        }
+
+        private void LogMatchCompletionFailure(
+            MatchEventExecution execution)
+        {
+            GameLogger.Error(
+                $"[BattleFlow] MatchEvent could not be completed. " +
+                $"ExecutionId={execution.ExecutionId}; " +
+                $"Turn={coordinator.Context.CurrentTurn}; " +
+                $"Phase={coordinator.Context.Phase}.",
+                this);
         }
 
         private bool EndBattle(bool ended)
@@ -688,6 +1079,12 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void HandlePhaseChanged(BattlePhase phase)
         {
+            if (phase == BattlePhase.MatchEventResolving)
+            {
+                ReconcilePresentationMatchQueue(
+                    "MatchEventResolving");
+            }
+
             UpdateBoardInputGate();
             GameLogger.Log(
                 $"[BattleFlow] Phase changed. " +
@@ -697,6 +1094,24 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void HandleMatchEventExecuting(MatchEvent matchEvent)
         {
+            if (!matchQueuePresentation.TryPop(matchEvent))
+            {
+                GameLogger.Error(
+                    "[BattleFlow] Presentation MatchEvent did not match "
+                        + "the authoritative execution. "
+                        + $"SequenceIndex={matchEvent.SequenceIndex}; "
+                        + $"CascadeStepIndex={matchEvent.CascadeStepIndex}; "
+                        + $"Element={matchEvent.Element}; "
+                        + $"RemovedBlockCount={matchEvent.RemovedBlockCount}.",
+                    this);
+                ReconcilePresentationMatchQueue(
+                    "MatchEventExecutingMismatch");
+            }
+            else
+            {
+                PublishPresentationMatchQueueChanged();
+            }
+
             GameLogger.Log(
                 $"[BattleFlow] MatchEvent executing. " +
                 $"Turn={coordinator.Context.CurrentTurn}; " +
@@ -720,11 +1135,84 @@ namespace ValorChronicle.Battle.Flow.Presentation
         {
             waitingActionId = 0;
             StopFlowProgression();
+            ClearPresentationMatchQueue();
             SetBoardInputGate(false);
             GameLogger.Log(
                 $"[BattleFlow] Result reached. " +
                 $"Turn={coordinator.Context.CurrentTurn}; Result={result}.",
                 this);
+        }
+
+        internal void ReconcilePresentationMatchQueueForCurrentRuntime()
+        {
+            if (coordinator == null
+                || coordinator.Context.Result != BattleResultKind.None)
+            {
+                ClearPresentationMatchQueue();
+                return;
+            }
+
+            if (coordinator.Context.Phase == BattlePhase.MatchEventResolving)
+            {
+                ReconcilePresentationMatchQueue("RuntimeConnection");
+            }
+        }
+
+        private void BeginPresentationMatchQueue(long actionId)
+        {
+            if (matchQueuePresentation.BeginAction(actionId))
+            {
+                PublishPresentationMatchQueueChanged();
+            }
+        }
+
+        private void ReconcilePresentationMatchQueue(string context)
+        {
+            IReadOnlyList<MatchEvent> authoritative =
+                coordinator.GetPendingMatchEvents();
+            if (!matchQueuePresentation.Reconcile(authoritative))
+            {
+                return;
+            }
+
+            GameLogger.Warning(
+                "[BattleFlow] Rebuilt presentation MatchEvent queue from "
+                    + $"the authoritative snapshot. Context={context}; "
+                    + $"Count={authoritative.Count}.",
+                this);
+            PublishPresentationMatchQueueChanged();
+        }
+
+        private void ClearPresentationMatchQueue()
+        {
+            if (matchQueuePresentation.Clear())
+            {
+                PublishPresentationMatchQueueChanged();
+            }
+        }
+
+        private void PublishPresentationMatchQueueChanged()
+        {
+            Action observers = PresentationMatchQueueChanged;
+            if (observers == null)
+            {
+                return;
+            }
+
+            foreach (Action observer in observers.GetInvocationList())
+            {
+                try
+                {
+                    observer();
+                }
+                catch (Exception exception)
+                {
+                    GameLogger.Exception(exception, this);
+                    GameLogger.Error(
+                        "[BattleFlow] Presentation queue observer failed.",
+                        this);
+                }
+            }
         }
 
         private void UpdateBoardInputGate()

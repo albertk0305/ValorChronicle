@@ -15,4 +15,4 @@ MonoBehaviour:
   id: effect_kragmor_core_exposure
   displayNameKey: effect.kragmor.core_exposure.name
   descriptionKey: effect.kragmor.core_exposure.description
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 6e8470f1134b5f840b08cc4d99cbff4d, type: 3}

@@ -26,8 +26,17 @@ namespace ValorChronicle.Battle.Combat.Integration
         private bool hasPendingBossBoardMutation;
         private int pendingBossTurn;
         private BattleBoardMutationCommand pendingBoardCommand;
+        private MatchEventCharacterCombatExecutionSession
+            currentMatchCombatSession;
+        private CombatActionExecutionSession currentBossCombatSession;
+        private BossActionPlan currentBossActionPlan;
+        private int currentBossCombatTurn;
 
         public event Action CombatActionsApplied;
+        public event Action<MatchEventCharacterCombatExecutionStepResult>
+            CombatActionStepApplied;
+        public event Action<CombatActionExecutionStepResult>
+            BossCombatActionStepApplied;
 
         public BattleFlowCombatBridge(
             BattleFlowCoordinator coordinator,
@@ -218,18 +227,84 @@ namespace ValorChronicle.Battle.Combat.Integration
                 throw new ArgumentNullException(nameof(execution));
             }
 
-            if (coordinator.Context.Result != BattleResultKind.None
-                || coordinator.Context.Phase
-                    != BattlePhase.MatchEventResolving
-                || !ReferenceEquals(
-                    coordinator.CurrentMatchEventExecution,
-                    execution))
+            if (!TryBeginMatchEventCombat(
+                    execution,
+                    out _))
             {
                 return false;
             }
 
-            LastMatchExecutionResult =
-                matchCharacterExecutor.Execute(execution);
+            while (TryGetNextMatchCombatAction(out _, out _))
+            {
+                if (!TryApplyNextMatchCombatAction(out _))
+                {
+                    return false;
+                }
+            }
+
+            return TryCompleteMatchEventCombat(execution);
+        }
+
+        public bool TryBeginMatchEventCombat(
+            MatchEventExecution execution,
+            out bool hasMatchingCharacter)
+        {
+            hasMatchingCharacter = false;
+            if (!CanProgressMatchEvent(execution)
+                || currentMatchCombatSession != null)
+            {
+                return false;
+            }
+
+            currentMatchCombatSession =
+                matchCharacterExecutor.BeginExecution(execution);
+            hasMatchingCharacter =
+                currentMatchCombatSession.HasMatchingCharacter;
+            return true;
+        }
+
+        public bool TryGetNextMatchCombatAction(
+            out CharacterBattleState character,
+            out CombatAction action)
+        {
+            character = null;
+            action = null;
+            return IsCurrentMatchCombatValid()
+                && currentMatchCombatSession.TryGetNextAction(
+                    out character,
+                    out action);
+        }
+
+        public bool TryApplyNextMatchCombatAction(
+            out MatchEventCharacterCombatExecutionStepResult stepResult)
+        {
+            stepResult = null;
+            if (!IsCurrentMatchCombatValid()
+                || !currentMatchCombatSession.TryExecuteNext(
+                    out stepResult))
+            {
+                return false;
+            }
+
+            CombatActionStepApplied?.Invoke(stepResult);
+            return true;
+        }
+
+        public bool TryCompleteMatchEventCombat(
+            MatchEventExecution execution)
+        {
+            if (!CanProgressMatchEvent(execution)
+                || currentMatchCombatSession == null
+                || !ReferenceEquals(
+                    currentMatchCombatSession.Execution,
+                    execution)
+                || !currentMatchCombatSession.IsCompleted)
+            {
+                return false;
+            }
+
+            LastMatchExecutionResult = currentMatchCombatSession.Result;
+            currentMatchCombatSession = null;
             if (LastMatchExecutionResult != null)
             {
                 ValidateExecutedActionIds(LastMatchExecutionResult);
@@ -251,12 +326,42 @@ namespace ValorChronicle.Battle.Combat.Integration
                 execution.ExecutionId);
         }
 
+        public bool CancelMatchEventCombat()
+        {
+            if (currentMatchCombatSession == null)
+            {
+                return false;
+            }
+
+            currentMatchCombatSession = null;
+            return true;
+        }
+
         public bool ResolveBossAction(int currentTurn)
+        {
+            if (!TryBeginBossActionCombat(currentTurn))
+            {
+                return false;
+            }
+
+            while (TryGetNextBossCombatAction(out _))
+            {
+                if (!TryApplyNextBossCombatAction(out _))
+                {
+                    return false;
+                }
+            }
+
+            return TryCompleteBossActionCombat();
+        }
+
+        public bool TryBeginBossActionCombat(int currentTurn)
         {
             if (coordinator.Context.Result != BattleResultKind.None
                 || coordinator.Context.Phase != BattlePhase.BossActing
                 || coordinator.Context.CurrentTurn != currentTurn
-                || hasPendingBossBoardMutation)
+                || hasPendingBossBoardMutation
+                || currentBossCombatSession != null)
             {
                 return false;
             }
@@ -270,7 +375,54 @@ namespace ValorChronicle.Battle.Combat.Integration
             BossActionPlan plan = CreateBossActionPlan(context);
             IReadOnlyList<CombatAction> rootActions = plan.CombatActions;
             ValidateBossRootActions(rootActions, idBeforeProvider);
-            LastBossExecutionResult = Execute(rootActions);
+            currentBossCombatSession = executor.BeginExecution(rootActions);
+            currentBossActionPlan = plan;
+            currentBossCombatTurn = currentTurn;
+            return true;
+        }
+
+        public bool TryGetNextBossCombatAction(out CombatAction action)
+        {
+            action = null;
+            if (!IsCurrentBossCombatValid())
+            {
+                return false;
+            }
+
+            action = currentBossCombatSession.NextAction;
+            return action != null;
+        }
+
+        public bool TryApplyNextBossCombatAction(
+            out CombatActionExecutionStepResult stepResult)
+        {
+            stepResult = null;
+            if (!IsCurrentBossCombatValid()
+                || !currentBossCombatSession.TryExecuteNext(out stepResult))
+            {
+                return false;
+            }
+
+            BossCombatActionStepApplied?.Invoke(stepResult);
+            return true;
+        }
+
+        public bool TryCompleteBossActionCombat()
+        {
+            if (!IsCurrentBossCombatValid()
+                || !currentBossCombatSession.IsCompleted)
+            {
+                return false;
+            }
+
+            CombatActionExecutionResult result =
+                currentBossCombatSession.Result;
+            BossActionPlan plan = currentBossActionPlan;
+            int completedTurn = currentBossCombatTurn;
+            ClearCurrentBossCombat();
+            LastBossExecutionResult = result.CompletedActionCount > 0
+                ? result
+                : null;
             if (LastBossExecutionResult != null)
             {
                 ValidateExecutedActionIds(LastBossExecutionResult);
@@ -291,11 +443,22 @@ namespace ValorChronicle.Battle.Combat.Integration
             if (plan.BoardCommand != null)
             {
                 return BeginBossBoardMutation(
-                    currentTurn,
+                    completedTurn,
                     plan.BoardCommand);
             }
 
             return CompleteBossAction();
+        }
+
+        public bool CancelBossActionCombat()
+        {
+            if (currentBossCombatSession == null)
+            {
+                return false;
+            }
+
+            ClearCurrentBossCombat();
+            return true;
         }
 
         private BossActionPlan CreateBossActionPlan(
@@ -432,6 +595,13 @@ namespace ValorChronicle.Battle.Combat.Integration
             pendingBoardCommand = null;
         }
 
+        private void ClearCurrentBossCombat()
+        {
+            currentBossCombatSession = null;
+            currentBossActionPlan = null;
+            currentBossCombatTurn = 0;
+        }
+
         private bool CompleteBossAction()
         {
             turnEndProcessor.ProcessTurnEnd();
@@ -449,17 +619,6 @@ namespace ValorChronicle.Battle.Combat.Integration
                     "The boss action provider could not commit its "
                         + "completed action.");
             }
-        }
-
-        private CombatActionExecutionResult Execute(
-            IReadOnlyList<CombatAction> rootActions)
-        {
-            if (rootActions.Count == 0)
-            {
-                return null;
-            }
-
-            return executor.Execute(new CombatActionQueue(rootActions));
         }
 
         private void ValidateBossRootActions(
@@ -500,6 +659,33 @@ namespace ValorChronicle.Battle.Combat.Integration
                             + "use player-to-boss DamageAction.");
                 }
             }
+        }
+
+        private bool CanProgressMatchEvent(MatchEventExecution execution)
+        {
+            return execution != null
+                && coordinator.Context.Result == BattleResultKind.None
+                && coordinator.Context.Phase
+                    == BattlePhase.MatchEventResolving
+                && ReferenceEquals(
+                    coordinator.CurrentMatchEventExecution,
+                    execution);
+        }
+
+        private bool IsCurrentMatchCombatValid()
+        {
+            return currentMatchCombatSession != null
+                && CanProgressMatchEvent(
+                    currentMatchCombatSession.Execution);
+        }
+
+        private bool IsCurrentBossCombatValid()
+        {
+            return currentBossCombatSession != null
+                && coordinator.Context.Result == BattleResultKind.None
+                && coordinator.Context.Phase == BattlePhase.BossActing
+                && coordinator.Context.CurrentTurn == currentBossCombatTurn
+                && !hasPendingBossBoardMutation;
         }
 
         private void ValidateExecutedActionIds(

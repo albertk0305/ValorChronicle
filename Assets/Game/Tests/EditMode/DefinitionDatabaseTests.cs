@@ -124,7 +124,8 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(exposureSprite, Is.Not.Null);
             Assert.That(presentation.TryGetStateSprite(
                 KragmorRules.CoreCompressionVisualStateId,
-                out _), Is.False);
+                out Sprite compressionSprite), Is.True);
+            Assert.That(compressionSprite, Is.Not.Null);
         }
 
         [Test]

@@ -59,6 +59,8 @@ namespace ValorChronicle.Battle.Board.Presentation
         public int ActiveViewCount => viewsByRuntimeId.Count;
         public bool IsAnimating { get; private set; }
 
+        internal event Action<int, BoardCascadeStep> CascadeStepPresented;
+
         public IReadOnlyDictionary<long, BlockView> ActiveViews
         {
             get
@@ -268,6 +270,8 @@ namespace ValorChronicle.Battle.Board.Presentation
 
             return AnimateCascadeStep(
                 plan,
+                step,
+                0,
                 removalDuration,
                 collapseDuration,
                 refillDuration,
@@ -1495,6 +1499,8 @@ namespace ValorChronicle.Battle.Board.Presentation
 
         private IEnumerator AnimateCascadeStep(
             BoardCascadeStepPresentationPlan plan,
+            BoardCascadeStep step,
+            int stepIndex,
             float removalDuration,
             float collapseDuration,
             float refillDuration,
@@ -1506,6 +1512,8 @@ namespace ValorChronicle.Battle.Board.Presentation
             {
                 IEnumerator core = AnimateCascadeStepCore(
                     plan,
+                    step,
+                    stepIndex,
                     removalDuration,
                     collapseDuration,
                     refillDuration,
@@ -1559,6 +1567,8 @@ namespace ValorChronicle.Battle.Board.Presentation
 
         private IEnumerator AnimateCascadeStepCore(
             BoardCascadeStepPresentationPlan plan,
+            BoardCascadeStep step,
+            int stepIndex,
             float removalDuration,
             float collapseDuration,
             float refillDuration,
@@ -1588,6 +1598,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                 plan.CollapseBoard,
                 $"{contextPrefix}.RemovalComplete",
                 true);
+            CascadeStepPresented?.Invoke(stepIndex, step);
             if (collapseDuration > 0f)
             {
                 float elapsed = 0f;
@@ -1957,6 +1968,8 @@ namespace ValorChronicle.Battle.Board.Presentation
                         PrepareCascadeViews(cascadePlan);
                         IEnumerator cascadeCore = AnimateCascadeStepCore(
                             cascadePlan,
+                            result.Cascade.Steps[index],
+                            index,
                             timings.RemovalDuration,
                             timings.CollapseDuration,
                             timings.RefillDuration,
