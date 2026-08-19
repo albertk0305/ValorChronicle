@@ -83,6 +83,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             resultText.transform.SetParent(resultOverlay.transform, false);
             SetField(hudController, "resultOverlay", resultOverlay);
             SetField(hudController, "resultText", resultText);
+            SetField(hudController, "resultOverlayDelaySeconds", 0f);
             SetField(hudController, "bossHpText", CreateText("BossHpText"));
             SetField(hudController, "partyHpText", CreateText("PartyHpText"));
             SetField(
@@ -649,6 +650,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(occupiedSlot.TypeImage.sprite, Is.SameAs(waterSprite));
             Assert.That(occupiedSlot.CooldownText.gameObject.activeSelf,
                 Is.False);
+            Assert.That(occupiedSlot.CooldownOverlay.gameObject.activeSelf,
+                Is.False);
+            Assert.That(occupiedSlot.ActiveButton.transition,
+                Is.EqualTo(Selectable.Transition.None));
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.True);
             for (int index = 1; index < characterSlots.Length; index++)
             {
@@ -659,6 +664,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     Is.False);
                 Assert.That(characterSlots[index].CooldownText.gameObject.activeSelf,
                     Is.False);
+                Assert.That(characterSlots[index].CooldownOverlay.gameObject
+                    .activeSelf, Is.False);
                 Assert.That(characterSlots[index].ActiveButton.interactable,
                     Is.False);
             }
@@ -807,6 +814,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(occupiedSlot.CooldownText.gameObject.activeSelf, Is.True);
             Assert.That(occupiedSlot.CooldownText.text,
                 Is.EqualTo("8"));
+            Assert.That(occupiedSlot.CooldownOverlay.gameObject.activeSelf,
+                Is.True);
+            Assert.That(occupiedSlot.CooldownOverlay.raycastTarget, Is.False);
             Assert.That(occupiedSlot.CharacterImage.color, Is.EqualTo(baseColor));
 
             CompletePlayerInputAndEnterBossActing();
@@ -842,6 +852,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(occupiedSlot.CooldownText.gameObject.activeSelf,
                 Is.False);
             Assert.That(occupiedSlot.CooldownText.text, Is.Empty);
+            Assert.That(occupiedSlot.CooldownOverlay.gameObject.activeSelf,
+                Is.False);
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.True);
         }
 
@@ -853,10 +865,17 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Coordinator.StartBattle(), Is.True);
             InvokePrivate(hudController, "Start");
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.True);
+            Assert.That(occupiedSlot.CooldownOverlay.gameObject.activeSelf,
+                Is.False);
+            Color portraitColor = occupiedSlot.CharacterImage.color;
 
             Assert.That(flowController.Coordinator.TryBeginBoardResolution(),
                 Is.True);
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
+            Assert.That(occupiedSlot.CooldownOverlay.gameObject.activeSelf,
+                Is.False);
+            Assert.That(occupiedSlot.CharacterImage.color,
+                Is.EqualTo(portraitColor));
             Assert.That(
                 flowController.Coordinator.NotifyBoardActionResolved(
                     CreateSingleFireCascade(),
@@ -2298,6 +2317,17 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Button button = characterObject.GetComponent<Button>();
             button.targetGraphic = characterImage;
 
+            var cooldownOverlayObject = new GameObject(
+                "CooldownOverlay",
+                typeof(RectTransform),
+                typeof(Image));
+            cooldownOverlayObject.transform.SetParent(
+                characterObject.transform,
+                false);
+            Image cooldownOverlay =
+                cooldownOverlayObject.GetComponent<Image>();
+            cooldownOverlay.raycastTarget = false;
+
             var typeObject = new GameObject(
                 "TypeImage",
                 typeof(RectTransform),
@@ -2316,6 +2346,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             SetField(slot, "activeButton", button);
             SetField(slot, "characterImage", characterImage);
             SetField(slot, "typeImage", typeImage);
+            SetField(slot, "cooldownOverlay", cooldownOverlay);
             SetField(
                 slot,
                 "cooldownText",
@@ -2625,6 +2656,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Is.EqualTo(1));
             Assert.That(
                 CountTargetSubscribers(
+                    flowController,
+                    "ActivePresentationStateChanged",
+                    hudController),
+                Is.EqualTo(1));
+            Assert.That(
+                CountTargetSubscribers(
                     flowController.CombatBridge,
                     "CombatActionStepApplied",
                     hudController),
@@ -2633,6 +2670,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 CountTargetSubscribers(
                     flowController.CombatBridge,
                     "BossCombatActionStepApplied",
+                    hudController),
+                Is.EqualTo(1));
+            Assert.That(
+                CountTargetSubscribers(
+                    flowController.CombatBridge,
+                    "ActiveCombatActionStepApplied",
                     hudController),
                 Is.EqualTo(1));
         }
@@ -2672,6 +2715,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Is.Zero);
             Assert.That(
                 CountTargetSubscribers(
+                    flowController,
+                    "ActivePresentationStateChanged",
+                    hudController),
+                Is.Zero);
+            Assert.That(
+                CountTargetSubscribers(
                     flowController.CombatBridge,
                     "CombatActionStepApplied",
                     hudController),
@@ -2680,6 +2729,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 CountTargetSubscribers(
                     flowController.CombatBridge,
                     "BossCombatActionStepApplied",
+                    hudController),
+                Is.Zero);
+            Assert.That(
+                CountTargetSubscribers(
+                    flowController.CombatBridge,
+                    "ActiveCombatActionStepApplied",
                     hudController),
                 Is.Zero);
         }

@@ -452,6 +452,49 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         }
 
         [Test]
+        public void ActiveStagedSessionCommitsUseBeforeApplyingAndBatchesOnce()
+        {
+            IntegratedBattle battle = CreateIntegratedMareaBattle(2);
+            battle.Coordinator.StartBattle();
+            int stepCount = 0;
+            int batchCount = 0;
+            battle.Bridge.ActiveCombatActionStepApplied += step =>
+            {
+                stepCount++;
+                Assert.That(step.CharacterId,
+                    Is.EqualTo(MareaBluefangRules.CharacterId));
+                Assert.That(step.PartySlotIndex, Is.Zero);
+            };
+            battle.Bridge.CombatActionsApplied += () => batchCount++;
+
+            Assert.That(battle.Bridge.TryBeginActiveCombat(0), Is.True);
+            Assert.That(battle.Coordinator.Context.ActiveAbilities[0]
+                .RemainingCooldown, Is.EqualTo(8));
+            Assert.That(battle.Coordinator.Context.ActiveAbilities[0]
+                .UsedThisTurn, Is.True);
+            Assert.That(battle.Marea.Effects.Count, Is.Zero);
+            Assert.That(batchCount, Is.Zero);
+            Assert.That(battle.Bridge.TryGetNextActiveCombatAction(
+                out CharacterBattleState character,
+                out CombatAction action), Is.True);
+            Assert.That(character, Is.SameAs(battle.Marea));
+            Assert.That(action, Is.TypeOf<ApplyEffectAction>());
+
+            Assert.That(battle.Bridge.TryApplyNextActiveCombatAction(
+                out ActiveCombatActionExecutionStepResult step), Is.True);
+            Assert.That(step.ActionStep.Result,
+                Is.TypeOf<ApplyEffectActionResult>());
+            Assert.That(battle.Marea.Effects.Count, Is.EqualTo(1));
+            Assert.That(stepCount, Is.EqualTo(1));
+            Assert.That(batchCount, Is.Zero);
+
+            Assert.That(battle.Bridge.TryCompleteActiveCombat(), Is.True);
+            Assert.That(batchCount, Is.EqualTo(1));
+            Assert.That(battle.Bridge.LastActiveExecutionResult,
+                Is.Not.Null);
+        }
+
+        [Test]
         public void ActiveAvailabilityRejectsMissingBindingAndInvalidIndex()
         {
             CharacterBattleState marea = Marea(0);

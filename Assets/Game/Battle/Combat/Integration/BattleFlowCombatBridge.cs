@@ -28,6 +28,8 @@ namespace ValorChronicle.Battle.Combat.Integration
         private BattleBoardMutationCommand pendingBoardCommand;
         private MatchEventCharacterCombatExecutionSession
             currentMatchCombatSession;
+        private ActiveAbilityCombatExecutionSession
+            currentActiveCombatSession;
         private CombatActionExecutionSession currentBossCombatSession;
         private BossActionPlan currentBossActionPlan;
         private int currentBossCombatTurn;
@@ -37,6 +39,8 @@ namespace ValorChronicle.Battle.Combat.Integration
             CombatActionStepApplied;
         public event Action<CombatActionExecutionStepResult>
             BossCombatActionStepApplied;
+        public event Action<ActiveCombatActionExecutionStepResult>
+            ActiveCombatActionStepApplied;
 
         public BattleFlowCombatBridge(
             BattleFlowCoordinator coordinator,
@@ -197,14 +201,70 @@ namespace ValorChronicle.Battle.Combat.Integration
 
         public bool TryUseActive(int activeAbilityIndex)
         {
-            if (!activeExecutor.TryExecute(
-                activeAbilityIndex,
-                out CombatActionExecutionResult result))
+            if (!TryBeginActiveCombat(activeAbilityIndex))
             {
                 return false;
             }
 
-            LastActiveExecutionResult = result;
+            while (TryGetNextActiveCombatAction(out _, out _))
+            {
+                if (!TryApplyNextActiveCombatAction(out _))
+                {
+                    return false;
+                }
+            }
+
+            return TryCompleteActiveCombat();
+        }
+
+        public bool TryBeginActiveCombat(int activeAbilityIndex)
+        {
+            if (currentActiveCombatSession != null
+                || !activeExecutor.TryBeginExecution(
+                    activeAbilityIndex,
+                    out ActiveAbilityCombatExecutionSession session))
+            {
+                return false;
+            }
+
+            currentActiveCombatSession = session;
+            return true;
+        }
+
+        public bool TryGetNextActiveCombatAction(
+            out CharacterBattleState character,
+            out CombatAction action)
+        {
+            character = currentActiveCombatSession?.Character;
+            action = currentActiveCombatSession?.NextAction;
+            return character != null && action != null;
+        }
+
+        public bool TryApplyNextActiveCombatAction(
+            out ActiveCombatActionExecutionStepResult stepResult)
+        {
+            stepResult = null;
+            if (currentActiveCombatSession == null
+                || !currentActiveCombatSession.TryExecuteNext(
+                    out stepResult))
+            {
+                return false;
+            }
+
+            ActiveCombatActionStepApplied?.Invoke(stepResult);
+            return true;
+        }
+
+        public bool TryCompleteActiveCombat()
+        {
+            if (currentActiveCombatSession == null
+                || !currentActiveCombatSession.IsCompleted)
+            {
+                return false;
+            }
+
+            LastActiveExecutionResult = currentActiveCombatSession.Result;
+            currentActiveCombatSession = null;
             ValidateExecutedActionIds(LastActiveExecutionResult);
             NotifyCombatActionsApplied(LastActiveExecutionResult);
             if (boss.IsDefeated)
@@ -217,6 +277,17 @@ namespace ValorChronicle.Battle.Combat.Integration
                 return coordinator.NotifyPartyIncapacitated();
             }
 
+            return true;
+        }
+
+        public bool CancelActiveCombat()
+        {
+            if (currentActiveCombatSession == null)
+            {
+                return false;
+            }
+
+            currentActiveCombatSession = null;
             return true;
         }
 

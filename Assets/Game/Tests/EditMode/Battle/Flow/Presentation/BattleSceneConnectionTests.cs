@@ -99,9 +99,17 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     flowObject.FindProperty("requireCombatBridge").boolValue,
                     Is.True);
                 Assert.That(
+                    flowObject.FindProperty("preBossActionDelaySeconds")
+                        .floatValue,
+                    Is.EqualTo(0.65f).Within(0.0001f));
+                Assert.That(
                     flowObject.FindProperty("combatPresentationController")
                         .objectReferenceValue,
                     Is.SameAs(combatPresentation));
+                AssertBoardInputBlocker(
+                    flowController,
+                    boardController,
+                    flowObject);
                 Assert.That(combatPresentation.gameObject.name,
                     Is.EqualTo("BattleEffectLayer"));
                 Assert.That(combatPresentation.HudController,
@@ -263,13 +271,19 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(hudController.ResultText, Is.Not.Null);
             Assert.That(hudController.ResultText.name,
                 Is.EqualTo("ResultText"));
+            Assert.That(
+                serializedHud.FindProperty("resultOverlayDelaySeconds")
+                    .floatValue,
+                Is.EqualTo(1f).Within(0.0001f));
             Assert.That(hudController.BossImage, Is.Not.Null);
             Assert.That(hudController.ResourceFallbackIcon, Is.Not.Null);
             Assert.That(hudController.BossHpSlider, Is.Not.Null);
+            AssertHpFillHasNoHorizontalInset(hudController.BossHpSlider);
             Assert.That(hudController.BossHpText, Is.Not.Null);
             Assert.That(hudController.BossShieldImage, Is.Not.Null);
             Assert.That(hudController.ComboText, Is.Not.Null);
             Assert.That(hudController.PartyHpSlider, Is.Not.Null);
+            AssertHpFillHasNoHorizontalInset(hudController.PartyHpSlider);
             Assert.That(hudController.PartyHpText, Is.Not.Null);
             Assert.That(hudController.PartyShieldImage, Is.Not.Null);
             Assert.That(hudController.PartyShieldImage.sprite, Is.Not.Null);
@@ -337,6 +351,22 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     hudController.GetCharacterSlot(index);
                 Assert.That(slot.IsConfigured, Is.True,
                     $"Character slot {index} is incomplete.");
+                Assert.That(slot.CooldownOverlay, Is.Not.Null);
+                Assert.That(slot.CooldownOverlay.raycastTarget, Is.False);
+                Assert.That(slot.CooldownOverlay.transform.parent,
+                    Is.SameAs(slot.CharacterImage.transform));
+                Assert.That(slot.CooldownOverlay.gameObject.activeSelf,
+                    Is.False);
+                Assert.That(slot.ActiveButton.transition,
+                    Is.EqualTo(Selectable.Transition.None));
+                RectTransform cooldownOverlayRect =
+                    slot.CooldownOverlay.rectTransform;
+                Assert.That(cooldownOverlayRect.anchorMin,
+                    Is.EqualTo(Vector2.zero));
+                Assert.That(cooldownOverlayRect.anchorMax,
+                    Is.EqualTo(Vector2.one));
+                Assert.That(cooldownOverlayRect.sizeDelta,
+                    Is.EqualTo(Vector2.zero));
                 Assert.That(slot.StatusSlotCount, Is.EqualTo(4));
                 for (int statusIndex = 0;
                     statusIndex < slot.StatusSlotCount;
@@ -360,6 +390,83 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     Is.True,
                     $"Party status slot {index} is incomplete.");
             }
+        }
+
+        private static void AssertHpFillHasNoHorizontalInset(Slider slider)
+        {
+            Assert.That(slider.fillRect, Is.Not.Null);
+            var fillArea = slider.fillRect.parent as RectTransform;
+            Assert.That(fillArea, Is.Not.Null);
+            Assert.That(slider.direction,
+                Is.EqualTo(Slider.Direction.LeftToRight));
+            Assert.That(fillArea.anchorMin.x, Is.Zero);
+            Assert.That(fillArea.anchorMax.x, Is.EqualTo(1f));
+            Assert.That(fillArea.anchoredPosition.x, Is.Zero);
+            Assert.That(fillArea.sizeDelta.x, Is.Zero);
+            Assert.That(slider.fillRect.anchoredPosition.x, Is.Zero);
+            Assert.That(slider.fillRect.sizeDelta.x, Is.Zero);
+
+            Image fillImage = slider.fillRect.GetComponent<Image>();
+            Assert.That(fillImage, Is.Not.Null);
+            Assert.That(fillImage.type, Is.EqualTo(Image.Type.Simple));
+            Assert.That(fillImage.sprite, Is.Not.Null);
+            Assert.That(fillImage.sprite.border, Is.EqualTo(Vector4.zero));
+
+            float originalValue = slider.value;
+            try
+            {
+                slider.SetValueWithoutNotify(1f);
+                Canvas.ForceUpdateCanvases();
+                Assert.That(slider.fillRect.rect.width,
+                    Is.EqualTo(fillArea.rect.width).Within(0.001f));
+
+                slider.SetValueWithoutNotify(0f);
+                Canvas.ForceUpdateCanvases();
+                Assert.That(slider.fillRect.rect.width,
+                    Is.Zero.Within(0.001f));
+            }
+            finally
+            {
+                slider.SetValueWithoutNotify(originalValue);
+                Canvas.ForceUpdateCanvases();
+            }
+        }
+
+        private static void AssertBoardInputBlocker(
+            BattleFlowController flowController,
+            BattleBoardController boardController,
+            SerializedObject flowObject)
+        {
+            GameObject panel = flowObject.FindProperty("notUsersTurnPanel")
+                .objectReferenceValue as GameObject;
+            Assert.That(panel, Is.SameAs(flowController.NotUsersTurnPanel));
+            Assert.That(panel, Is.Not.Null);
+            Assert.That(panel.name, Is.EqualTo("NotUsersTurnPanel"));
+            Assert.That(panel.transform.parent,
+                Is.SameAs(boardController.transform));
+
+            Transform blocks = boardController.transform.Find("Blocks");
+            Transform background = boardController.transform.Find(
+                "BlockFieldBackground");
+            Assert.That(blocks, Is.Not.Null);
+            Assert.That(background, Is.Not.Null);
+            Assert.That(panel.transform.GetSiblingIndex(),
+                Is.GreaterThan(blocks.GetSiblingIndex()));
+
+            Image panelImage = panel.GetComponent<Image>();
+            Assert.That(panelImage, Is.Not.Null);
+            Assert.That(panelImage.raycastTarget, Is.True);
+
+            var panelRect = (RectTransform)panel.transform;
+            var backgroundRect = (RectTransform)background;
+            Assert.That(panelRect.anchorMin,
+                Is.EqualTo(backgroundRect.anchorMin));
+            Assert.That(panelRect.anchorMax,
+                Is.EqualTo(backgroundRect.anchorMax));
+            Assert.That(panelRect.anchoredPosition,
+                Is.EqualTo(backgroundRect.anchoredPosition));
+            Assert.That(panelRect.sizeDelta,
+                Is.EqualTo(backgroundRect.sizeDelta));
         }
 
         private static bool IsBelowSafeArea(Transform transform)

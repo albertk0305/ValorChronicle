@@ -51,6 +51,54 @@ namespace ValorChronicle.Battle.Flow.Presentation
         void CancelActive();
     }
 
+    public enum ActiveDamageProjectileCompletion
+    {
+        Arrived,
+        Cancelled
+    }
+
+    public sealed class ActiveDamageProjectileRequest
+    {
+        public ActiveDamageProjectileRequest(
+            int partySlotIndex,
+            string characterId,
+            ElementType attackElement)
+        {
+            if (partySlotIndex < 0
+                || partySlotIndex >=
+                    Battle.Combat.State.PartyBattleState
+                        .MaximumCharacterCount)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(partySlotIndex));
+            }
+
+            if (string.IsNullOrWhiteSpace(characterId))
+            {
+                throw new ArgumentException(
+                    "Character ID cannot be null or whitespace.",
+                    nameof(characterId));
+            }
+
+            PartySlotIndex = partySlotIndex;
+            CharacterId = characterId;
+            AttackElement = attackElement;
+        }
+
+        public int PartySlotIndex { get; }
+        public string CharacterId { get; }
+        public ElementType AttackElement { get; }
+    }
+
+    public interface IActiveDamageProjectilePresenter
+    {
+        bool TryPresent(
+            ActiveDamageProjectileRequest request,
+            Action<ActiveDamageProjectileCompletion> completion);
+
+        void CancelActive();
+    }
+
     public enum BossDamageProjectileCompletion
     {
         Arrived,

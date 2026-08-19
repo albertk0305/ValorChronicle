@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using TMPro;
@@ -35,6 +36,10 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         [SerializeField]
         private TMP_Text resultText = null;
+
+        [SerializeField]
+        [Min(0f)]
+        private float resultOverlayDelaySeconds = 1f;
 
         [SerializeField]
         private BattleBossIntentSlotView[] bossIntentSlots =
@@ -99,6 +104,10 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private float partyShieldPivotX;
         private Sprite defaultBossSprite;
         private bool defaultBossSpriteCached;
+        private Coroutine resultOverlayCoroutine;
+        private int resultOverlayPresentationVersion;
+        private BattleResultKind pendingResultOverlay;
+        private BattleResultKind displayedResultOverlay;
 
         public BattleFlowController BattleFlowController =>
             battleFlowController;
@@ -351,8 +360,12 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 HandleCombatActionStepApplied;
             bridge.BossCombatActionStepApplied +=
                 HandleBossCombatActionStepApplied;
+            bridge.ActiveCombatActionStepApplied +=
+                HandleActiveCombatActionStepApplied;
             battleFlowController.PresentationMatchQueueChanged +=
                 HandlePresentationMatchQueueChanged;
+            battleFlowController.ActivePresentationStateChanged +=
+                HandleActivePresentationStateChanged;
             subscribedCoordinator = coordinator;
             subscribedBridge = bridge;
             subscribedFlowController = battleFlowController;
@@ -364,6 +377,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void DisconnectRuntime()
         {
+            CancelResultOverlayPresentation();
             if (subscribedCoordinator != null)
             {
                 subscribedCoordinator.PhaseChanged -= HandlePhaseChanged;
@@ -382,12 +396,16 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     HandleCombatActionStepApplied;
                 subscribedBridge.BossCombatActionStepApplied -=
                     HandleBossCombatActionStepApplied;
+                subscribedBridge.ActiveCombatActionStepApplied -=
+                    HandleActiveCombatActionStepApplied;
             }
 
             if (subscribedFlowController != null)
             {
                 subscribedFlowController.PresentationMatchQueueChanged -=
                     HandlePresentationMatchQueueChanged;
+                subscribedFlowController.ActivePresentationStateChanged -=
+                    HandleActivePresentationStateChanged;
             }
 
             subscribedCoordinator = null;
@@ -585,6 +603,21 @@ namespace ValorChronicle.Battle.Flow.Presentation
             RefreshCombatState();
             RefreshActiveAvailability();
             RefreshStatusSnapshot();
+        }
+
+        private void HandleActiveCombatActionStepApplied(
+            ActiveCombatActionExecutionStepResult stepResult)
+        {
+            battleFlowController?.CombatPresentationController?.TryPresent(
+                stepResult.ActionStep.Result);
+            RefreshCombatState();
+            RefreshActiveAvailability();
+            RefreshStatusSnapshot();
+        }
+
+        private void HandleActivePresentationStateChanged()
+        {
+            RefreshActiveAvailability();
         }
 
         private void HandlePresentationMatchQueueChanged()
@@ -795,17 +828,90 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 ?? BattleResultKind.None;
             if (result == BattleResultKind.None)
             {
-                SetActive(resultOverlay, false);
-                ClearText(resultText);
+                CancelResultOverlayPresentation();
                 return;
             }
 
+            if (displayedResultOverlay == result
+                && resultOverlay != null
+                && resultOverlay.activeSelf)
+            {
+                return;
+            }
+
+            if (pendingResultOverlay == result
+                && resultOverlayCoroutine != null)
+            {
+                return;
+            }
+
+            BeginResultOverlayPresentation(result);
+        }
+
+        private void BeginResultOverlayPresentation(BattleResultKind result)
+        {
+            CancelResultOverlayPresentation();
+            pendingResultOverlay = result;
+            int version = ++resultOverlayPresentationVersion;
+            if (result == BattleResultKind.Aborted
+                || resultOverlayDelaySeconds <= 0f)
+            {
+                ShowResultOverlay(result, version);
+                return;
+            }
+
+            if (!isActiveAndEnabled)
+            {
+                return;
+            }
+
+            resultOverlayCoroutine = StartCoroutine(
+                ShowResultOverlayAfterDelay(result, version));
+        }
+
+        private IEnumerator ShowResultOverlayAfterDelay(
+            BattleResultKind result,
+            int version)
+        {
+            yield return new WaitForSeconds(resultOverlayDelaySeconds);
+            ShowResultOverlay(result, version);
+        }
+
+        private void ShowResultOverlay(
+            BattleResultKind result,
+            int version)
+        {
+            if (version != resultOverlayPresentationVersion
+                || subscribedCoordinator == null
+                || subscribedCoordinator.Context.Result != result)
+            {
+                return;
+            }
+
+            resultOverlayCoroutine = null;
+            pendingResultOverlay = BattleResultKind.None;
+            displayedResultOverlay = result;
             if (resultText != null)
             {
                 resultText.text = GetResultDisplayText(result);
             }
 
             SetActive(resultOverlay, true);
+        }
+
+        private void CancelResultOverlayPresentation()
+        {
+            resultOverlayPresentationVersion++;
+            if (resultOverlayCoroutine != null)
+            {
+                StopCoroutine(resultOverlayCoroutine);
+                resultOverlayCoroutine = null;
+            }
+
+            pendingResultOverlay = BattleResultKind.None;
+            displayedResultOverlay = BattleResultKind.None;
+            SetActive(resultOverlay, false);
+            ClearText(resultText);
         }
 
         private void RefreshScorePlaceholder()

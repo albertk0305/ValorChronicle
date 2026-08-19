@@ -197,6 +197,54 @@ namespace ValorChronicle.Tests.EditMode
                 issue.Message.Contains("Skill kind is invalid")), Is.True);
         }
 
+        [TestCase(SkillKind.Match)]
+        [TestCase(SkillKind.Passive)]
+        [TestCase(SkillKind.Active)]
+        public void Validate_CharacterSkillIconIsOptional(SkillKind skillKind)
+        {
+            SkillDefinition skill = CreateValidSkill(
+                $"skill_{skillKind.ToString().ToLowerInvariant()}",
+                skillKind);
+
+            ValidationReport report = DataValidator.Validate(
+                CreateDatabase(skills: new[] { skill }));
+
+            Assert.That(report.Issues.Any(issue =>
+                issue.DefinitionId == skill.Id
+                && issue.Message.Contains("Icon is missing")), Is.False);
+        }
+
+        [Test]
+        public void Validate_BossActionStillWarnsWhenIconIsMissing()
+        {
+            SkillDefinition skill = CreateValidSkill(
+                "boss_action_missing_icon",
+                SkillKind.BossAction);
+
+            ValidationReport report = DataValidator.Validate(
+                CreateDatabase(skills: new[] { skill }));
+
+            Assert.That(report.Issues.Any(issue =>
+                issue.DefinitionId == skill.Id
+                && issue.Severity == ValidationSeverity.Warning
+                && issue.Message.Contains("Icon is missing")), Is.True);
+        }
+
+        [Test]
+        public void Validate_EffectStillWarnsWhenIconIsMissing()
+        {
+            EffectDefinition effect =
+                CreateDefinition<EffectDefinition>("effect_missing_icon");
+
+            ValidationReport report = DataValidator.Validate(
+                CreateDatabase(effects: new[] { effect }));
+
+            Assert.That(report.Issues.Any(issue =>
+                issue.DefinitionId == effect.Id
+                && issue.Severity == ValidationSeverity.Warning
+                && issue.Message.Contains("Icon is missing")), Is.True);
+        }
+
         [Test]
         public void Validate_DetectsDuplicateCharacterSkillReference()
         {

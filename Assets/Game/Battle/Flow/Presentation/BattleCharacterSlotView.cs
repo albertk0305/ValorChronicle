@@ -25,6 +25,9 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private TMP_Text cooldownText = null;
 
         [SerializeField]
+        private Image cooldownOverlay = null;
+
+        [SerializeField]
         private BattleStatusIconView[] statusSlots =
             Array.Empty<BattleStatusIconView>();
 
@@ -39,6 +42,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
         public Image CharacterImage => characterImage;
         public Image TypeImage => typeImage;
         public TMP_Text CooldownText => cooldownText;
+        public Image CooldownOverlay => cooldownOverlay;
         public string CharacterId => characterId;
         public int StatusSlotCount => statusSlots?.Length ?? 0;
         public bool HasActiveListener => activeListener != null;
@@ -47,7 +51,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
             && activeButton != null
             && characterImage != null
             && typeImage != null
-            && cooldownText != null;
+            && cooldownText != null
+            && cooldownOverlay != null;
 
         public BattleStatusIconView GetStatusSlot(int index)
         {
@@ -80,6 +85,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
         {
             if (activeButton != null)
             {
+                activeButton.transition = Selectable.Transition.None;
                 activeButton.interactable = available;
             }
         }
@@ -145,12 +151,18 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void SetCooldown(int remainingCooldown)
         {
+            bool visible = remainingCooldown > 0;
+            if (cooldownOverlay != null)
+            {
+                cooldownOverlay.raycastTarget = false;
+                cooldownOverlay.gameObject.SetActive(visible);
+            }
+
             if (cooldownText == null)
             {
                 return;
             }
 
-            bool visible = remainingCooldown > 0;
             cooldownText.text = visible
                 ? remainingCooldown.ToString(
                     System.Globalization.CultureInfo.InvariantCulture)

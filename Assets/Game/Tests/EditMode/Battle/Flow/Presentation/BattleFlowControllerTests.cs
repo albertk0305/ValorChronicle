@@ -6,10 +6,13 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using UnityEngine.UI;
 using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Combat.Actions;
+using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Battle.Combat.Damage;
+using ValorChronicle.Battle.Combat.Healing;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
@@ -24,6 +27,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         private readonly List<UnityEngine.Object> createdObjects =
             new List<UnityEngine.Object>();
         private GameObject root;
+        private GameObject notUsersTurnPanel;
         private BattleBoardController boardController;
         private BattleFlowController flowController;
 
@@ -48,9 +52,16 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             boardController = root.AddComponent<BattleBoardController>();
             boardController.enabled = false;
             flowController = root.AddComponent<BattleFlowController>();
+            notUsersTurnPanel = new GameObject("NotUsersTurnPanel");
+            notUsersTurnPanel.transform.SetParent(root.transform, false);
             SetField(flowController, "boardController", boardController);
+            SetField(
+                flowController,
+                "notUsersTurnPanel",
+                notUsersTurnPanel);
             SetField(flowController, "preAttackDelaySeconds", 0f);
             SetField(flowController, "emptyQueueItemDelaySeconds", 0f);
+            SetField(flowController, "preBossActionDelaySeconds", 0f);
         }
 
         [TearDown]
@@ -113,6 +124,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(GetField<bool>(flowController, "boardEventsSubscribed"),
                 Is.True);
             Assert.That(boardController.IsExternalInputEnabled, Is.False);
+            Assert.That(boardController.CanAcceptBoardInput, Is.False);
+            Assert.That(notUsersTurnPanel.activeSelf, Is.False);
             Assert.That(flowController.Context.Phase,
                 Is.EqualTo(BattlePhase.NotStarted));
 
@@ -122,6 +135,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Context.Phase,
                 Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(boardController.IsExternalInputEnabled, Is.True);
+            Assert.That(notUsersTurnPanel.activeSelf, Is.False);
 
             PublishInitialBoardReady();
             Assert.That(flowController.Context.CurrentTurn, Is.EqualTo(1));
@@ -164,6 +178,289 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.CanUseActive(0), Is.False);
             Assert.That(boardController.IsExternalInputEnabled, Is.True);
             Assert.That(boardController.CanAcceptBoardInput, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator ActiveDamageWaitsForProjectileAndLocksInput()
+        {
+            InitializeStarted(new[] { 3, 4 });
+            var characters = new[]
+            {
+                new CharacterBattleState(
+                    "active_hero", 0, ElementType.Water, 1000, 100d),
+                new CharacterBattleState(
+                    "ready_ally", 1, ElementType.Fire, 1000, 100d)
+            };
+            var party = new PartyBattleState(characters);
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 0d);
+            BattleFlowCombatBridge bridge = AttachActiveCombatBridge(
+                party,
+                boss,
+                new DelegateActiveActionProvider(context =>
+                    new CombatAction[]
+                    {
+                        CreateActiveDamage(context, ElementType.Dark)
+                    }),
+                new DelegateActiveActionProvider(context =>
+                    new CombatAction[]
+                    {
+                        new AddResourceAction(
+                            context.ActionIds.Next(),
+                            ActionOrigin.Active,
+                            context.Boss,
+                            "ally_resource",
+                            1)
+                    }));
+            var presenter = new ControllableActiveProjectilePresenter();
+            SetField(
+                flowController,
+                "activeProjectilePresenterOverride",
+                presenter);
+            int stepCount = 0;
+            int batchCount = 0;
+            bridge.ActiveCombatActionStepApplied += step => stepCount++;
+            bridge.CombatActionsApplied += () => batchCount++;
+
+            Assert.That(flowController.TryUseActive(0), Is.True);
+
+            Assert.That(presenter.Requests, Has.Count.EqualTo(1));
+            Assert.That(presenter.Requests[0].PartySlotIndex, Is.Zero);
+            Assert.That(presenter.Requests[0].CharacterId,
+                Is.EqualTo("active_hero"));
+            Assert.That(presenter.Requests[0].AttackElement,
+                Is.EqualTo(ElementType.Dark));
+            Assert.That(boss.CurrentHp, Is.EqualTo(1000));
+            Assert.That(stepCount, Is.Zero);
+            Assert.That(batchCount, Is.Zero);
+            Assert.That(flowController.IsResolvingActivePresentation,
+                Is.True);
+            Assert.That(flowController.CanUseActive(1), Is.False);
+            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+            Assert.That(notUsersTurnPanel.activeSelf, Is.True);
+
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(boss.CurrentHp, Is.LessThan(1000));
+            Assert.That(stepCount, Is.EqualTo(1));
+            Assert.That(batchCount, Is.EqualTo(1));
+            Assert.That(flowController.IsResolvingActivePresentation,
+                Is.False);
+            Assert.That(flowController.CanUseActive(1), Is.True);
+            Assert.That(boardController.IsExternalInputEnabled, Is.True);
+            Assert.That(notUsersTurnPanel.activeSelf, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator ActiveMultiHitUsesOneProjectilePerDamageAction()
+        {
+            InitializeStarted(new[] { 3 });
+            var character = new CharacterBattleState(
+                "active_hero", 2, ElementType.Fire, 1000, 100d);
+            var party = new PartyBattleState(new[] { character });
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 0d);
+            BattleFlowCombatBridge bridge = AttachActiveCombatBridge(
+                party,
+                boss,
+                new DelegateActiveActionProvider(context =>
+                    new CombatAction[]
+                    {
+                        CreateActiveDamage(context, ElementType.Fire),
+                        CreateActiveDamage(context, ElementType.Water)
+                    }));
+            var presenter = new ControllableActiveProjectilePresenter();
+            SetField(
+                flowController,
+                "activeProjectilePresenterOverride",
+                presenter);
+            var applied = new List<ActiveCombatActionExecutionStepResult>();
+            bridge.ActiveCombatActionStepApplied += applied.Add;
+
+            Assert.That(flowController.TryUseActive(0), Is.True);
+            Assert.That(presenter.Requests, Has.Count.EqualTo(1));
+            Assert.That(boss.CurrentHp, Is.EqualTo(1000));
+
+            presenter.Arrive();
+            yield return null;
+            long hpAfterFirst = boss.CurrentHp;
+            Assert.That(hpAfterFirst, Is.LessThan(1000));
+            Assert.That(presenter.Requests, Has.Count.EqualTo(2));
+            Assert.That(presenter.Requests[1].AttackElement,
+                Is.EqualTo(ElementType.Water));
+
+            presenter.Arrive();
+            yield return null;
+            Assert.That(boss.CurrentHp, Is.LessThan(hpAfterFirst));
+            Assert.That(applied, Has.Count.EqualTo(2));
+            Assert.That(bridge.LastActiveExecutionResult.ActionResults,
+                Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void ActiveHealAndNonDamageActionsApplyWithoutProjectile()
+        {
+            InitializeStarted(new[] { 3 });
+            var character = new CharacterBattleState(
+                "active_healer", 0, ElementType.Light, 1000, 100d);
+            var party = new PartyBattleState(new[] { character });
+            SetField(party, "<CurrentHp>k__BackingField", 500L);
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 0d);
+            boss.Resources.Register("active_resource", 10);
+            BattleFlowCombatBridge bridge = AttachActiveCombatBridge(
+                party,
+                boss,
+                new DelegateActiveActionProvider(context =>
+                    new CombatAction[]
+                    {
+                        new HealAction(
+                            context.ActionIds.Next(),
+                            ActionOrigin.Active,
+                            new HealingContextBuildRequest(
+                                context.Character,
+                                context.Party,
+                                1d,
+                                false,
+                                0)),
+                        new AddResourceAction(
+                            context.ActionIds.Next(),
+                            ActionOrigin.Active,
+                            context.Boss,
+                            "active_resource",
+                            1)
+                    }));
+            var presenter = new ControllableActiveProjectilePresenter();
+            SetField(
+                flowController,
+                "activeProjectilePresenterOverride",
+                presenter);
+            var steps = new List<ActiveCombatActionExecutionStepResult>();
+            bridge.ActiveCombatActionStepApplied += steps.Add;
+
+            Assert.That(flowController.TryUseActive(0), Is.True);
+
+            Assert.That(presenter.Requests, Is.Empty);
+            Assert.That(party.CurrentHp, Is.GreaterThan(500));
+            Assert.That(steps, Has.Count.EqualTo(2));
+            Assert.That(steps[0].ActionStep.Result,
+                Is.TypeOf<HealActionResult>());
+            Assert.That(boss.Resources.GetAmount("active_resource"),
+                Is.EqualTo(1));
+            Assert.That(flowController.IsResolvingActivePresentation,
+                Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator AbortDuringActiveProjectilePreventsStaleDamage()
+        {
+            InitializeStarted(new[] { 3 });
+            var character = new CharacterBattleState(
+                "active_hero", 0, ElementType.Fire, 1000, 100d);
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 0d);
+            AttachActiveCombatBridge(
+                new PartyBattleState(new[] { character }),
+                boss,
+                new DelegateActiveActionProvider(context =>
+                    new CombatAction[]
+                    {
+                        CreateActiveDamage(context, ElementType.Fire)
+                    }));
+            var presenter = new ControllableActiveProjectilePresenter();
+            SetField(
+                flowController,
+                "activeProjectilePresenterOverride",
+                presenter);
+
+            Assert.That(flowController.TryUseActive(0), Is.True);
+            Assert.That(flowController.AbortBattle(), Is.True);
+            Assert.That(presenter.CancelCount, Is.EqualTo(1));
+
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(boss.CurrentHp, Is.EqualTo(1000));
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Aborted));
+            Assert.That(flowController.IsResolvingActivePresentation,
+                Is.False);
+            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+        }
+
+        [Test]
+        public void MissingActivePresenterAppliesImmediatelyWithoutDeadlock()
+        {
+            InitializeStarted(new[] { 3 });
+            var character = new CharacterBattleState(
+                "active_hero", 0, ElementType.Fire, 1000, 100d);
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 0d);
+            AttachActiveCombatBridge(
+                new PartyBattleState(new[] { character }),
+                boss,
+                new DelegateActiveActionProvider(context =>
+                    new CombatAction[]
+                    {
+                        CreateActiveDamage(context, ElementType.Fire)
+                    }));
+            LogAssert.Expect(
+                LogType.Warning,
+                new Regex("Active damage projectile presenter is unavailable"));
+
+            Assert.That(flowController.TryUseActive(0), Is.True);
+
+            Assert.That(boss.CurrentHp, Is.LessThan(1000));
+            Assert.That(flowController.IsResolvingActivePresentation,
+                Is.False);
+            Assert.That(boardController.IsExternalInputEnabled, Is.True);
+            Assert.That(notUsersTurnPanel.activeSelf, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator LethalActiveStopsRemainingActionsAndDelaysVictoryUi()
+        {
+            InitializeStarted(new[] { 3 });
+            var character = new CharacterBattleState(
+                "active_hero", 0, ElementType.Fire, 1000, 100d);
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 100, 0d);
+            BattleFlowCombatBridge bridge = AttachActiveCombatBridge(
+                new PartyBattleState(new[] { character }),
+                boss,
+                new DelegateActiveActionProvider(context =>
+                    new CombatAction[]
+                    {
+                        CreateActiveDamage(context, ElementType.Fire),
+                        CreateActiveDamage(context, ElementType.Water)
+                    }));
+            var presenter = new ControllableActiveProjectilePresenter();
+            SetField(
+                flowController,
+                "activeProjectilePresenterOverride",
+                presenter);
+            BattleHudController hud = CreateResultHud(0.04f);
+
+            Assert.That(flowController.TryUseActive(0), Is.True);
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(boss.CurrentHp, Is.Zero);
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Victory));
+            Assert.That(presenter.Requests, Has.Count.EqualTo(1));
+            Assert.That(bridge.LastActiveExecutionResult.StoppedEarly,
+                Is.True);
+            Assert.That(hud.ResultOverlay.activeSelf, Is.False);
+            Assert.That(flowController.IsResolvingActivePresentation,
+                Is.False);
+            AssertResultInputLocked();
+
+            yield return WaitUntil(
+                () => hud.ResultOverlay.activeSelf,
+                "Active victory overlay did not appear after its delay.",
+                maximumFrames: 120);
         }
 
         [Test]
@@ -272,6 +569,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(active.RemainingCooldown, Is.Zero);
             Assert.That(active.UsedThisTurn, Is.False);
             Assert.That(boardController.CanAcceptBoardInput, Is.False);
+            Assert.That(notUsersTurnPanel.activeSelf, Is.True);
 
             SetField(boardController, "isActionInProgress", false);
             InvokePrivate(
@@ -289,6 +587,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(active.RemainingCooldown, Is.EqualTo(4));
             Assert.That(active.UsedThisTurn, Is.True);
             Assert.That(boardController.IsExternalInputEnabled, Is.True);
+            Assert.That(notUsersTurnPanel.activeSelf, Is.False);
         }
 
         [Test]
@@ -312,6 +611,42 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Context.ActiveAbilities[0]
                 .UsedThisTurn, Is.True);
             Assert.That(boardController.IsExternalInputEnabled, Is.False);
+            Assert.That(notUsersTurnPanel.activeSelf, Is.True);
+        }
+
+        [Test]
+        public void InitialPanelSuppressionDoesNotHideLaterCombatPhases()
+        {
+            InitializeStarted(Array.Empty<int>());
+
+            Assert.That(notUsersTurnPanel.activeSelf, Is.False);
+            Assert.That(flowController.Coordinator.TryBeginBoardResolution(),
+                Is.True);
+            Assert.That(notUsersTurnPanel.activeSelf, Is.True);
+            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+
+            Assert.That(
+                flowController.Coordinator.NotifyBoardActionResolved(
+                    CreateSingleMatchCascade(),
+                    consumesTurn: true),
+                Is.True);
+            Assert.That(flowController.Coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution), Is.True);
+            Assert.That(
+                flowController.Coordinator.CompleteCurrentMatchEvent(
+                    execution.ExecutionId),
+                Is.True);
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.BossActing));
+            Assert.That(notUsersTurnPanel.activeSelf, Is.True);
+            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+
+            Assert.That(flowController.Coordinator.CompleteBossAction(),
+                Is.True);
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(notUsersTurnPanel.activeSelf, Is.False);
+            Assert.That(boardController.IsExternalInputEnabled, Is.True);
         }
 
         [Test]
@@ -741,6 +1076,95 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Is.Zero);
             Assert.That(flowController.Coordinator.HasMatchEventInFlight,
                 Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator PreBossDelayStartsOnlyAfterLastMatchCombat()
+        {
+            InitializeStarted(new[] { 3 });
+            SetField(flowController, "preBossActionDelaySeconds", 0.04f);
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "fire", 0, ElementType.Fire, 1000, 100d)
+            });
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 0d);
+            var bossProvider = new ControllerBossDamageActionProvider(1);
+            AttachCombatBridge(
+                party,
+                boss,
+                new ControllerMatchActionProvider(),
+                bossProvider);
+            int bossStartedCount = 0;
+            int matchExecutionCount = 0;
+            flowController.Coordinator.MatchEventExecuting +=
+                matchEvent => matchExecutionCount++;
+            flowController.Coordinator.BossActionStarted +=
+                () => bossStartedCount++;
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateTwoMatchCascade()));
+
+            Assert.That(matchExecutionCount, Is.EqualTo(2));
+            Assert.That(boss.CurrentHp, Is.EqualTo(900));
+            Assert.That(party.CurrentHp, Is.EqualTo(1000));
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.MatchEventResolving));
+            Assert.That(bossStartedCount, Is.Zero);
+            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+            Assert.That(boardController.CanAcceptBoardInput, Is.False);
+            Assert.That(flowController.CanUseActive(0), Is.False);
+            Assert.That(notUsersTurnPanel.activeSelf, Is.True);
+
+            yield return WaitUntil(
+                () => bossStartedCount == 1 && party.CurrentHp < 1000,
+                "The delayed Boss action did not progress.",
+                maximumFrames: 120);
+
+            Assert.That(bossStartedCount, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator EmptyMatchItemsStillUseOnePreBossDelay()
+        {
+            InitializeStarted(Array.Empty<int>());
+            SetField(flowController, "preBossActionDelaySeconds", 0.04f);
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "fire", 0, ElementType.Fire, 1000, 100d)
+            });
+            var bossProvider = new ControllerBossActionProvider();
+            AttachCombatBridge(
+                party,
+                new BossBattleState(
+                    "boss", ElementType.Fire, 1000, 0d),
+                new ControllerMatchActionProvider(),
+                bossProvider);
+            int executionCount = 0;
+            int bossStartedCount = 0;
+            flowController.Coordinator.MatchEventExecuting +=
+                matchEvent => executionCount++;
+            flowController.Coordinator.BossActionStarted +=
+                () => bossStartedCount++;
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateTwoWaterMatchCascade()));
+
+            Assert.That(executionCount, Is.EqualTo(2));
+            Assert.That(bossStartedCount, Is.Zero);
+            Assert.That(bossProvider.CallCount, Is.Zero);
+
+            yield return WaitUntil(
+                () => bossProvider.CallCount == 1,
+                "Empty MatchEvents did not reach the delayed Boss turn.",
+                maximumFrames: 120);
+
+            Assert.That(bossStartedCount, Is.EqualTo(1));
+            Assert.That(bossProvider.CallCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -1501,6 +1925,225 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         }
 
         [UnityTest]
+        public IEnumerator AbortDuringPreBossDelayCancelsBossContinuation()
+        {
+            InitializeStarted(Array.Empty<int>());
+            SetField(flowController, "preBossActionDelaySeconds", 10f);
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "fire", 0, ElementType.Fire, 1000, 100d)
+            });
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 0d);
+            var bossProvider = new ControllerBossActionProvider();
+            BattleFlowCombatBridge bridge = AttachCombatBridge(
+                party,
+                boss,
+                new ControllerMatchActionProvider(),
+                bossProvider);
+            int bossStartedCount = 0;
+            flowController.Coordinator.BossActionStarted +=
+                () => bossStartedCount++;
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+
+            Assert.That(boss.CurrentHp, Is.EqualTo(900));
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.MatchEventResolving));
+            Assert.That(flowController.AbortBattle(), Is.True);
+            yield return null;
+
+            Assert.That(bossStartedCount, Is.Zero);
+            Assert.That(bossProvider.CallCount, Is.Zero);
+            Assert.That(GetField<object>(
+                bridge,
+                "currentMatchCombatSession"), Is.Null);
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Aborted));
+        }
+
+        [Test]
+        public void TerminalMatchSkipsPreBossDelayAndBossAction()
+        {
+            InitializeStarted(Array.Empty<int>());
+            SetField(flowController, "preBossActionDelaySeconds", 10f);
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "fire", 0, ElementType.Fire, 1000, 100d)
+            });
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 100, 0d);
+            var bossProvider = new ControllerBossActionProvider();
+            AttachCombatBridge(
+                party,
+                boss,
+                new ControllerMatchActionProvider(),
+                bossProvider);
+            int bossStartedCount = 0;
+            flowController.Coordinator.BossActionStarted +=
+                () => bossStartedCount++;
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+
+            Assert.That(boss.IsDefeated, Is.True);
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Victory));
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.Result));
+            Assert.That(bossStartedCount, Is.Zero);
+            Assert.That(bossProvider.CallCount, Is.Zero);
+            Assert.That(notUsersTurnPanel.activeSelf, Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator LethalVictoryRefreshesHpThenDelaysResultOverlay()
+        {
+            InitializeStarted(new[] { 3 });
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "fire", 0, ElementType.Fire, 1000, 100d)
+            });
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 100, 0d);
+            AttachCombatBridge(
+                party,
+                boss,
+                new ControllerMatchActionProvider());
+            BattleHudController hud = CreateResultHud(0.04f);
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Victory));
+            Assert.That(boss.CurrentHp, Is.Zero);
+            Assert.That(hud.BossHpSlider.value, Is.Zero);
+            Assert.That(hud.ResultOverlay.activeSelf, Is.False);
+            AssertResultInputLocked();
+            Coroutine pending = GetField<Coroutine>(
+                hud,
+                "resultOverlayCoroutine");
+            Assert.That(pending, Is.Not.Null);
+
+            hud.RefreshInitialSnapshot();
+            InvokePrivate(
+                hud,
+                "HandleResultReached",
+                BattleResultKind.Victory);
+            Assert.That(GetField<Coroutine>(
+                hud,
+                "resultOverlayCoroutine"), Is.SameAs(pending));
+
+            yield return WaitUntil(
+                () => hud.ResultOverlay.activeSelf,
+                "Victory overlay did not appear after its delay.",
+                maximumFrames: 120);
+        }
+
+        [UnityTest]
+        public IEnumerator DefeatUsesTheSharedResultOverlayDelay()
+        {
+            InitializeStarted(new[] { 3 });
+            AttachResultPresentationBridge();
+            BattleHudController hud = CreateResultHud(0.04f);
+
+            Assert.That(
+                flowController.Coordinator.NotifyPartyIncapacitated(),
+                Is.True);
+
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Defeat));
+            Assert.That(hud.ResultOverlay.activeSelf, Is.False);
+            AssertResultInputLocked();
+
+            yield return WaitUntil(
+                () => hud.ResultOverlay.activeSelf,
+                "Defeat overlay did not appear after its delay.",
+                maximumFrames: 120);
+        }
+
+        [UnityTest]
+        public IEnumerator TurnLimitUsesTheSharedResultOverlayDelay()
+        {
+            InitializeStarted(new[] { 3 }, turnLimit: 1);
+            AttachResultPresentationBridge();
+            BattleHudController hud = CreateResultHud(0.04f);
+
+            Assert.That(flowController.Coordinator.TryBeginBoardResolution(),
+                Is.True);
+            Assert.That(
+                flowController.Coordinator.NotifyBoardActionResolved(
+                    CreateSingleMatchCascade(),
+                    consumesTurn: true),
+                Is.True);
+            Assert.That(
+                flowController.Coordinator.ExecuteRemainingMatchEvents(),
+                Is.EqualTo(1));
+            Assert.That(flowController.Coordinator.CompleteBossAction(),
+                Is.True);
+
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.TurnLimitReached));
+            Assert.That(hud.ResultOverlay.activeSelf, Is.False);
+            AssertResultInputLocked();
+
+            yield return WaitUntil(
+                () => hud.ResultOverlay.activeSelf,
+                "Turn-limit overlay did not appear after its delay.",
+                maximumFrames: 120);
+        }
+
+        [Test]
+        public void AbortedResultBypassesOverlayDelayAndCoroutine()
+        {
+            InitializeStarted(new[] { 3 });
+            AttachResultPresentationBridge();
+            BattleHudController hud = CreateResultHud(10f);
+
+            Assert.That(flowController.AbortBattle(), Is.True);
+
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Aborted));
+            Assert.That(hud.ResultOverlay.activeSelf, Is.True);
+            Assert.That(hud.ResultText.text, Is.EqualTo("Battle Aborted"));
+            Assert.That(GetField<Coroutine>(
+                hud,
+                "resultOverlayCoroutine"), Is.Null);
+            AssertResultInputLocked();
+        }
+
+        [UnityTest]
+        public IEnumerator DisableCancelsPendingResultOverlayActivation()
+        {
+            InitializeStarted(new[] { 3 });
+            AttachResultPresentationBridge();
+            BattleHudController hud = CreateResultHud(0.04f);
+
+            Assert.That(flowController.Coordinator.NotifyBossDefeated(),
+                Is.True);
+            Assert.That(hud.ResultOverlay.activeSelf, Is.False);
+            Assert.That(GetField<Coroutine>(
+                hud,
+                "resultOverlayCoroutine"), Is.Not.Null);
+
+            hud.gameObject.SetActive(false);
+            yield return new WaitForSeconds(0.08f);
+
+            Assert.That(hud.ResultOverlay.activeSelf, Is.False);
+            Assert.That(GetField<Coroutine>(
+                hud,
+                "resultOverlayCoroutine"), Is.Null);
+        }
+
+        [UnityTest]
         public IEnumerator AttachedBridgeExecutesMatchCombatBeforeBossCompletes()
         {
             InitializeStarted(Array.Empty<int>());
@@ -1666,6 +2309,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.AbortBattle(), Is.False);
             Assert.That(resultCount, Is.EqualTo(1));
             Assert.That(boardController.IsExternalInputEnabled, Is.False);
+            Assert.That(notUsersTurnPanel.activeSelf, Is.True);
         }
 
         [Test]
@@ -1757,16 +2401,85 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Is.False);
         }
 
-        private void InitializeStarted(IReadOnlyList<int> cooldowns)
+        private void InitializeStarted(
+            IReadOnlyList<int> cooldowns,
+            int turnLimit = 25)
         {
             SetField(boardController, "initialBoardReadyPublished", true);
             Assert.That(boardController.HasInitialBoardReady, Is.True);
-            InitializeFlow(new BattleFlowSetup(25, cooldowns));
+            InitializeFlow(new BattleFlowSetup(turnLimit, cooldowns));
             Assert.That(flowController.Context.Phase,
                 Is.EqualTo(BattlePhase.NotStarted));
             ActivateFixture();
             Assert.That(flowController.Context.Phase,
                 Is.EqualTo(BattlePhase.PlayerInput));
+        }
+
+        private BattleFlowCombatBridge AttachResultPresentationBridge()
+        {
+            var party = new PartyBattleState(new[]
+            {
+                new CharacterBattleState(
+                    "hero", 0, ElementType.Water, 1000, 0d)
+            });
+            return AttachCombatBridge(
+                party,
+                new BossBattleState(
+                    "boss", ElementType.Fire, 1000, 0d),
+                new ControllerResourceActionProvider());
+        }
+
+        private BattleHudController CreateResultHud(float delaySeconds)
+        {
+            var hudObject = new GameObject(
+                "ResultHud",
+                typeof(RectTransform));
+            hudObject.SetActive(false);
+            hudObject.transform.SetParent(root.transform, false);
+            BattleHudController hud =
+                hudObject.AddComponent<BattleHudController>();
+            var overlay = new GameObject(
+                "BattleResultOverlay",
+                typeof(RectTransform));
+            overlay.transform.SetParent(hudObject.transform, false);
+            var bossSliderObject = new GameObject(
+                "BossHpSlider",
+                typeof(RectTransform),
+                typeof(Slider));
+            bossSliderObject.transform.SetParent(
+                hudObject.transform,
+                false);
+            var partySliderObject = new GameObject(
+                "PartyHpSlider",
+                typeof(RectTransform),
+                typeof(Slider));
+            partySliderObject.transform.SetParent(
+                hudObject.transform,
+                false);
+
+            SetField(hud, "battleFlowController", flowController);
+            SetField(hud, "resultOverlay", overlay);
+            SetField(hud, "resultOverlayDelaySeconds", delaySeconds);
+            SetField(
+                hud,
+                "bossHpSlider",
+                bossSliderObject.GetComponent<Slider>());
+            SetField(
+                hud,
+                "partyHpSlider",
+                partySliderObject.GetComponent<Slider>());
+            hudObject.SetActive(true);
+            InvokePrivate(hud, "Start");
+            Assert.That(hud.IsRuntimeConnected, Is.True);
+            Assert.That(hud.ResultOverlay.activeSelf, Is.False);
+            return hud;
+        }
+
+        private void AssertResultInputLocked()
+        {
+            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+            Assert.That(flowController.CanUseActive(0), Is.False);
+            Assert.That(notUsersTurnPanel.activeSelf, Is.True);
         }
 
         private void InitializeFlow(BattleFlowSetup setup)
@@ -2017,6 +2730,69 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             return bridge;
         }
 
+        private BattleFlowCombatBridge AttachActiveCombatBridge(
+            PartyBattleState party,
+            BossBattleState boss,
+            params IActiveAbilityActionProvider[] providers)
+        {
+            Assert.That(providers, Has.Length.EqualTo(
+                flowController.Context.ActiveAbilities.Count));
+            Assert.That(party.Characters.Count,
+                Is.GreaterThanOrEqualTo(providers.Length));
+            var bindings = new ActiveAbilityBinding[providers.Length];
+            var registry = new ActiveAbilityActionProviderRegistry();
+            for (int index = 0; index < providers.Length; index++)
+            {
+                CharacterBattleState character = party.Characters[index];
+                bindings[index] = new ActiveAbilityBinding(
+                    index,
+                    character.PartySlotIndex,
+                    character.CharacterId,
+                    "active");
+                registry.Register(
+                    character.CharacterId,
+                    "active",
+                    providers[index]);
+            }
+
+            var actionIds = new CombatActionIdSequence();
+            var bridge = new BattleFlowCombatBridge(
+                flowController.Coordinator,
+                party,
+                boss,
+                new CombatActionExecutor(
+                    boss,
+                    party,
+                    new DamageContextFactory(new SeededRandomSource(1))),
+                new ControllerMatchActionProvider(),
+                new ControllerBossActionProvider(),
+                actionIds,
+                bindings,
+                registry);
+            flowController.AttachCombatBridge(bridge);
+            return bridge;
+        }
+
+        private static DamageAction CreateActiveDamage(
+            ActiveAbilityActionContext context,
+            ElementType attackElement)
+        {
+            return new DamageAction(
+                context.ActionIds.Next(),
+                ActionOrigin.Active,
+                new DamageContextBuildRequest(
+                    context.Character,
+                    context.Party,
+                    context.Boss,
+                    attackElement,
+                    AttackType.Active,
+                    AttackTag.None,
+                    1d,
+                    false,
+                    0,
+                    false));
+        }
+
         private static BoardSwapActionResult CreateNoMatchResult()
         {
             return CreateInternal<BoardSwapActionResult>(
@@ -2148,6 +2924,29 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                             context.FinalComboCount,
                             false))
                 };
+            }
+        }
+
+        private sealed class DelegateActiveActionProvider
+            : IActiveAbilityActionProvider
+        {
+            private readonly Func<
+                ActiveAbilityActionContext,
+                IReadOnlyList<CombatAction>> createActions;
+
+            public DelegateActiveActionProvider(
+                Func<
+                    ActiveAbilityActionContext,
+                    IReadOnlyList<CombatAction>> createActions)
+            {
+                this.createActions = createActions
+                    ?? throw new ArgumentNullException(nameof(createActions));
+            }
+
+            public IReadOnlyList<CombatAction> CreateRootActions(
+                ActiveAbilityActionContext context)
+            {
+                return createActions(context);
             }
         }
 
@@ -2311,6 +3110,53 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Action<MatchDamageProjectileCompletion> callback = completion;
                 completion = null;
                 callback(MatchDamageProjectileCompletion.Arrived);
+            }
+        }
+
+        private sealed class ControllableActiveProjectilePresenter
+            : IActiveDamageProjectilePresenter
+        {
+            private Action<ActiveDamageProjectileCompletion> completion;
+
+            public List<ActiveDamageProjectileRequest> Requests { get; } =
+                new List<ActiveDamageProjectileRequest>();
+            public int CancelCount { get; private set; }
+
+            public bool TryPresent(
+                ActiveDamageProjectileRequest request,
+                Action<ActiveDamageProjectileCompletion> callback)
+            {
+                Assert.That(completion, Is.Null);
+                Requests.Add(request);
+                completion = callback;
+                return true;
+            }
+
+            public void CancelActive()
+            {
+                if (completion == null)
+                {
+                    return;
+                }
+
+                CancelCount++;
+                Action<ActiveDamageProjectileCompletion> callback =
+                    completion;
+                completion = null;
+                callback(ActiveDamageProjectileCompletion.Cancelled);
+            }
+
+            public void Arrive()
+            {
+                if (completion == null)
+                {
+                    return;
+                }
+
+                Action<ActiveDamageProjectileCompletion> callback =
+                    completion;
+                completion = null;
+                callback(ActiveDamageProjectileCompletion.Arrived);
             }
         }
 

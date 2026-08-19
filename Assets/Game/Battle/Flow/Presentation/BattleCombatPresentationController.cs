@@ -59,6 +59,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
     public sealed class BattleCombatPresentationController : MonoBehaviour,
         IMatchDamageProjectilePresenter,
+        IActiveDamageProjectilePresenter,
         IBossDamageProjectilePresenter
     {
         public const float DefaultProjectileDuration = 0.18f;
@@ -289,6 +290,54 @@ namespace ValorChronicle.Battle.Flow.Presentation
                         ? MatchDamageProjectileCompletion.Arrived
                         : MatchDamageProjectileCompletion.Cancelled),
                 "Player damage");
+        }
+
+        public bool TryPresent(
+            ActiveDamageProjectileRequest request,
+            Action<ActiveDamageProjectileCompletion> completion)
+        {
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            if (completion == null)
+            {
+                throw new ArgumentNullException(nameof(completion));
+            }
+
+            if (IsPresenting)
+            {
+                GameLogger.Warning(
+                    "[BattleCombatPresentation] An active damage "
+                        + "projectile is already active.",
+                    this);
+                return false;
+            }
+
+            if (!TryResolvePlayerPositions(
+                request.PartySlotIndex,
+                request.CharacterId,
+                out Vector2 start,
+                out Vector2 end))
+            {
+                GameLogger.Warning(
+                    "[BattleCombatPresentation] Active damage projectile "
+                        + "references are unavailable; applying "
+                        + "immediately.",
+                    this);
+                return false;
+            }
+
+            return TryStartProjectile(
+                start,
+                end,
+                GetElementColor(request.AttackElement),
+                arrived => completion(
+                    arrived
+                        ? ActiveDamageProjectileCompletion.Arrived
+                        : ActiveDamageProjectileCompletion.Cancelled),
+                "Active damage");
         }
 
         public bool TryPresent(
@@ -623,6 +672,19 @@ namespace ValorChronicle.Battle.Flow.Presentation
             out Vector2 start,
             out Vector2 end)
         {
+            return TryResolvePlayerPositions(
+                request.PartySlotIndex,
+                request.CharacterId,
+                out start,
+                out end);
+        }
+
+        private bool TryResolvePlayerPositions(
+            int partySlotIndex,
+            string characterId,
+            out Vector2 start,
+            out Vector2 end)
+        {
             start = default;
             end = default;
             if (hudController == null
@@ -634,8 +696,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 || !effectLayer.gameObject.activeInHierarchy
                 || !projectilePool.isActiveAndEnabled
                 || !hudController.TryResolvePlayerProjectileAnchors(
-                    request.PartySlotIndex,
-                    request.CharacterId,
+                    partySlotIndex,
+                    characterId,
                     out RectTransform source,
                     out RectTransform target))
             {

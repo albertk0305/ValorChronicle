@@ -70,6 +70,29 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         }
 
         [Test]
+        public void ActiveRequestPreservesActorAndAttackElement()
+        {
+            var request = new ActiveDamageProjectileRequest(
+                3,
+                "active_character",
+                ElementType.Water);
+
+            Assert.That(request.PartySlotIndex, Is.EqualTo(3));
+            Assert.That(request.CharacterId, Is.EqualTo("active_character"));
+            Assert.That(request.AttackElement, Is.EqualTo(ElementType.Water));
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                new ActiveDamageProjectileRequest(
+                    -1,
+                    "active_character",
+                    ElementType.Fire));
+            Assert.Throws<ArgumentException>(() =>
+                new ActiveDamageProjectileRequest(
+                    0,
+                    string.Empty,
+                    ElementType.Fire));
+        }
+
+        [Test]
         public void BossRequestPreservesIdentityAndUsesWhiteProjectile()
         {
             var request = new BossDamageProjectileRequest(3, 17);

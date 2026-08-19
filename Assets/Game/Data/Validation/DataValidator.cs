@@ -316,7 +316,11 @@ namespace ValorChronicle.Data.Validation
                     definition.DescriptionKey,
                     definition,
                     report);
-                WarnIfIconMissing(definition.Icon, definition, report);
+                if (definition.SkillKind == SkillKind.BossAction)
+                {
+                    WarnIfIconMissing(definition.Icon, definition, report);
+                }
+
                 if (!Enum.IsDefined(
                         typeof(SkillKind),
                         definition.SkillKind))

@@ -45,6 +45,26 @@ namespace ValorChronicle.Battle.Combat.Integration
             out CombatActionExecutionResult result)
         {
             result = null;
+            if (!TryBeginExecution(
+                activeAbilityIndex,
+                out ActiveAbilityCombatExecutionSession session))
+            {
+                return false;
+            }
+
+            while (session.TryExecuteNext(out _))
+            {
+            }
+
+            result = session.Result;
+            return true;
+        }
+
+        public bool TryBeginExecution(
+            int activeAbilityIndex,
+            out ActiveAbilityCombatExecutionSession session)
+        {
+            session = null;
             if (!TryResolveAvailableActive(
                 activeAbilityIndex,
                 out ActiveAbilityBinding binding,
@@ -70,7 +90,10 @@ namespace ValorChronicle.Battle.Combat.Integration
                     "Active runtime changed after prevalidation.");
             }
 
-            result = executor.Execute(new CombatActionQueue(rootActions));
+            session = new ActiveAbilityCombatExecutionSession(
+                binding,
+                character,
+                executor.BeginExecution(rootActions));
             return true;
         }
 
@@ -248,5 +271,65 @@ namespace ValorChronicle.Battle.Combat.Integration
                 }
             }
         }
+    }
+
+    public sealed class ActiveAbilityCombatExecutionSession
+    {
+        private readonly CombatActionExecutionSession actionSession;
+
+        internal ActiveAbilityCombatExecutionSession(
+            ActiveAbilityBinding binding,
+            CharacterBattleState character,
+            CombatActionExecutionSession actionSession)
+        {
+            Binding = binding
+                ?? throw new ArgumentNullException(nameof(binding));
+            Character = character
+                ?? throw new ArgumentNullException(nameof(character));
+            this.actionSession = actionSession
+                ?? throw new ArgumentNullException(nameof(actionSession));
+        }
+
+        public ActiveAbilityBinding Binding { get; }
+        public CharacterBattleState Character { get; }
+        public int PartySlotIndex => Character.PartySlotIndex;
+        public string CharacterId => Character.CharacterId;
+        public bool IsCompleted => actionSession.IsCompleted;
+        public CombatAction NextAction => actionSession.NextAction;
+        public CombatActionExecutionResult Result => actionSession.Result;
+
+        public bool TryExecuteNext(
+            out ActiveCombatActionExecutionStepResult stepResult)
+        {
+            stepResult = null;
+            if (!actionSession.TryExecuteNext(
+                out CombatActionExecutionStepResult actionStep))
+            {
+                return false;
+            }
+
+            stepResult = new ActiveCombatActionExecutionStepResult(
+                Character,
+                actionStep);
+            return true;
+        }
+    }
+
+    public sealed class ActiveCombatActionExecutionStepResult
+    {
+        internal ActiveCombatActionExecutionStepResult(
+            CharacterBattleState character,
+            CombatActionExecutionStepResult actionStep)
+        {
+            Character = character
+                ?? throw new ArgumentNullException(nameof(character));
+            ActionStep = actionStep
+                ?? throw new ArgumentNullException(nameof(actionStep));
+        }
+
+        public CharacterBattleState Character { get; }
+        public int PartySlotIndex => Character.PartySlotIndex;
+        public string CharacterId => Character.CharacterId;
+        public CombatActionExecutionStepResult ActionStep { get; }
     }
 }
