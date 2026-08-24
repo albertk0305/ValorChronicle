@@ -4,6 +4,7 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using ValorChronicle.Battle.Flow.Presentation;
+using ValorChronicle.Battle.Results;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Random;
@@ -116,7 +117,8 @@ namespace ValorChronicle.Tests.EditMode
                 boss,
                 (KragmorCombatConfig)boss.CombatConfig,
                 stats,
-                new SeededRandomSource(1));
+                new SeededRandomSource(1),
+                BattleResultBalanceDefaults.Create());
 
             Assert.That(composition.Boss.MaxHp, Is.EqualTo(expectedMaxHp));
             Assert.That(composition.Boss.CurrentHp,
@@ -143,7 +145,8 @@ namespace ValorChronicle.Tests.EditMode
                 boss,
                 (KragmorCombatConfig)boss.CombatConfig,
                 stats,
-                new SeededRandomSource(1));
+                new SeededRandomSource(1),
+                BattleResultBalanceDefaults.Create());
             MethodInfo applyDamage = composition.Boss.GetType().GetMethod(
                 "ApplyDamage",
                 BindingFlags.Instance | BindingFlags.NonPublic);
@@ -188,7 +191,8 @@ namespace ValorChronicle.Tests.EditMode
                     boss,
                     (KragmorCombatConfig)boss.CombatConfig,
                     stats,
-                    new SeededRandomSource(1));
+                    new SeededRandomSource(1),
+                    BattleResultBalanceDefaults.Create());
 
                 Assert.That(composition.WaterElement.MaxAmount,
                     Is.EqualTo(7));

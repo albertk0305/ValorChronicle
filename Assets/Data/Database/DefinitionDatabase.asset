@@ -34,3 +34,4 @@ MonoBehaviour:
   relics: []
   bossPresentations:
   - {fileID: 11400000, guid: 36bf445134a546f1b77d55bda4a0bd01, type: 2}
+  battleResultBalance: {fileID: 11400000, guid: a84b72d3f7c54a2a9568239d23b9ee21, type: 2}

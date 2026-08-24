@@ -7,6 +7,7 @@ using UnityEngine;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Data.Validation;
+using ValorChronicle.Battle.Results;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Bosses.Kragmor;
 
@@ -43,6 +44,38 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(report.HasErrors, Is.True);
             Assert.That(
                 report.Issues.Any(issue => issue.Message.Contains("Duplicate")),
+                Is.True);
+        }
+
+        [Test]
+        public void Validate_DetectsMissingBattleResultBalance()
+        {
+            DefinitionDatabase database = CreateDatabase();
+            SetPrivateField(database, "battleResultBalance", null);
+
+            ValidationReport report = DataValidator.Validate(database);
+
+            Assert.That(report.HasErrors, Is.True);
+            Assert.That(report.Issues.Any(issue =>
+                issue.Message.Contains(
+                    "BattleResultBalanceDefinition is missing")),
+                Is.True);
+        }
+
+        [Test]
+        public void Validate_DelegatesInvalidBattleResultBalanceRules()
+        {
+            DefinitionDatabase database = CreateDatabase();
+            BattleResultBalanceDefinition definition =
+                database.BattleResultBalance;
+            SetPrivateField(definition, "remainingTurnBonusPercent", 29);
+
+            ValidationReport report = DataValidator.Validate(database);
+
+            Assert.That(report.HasErrors, Is.True);
+            Assert.That(report.Issues.Any(issue =>
+                issue.Message.Contains(
+                    "Remaining-turn bonus rate must match")),
                 Is.True);
         }
 
@@ -634,6 +667,28 @@ namespace ValorChronicle.Tests.EditMode
             DefinitionDatabase database = ScriptableObject.CreateInstance<DefinitionDatabase>();
             createdObjects.Add(database);
 
+            BattleResultBalanceDefinition resultBalance =
+                ScriptableObject.CreateInstance<
+                    BattleResultBalanceDefinition>();
+            createdObjects.Add(resultBalance);
+            SetPrivateField(
+                resultBalance,
+                "remainingTurnBonusPercent",
+                BattleResultBalanceDefaults.RemainingTurnBonusPercent);
+            SetPrivateField(
+                resultBalance,
+                "gradeThresholds",
+                BattleResultBalanceDefaults.CreateGradeThresholds());
+            SetPrivateField(
+                resultBalance,
+                "firstGradeRewards",
+                BattleResultBalanceDefaults.CreateFirstGradeRewards());
+            SetPrivateField(
+                resultBalance,
+                "difficultyRepeatRewards",
+                BattleResultBalanceDefaults
+                    .CreateDifficultyRepeatRewards());
+
             var serializedObject = new SerializedObject(database);
             SetObjectArray(serializedObject.FindProperty("characters"), characters);
             SetObjectArray(serializedObject.FindProperty("bosses"), bosses);
@@ -644,6 +699,8 @@ namespace ValorChronicle.Tests.EditMode
             SetObjectArray(
                 serializedObject.FindProperty("bossPresentations"),
                 bossPresentations);
+            serializedObject.FindProperty("battleResultBalance")
+                .objectReferenceValue = resultBalance;
             serializedObject.ApplyModifiedPropertiesWithoutUndo();
 
             return database;

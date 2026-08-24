@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ValorChronicle.Battle.Results;
 using ValorChronicle.Core.IDs;
 using ValorChronicle.Core.Logging;
 using ValorChronicle.Data.Database;
@@ -39,8 +40,36 @@ namespace ValorChronicle.Data.Validation
                 database.BossPresentations,
                 database.Bosses,
                 report);
+            ValidateBattleResultBalance(
+                database.BattleResultBalance,
+                report);
 
             return report;
+        }
+
+        private static void ValidateBattleResultBalance(
+            BattleResultBalanceDefinition definition,
+            ValidationReport report)
+        {
+            if (definition == null)
+            {
+                report.Add(
+                    ValidationSeverity.Error,
+                    "[DataValidator] BattleResultBalanceDefinition is "
+                        + "missing.");
+                return;
+            }
+
+            if (!BattleResultBalanceValidator.TryValidate(
+                definition.CreateBalance(),
+                out string errorMessage))
+            {
+                report.Add(
+                    ValidationSeverity.Error,
+                    "[DataValidator] BattleResultBalanceDefinition is "
+                        + $"invalid. {errorMessage}",
+                    context: definition);
+            }
         }
 
         public static void LogReport(ValidationReport report)

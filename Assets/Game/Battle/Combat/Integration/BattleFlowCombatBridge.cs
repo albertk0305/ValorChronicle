@@ -4,11 +4,12 @@ using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
+using ValorChronicle.Battle.Results;
 using ValorChronicle.Core.Logging;
 
 namespace ValorChronicle.Battle.Combat.Integration
 {
-    public sealed class BattleFlowCombatBridge
+    public sealed class BattleFlowCombatBridge : IBattleFinalResultSource
     {
         private readonly BattleFlowCoordinator coordinator;
         private readonly PartyBattleState party;
@@ -21,6 +22,9 @@ namespace ValorChronicle.Battle.Combat.Integration
         private readonly BattleTurnEndProcessor turnEndProcessor;
         private readonly ActiveAbilityCombatExecutor activeExecutor;
         private readonly IBattleBoardMutationSink boardMutationSink;
+        private readonly BattleDamageScoreCollector damageScoreCollector;
+        private readonly string difficultyId;
+        private readonly BattleResultBalance resultBalance;
         private readonly HashSet<long> executedActionIds =
             new HashSet<long>();
         private bool hasPendingBossBoardMutation;
@@ -41,6 +45,7 @@ namespace ValorChronicle.Battle.Combat.Integration
             BossCombatActionStepApplied;
         public event Action<ActiveCombatActionExecutionStepResult>
             ActiveCombatActionStepApplied;
+        public event Action<BattleFinalResult> ResultFinalized;
 
         public BattleFlowCombatBridge(
             BattleFlowCoordinator coordinator,
@@ -122,6 +127,35 @@ namespace ValorChronicle.Battle.Combat.Integration
             IReadOnlyList<ActiveAbilityBinding> activeBindings,
             ActiveAbilityActionProviderRegistry activeProviders,
             IBattleBoardMutationSink boardMutationSink)
+            : this(
+                coordinator,
+                party,
+                boss,
+                executor,
+                matchActionProvider,
+                bossActionProvider,
+                actionIds,
+                activeBindings,
+                activeProviders,
+                boardMutationSink,
+                difficultyId: null,
+                resultBalance: null)
+        {
+        }
+
+        public BattleFlowCombatBridge(
+            BattleFlowCoordinator coordinator,
+            PartyBattleState party,
+            BossBattleState boss,
+            CombatActionExecutor executor,
+            IMatchEventActionProvider matchActionProvider,
+            IBossCombatActionProvider bossActionProvider,
+            CombatActionIdSequence actionIds,
+            IReadOnlyList<ActiveAbilityBinding> activeBindings,
+            ActiveAbilityActionProviderRegistry activeProviders,
+            IBattleBoardMutationSink boardMutationSink,
+            string difficultyId,
+            BattleResultBalance resultBalance)
         {
             this.coordinator = coordinator
                 ?? throw new ArgumentNullException(nameof(coordinator));
@@ -136,6 +170,24 @@ namespace ValorChronicle.Battle.Combat.Integration
             this.actionIds = actionIds
                 ?? throw new ArgumentNullException(nameof(actionIds));
             this.boardMutationSink = boardMutationSink;
+            bool hasDifficultyId =
+                !string.IsNullOrWhiteSpace(difficultyId);
+            if (hasDifficultyId != (resultBalance != null))
+            {
+                throw new ArgumentException(
+                    "Difficulty ID and result balance must be supplied "
+                        + "together.");
+            }
+
+            if (resultBalance != null)
+            {
+                BattleResultBalanceValidator.ValidateOrThrow(resultBalance);
+            }
+
+            this.difficultyId = difficultyId;
+            this.resultBalance = resultBalance;
+            damageScoreCollector = new BattleDamageScoreCollector(
+                new BattleDamageScoreAccumulator());
             var matchActionFactory = new MatchEventCombatActionFactory(
                 party,
                 boss,
@@ -155,12 +207,15 @@ namespace ValorChronicle.Battle.Combat.Integration
                 activeBindings,
                 activeProviders);
             turnEndProcessor = new BattleTurnEndProcessor(party, boss);
+            coordinator.ResultReached += HandleResultReached;
         }
 
         public BattleFlowCoordinator Coordinator => coordinator;
         public PartyBattleState Party => party;
         public BossBattleState Boss => boss;
         public CombatActionIdSequence ActionIds => actionIds;
+        public long DamageScore => damageScoreCollector.DamageScore;
+        public BattleFinalResult LastFinalResult { get; private set; }
         public int ProcessedTurnEndCount =>
             turnEndProcessor.ProcessedTurnCount;
         public bool HasPendingBossBoardMutation =>
@@ -782,8 +837,34 @@ namespace ValorChronicle.Battle.Combat.Integration
         {
             if (result != null && result.CompletedActionCount > 0)
             {
+                damageScoreCollector.Collect(result);
                 CombatActionsApplied?.Invoke();
             }
+        }
+
+        private void HandleResultReached(BattleResultKind result)
+        {
+            if (LastFinalResult != null
+                || resultBalance == null
+                || (result != BattleResultKind.Victory
+                    && result != BattleResultKind.Defeat
+                    && result != BattleResultKind.TurnLimitReached))
+            {
+                return;
+            }
+
+            BattleContext context = coordinator.Context;
+            LastFinalResult = BattleResultFinalizer.Create(
+                new BattleFinalizationInput(
+                    result,
+                    boss.BossId,
+                    difficultyId,
+                    boss.MaxHp,
+                    context.TurnLimit,
+                    context.CurrentTurn,
+                    damageScoreCollector.DamageScore,
+                    resultBalance));
+            ResultFinalized?.Invoke(LastFinalResult);
         }
     }
 }

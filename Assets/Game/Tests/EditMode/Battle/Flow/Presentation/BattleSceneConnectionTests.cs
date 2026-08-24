@@ -6,7 +6,10 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Flow.Presentation;
+using ValorChronicle.Battle.Results;
+using ValorChronicle.Core.Scene;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.UI.Navigation;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 {
@@ -48,6 +51,15 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     Object.FindObjectsByType<BattleSceneCombatBootstrap>(
                         FindObjectsInactive.Exclude,
                         FindObjectsSortMode.None);
+                BattleResultPresentationController[] resultControllers =
+                    Object.FindObjectsByType<
+                        BattleResultPresentationController>(
+                            FindObjectsInactive.Include,
+                            FindObjectsSortMode.None);
+                BattleResultView[] resultViews =
+                    Object.FindObjectsByType<BattleResultView>(
+                        FindObjectsInactive.Include,
+                        FindObjectsSortMode.None);
                 BattleCombatPresentationController[]
                     combatPresentationControllers =
                         Object.FindObjectsByType<
@@ -68,6 +80,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Assert.That(debugPanels, Is.Empty);
                 Assert.That(hudControllers, Has.Length.EqualTo(1));
                 Assert.That(combatBootstraps, Has.Length.EqualTo(1));
+                Assert.That(resultControllers, Has.Length.EqualTo(1));
+                Assert.That(resultViews, Has.Length.EqualTo(1));
                 Assert.That(combatPresentationControllers,
                     Has.Length.EqualTo(1));
                 Assert.That(projectilePools, Has.Length.EqualTo(1));
@@ -78,6 +92,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 BattleHudController hudController = hudControllers[0];
                 BattleSceneCombatBootstrap combatBootstrap =
                     combatBootstraps[0];
+                BattleResultPresentationController resultController =
+                    resultControllers[0];
+                BattleResultView resultView = resultViews[0];
                 BattleCombatPresentationController combatPresentation =
                     combatPresentationControllers[0];
                 AttackProjectilePool projectilePool = projectilePools[0];
@@ -89,6 +106,11 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Assert.That(combatBootstrap.gameObject,
                     Is.SameAs(flowController.gameObject));
                 Assert.That(IsBelowSafeArea(hudController.transform), Is.True);
+                AssertResultPresentation(
+                    resultController,
+                    resultView,
+                    hudController,
+                    combatBootstrap);
 
                 var flowObject = new SerializedObject(flowController);
                 Assert.That(
@@ -170,6 +192,11 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     bootstrapObject.FindProperty("battleFlowController")
                         .objectReferenceValue,
                     Is.SameAs(flowController));
+                Assert.That(
+                    bootstrapObject.FindProperty(
+                        "resultPresentationController")
+                        .objectReferenceValue,
+                    Is.SameAs(resultController));
                 BossDefinition fallbackBoss = bootstrapObject.FindProperty(
                     "fallbackBossDefinition").objectReferenceValue
                     as BossDefinition;
@@ -185,6 +212,16 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     Is.EqualTo("character_marea_bluefang"));
                 Assert.That(fallbackMarea.Element,
                     Is.EqualTo(ElementType.Water));
+                BattleResultBalanceDefinition fallbackResultBalance =
+                    bootstrapObject.FindProperty(
+                        "fallbackResultBalanceDefinition")
+                        .objectReferenceValue
+                        as BattleResultBalanceDefinition;
+                Assert.That(fallbackResultBalance, Is.Not.Null);
+                Assert.That(
+                    fallbackResultBalance.TryValidate(out string error),
+                    Is.True,
+                    error);
                 Assert.That(
                     bootstrapObject.FindProperty("developmentMareaLevel")
                         .intValue,
@@ -390,6 +427,74 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     Is.True,
                     $"Party status slot {index} is incomplete.");
             }
+        }
+
+        private static void AssertResultPresentation(
+            BattleResultPresentationController controller,
+            BattleResultView view,
+            BattleHudController hudController,
+            BattleSceneCombatBootstrap combatBootstrap)
+        {
+            Assert.That(controller.gameObject,
+                Is.SameAs(combatBootstrap.gameObject));
+            Assert.That(controller.ResultView, Is.SameAs(view));
+            Assert.That(controller.BattleHudController,
+                Is.SameAs(hudController));
+            Assert.That(view.gameObject, Is.SameAs(hudController.ResultOverlay));
+            Assert.That(view.gameObject.activeSelf, Is.False);
+            Assert.That(view.IsConfigured, Is.True);
+            Assert.That(view.BestScoreText.name, Is.EqualTo("BestScoreText"));
+            Assert.That(view.BestScoreIcon.name, Is.EqualTo("BestScoreIcon"));
+            Assert.That(view.ResultText.name, Is.EqualTo("ResultText"));
+            Assert.That(view.TurnText.name, Is.EqualTo("TurnText"));
+            Assert.That(view.DamageScoreText.name,
+                Is.EqualTo("DamageScoreText"));
+            Assert.That(view.TurnLeftScoreText.name,
+                Is.EqualTo("TurnLeftScoreText"));
+            Assert.That(view.ScoreGrade.name, Is.EqualTo("ScoreGrade"));
+            Assert.That(view.RewardText.name, Is.EqualTo("RewardText"));
+            Assert.That(view.InitialRewardText.name,
+                Is.EqualTo("InitialRewardText"));
+
+            BattleGrade[] grades =
+            {
+                BattleGrade.C,
+                BattleGrade.B,
+                BattleGrade.A,
+                BattleGrade.S,
+                BattleGrade.SS,
+                BattleGrade.SSS
+            };
+            string[] names = { "C", "B", "A", "S", "SS", "SSS" };
+            for (int index = 0; index < grades.Length; index++)
+            {
+                Assert.That(view.GetGradeSprite(grades[index]), Is.Not.Null);
+                Assert.That(view.GetGradeSprite(grades[index]).name,
+                    Does.StartWith(names[index]));
+            }
+
+            Assert.That(view.GetGradeSprite(BattleGrade.BelowC), Is.Null);
+            Transform firstGradeHead = view.transform.Find(
+                "InitialClearBonusHead");
+            Assert.That(firstGradeHead, Is.Not.Null);
+            Assert.That(firstGradeHead.GetComponent<TMPro.TMP_Text>().text,
+                Is.EqualTo("First Grade Bonus"));
+
+            Transform exitTransform = view.transform.Find("ExitButton");
+            Assert.That(exitTransform, Is.Not.Null);
+            Button exitButton = exitTransform.GetComponent<Button>();
+            Assert.That(exitButton, Is.Not.Null);
+            Assert.That(exitButton.onClick.GetPersistentEventCount(), Is.Zero);
+            Assert.That(
+                exitTransform.GetComponents<SceneNavigationButton>(),
+                Has.Length.EqualTo(1));
+            SceneNavigationButton navigation =
+                exitTransform.GetComponent<SceneNavigationButton>();
+            Assert.That(navigation, Is.Not.Null);
+            var navigationObject = new SerializedObject(navigation);
+            Assert.That(
+                navigationObject.FindProperty("destination").enumValueIndex,
+                Is.EqualTo((int)GameScene.Main));
         }
 
         private static void AssertHpFillHasNoHorizontalInset(Slider slider)

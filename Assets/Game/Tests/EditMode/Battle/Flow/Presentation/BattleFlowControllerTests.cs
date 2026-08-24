@@ -17,6 +17,7 @@ using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
+using ValorChronicle.Battle.Results;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
 
@@ -426,7 +427,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 "active_hero", 0, ElementType.Fire, 1000, 100d);
             var boss = new BossBattleState(
                 "boss", ElementType.Fire, 100, 0d);
-            BattleFlowCombatBridge bridge = AttachActiveCombatBridge(
+            BattleFlowCombatBridge bridge = AttachActiveResultCombatBridge(
                 new PartyBattleState(new[] { character }),
                 boss,
                 new DelegateActiveActionProvider(context =>
@@ -452,15 +453,15 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(presenter.Requests, Has.Count.EqualTo(1));
             Assert.That(bridge.LastActiveExecutionResult.StoppedEarly,
                 Is.True);
+            Assert.That(bridge.LastFinalResult, Is.Not.Null);
+            Assert.That(bridge.LastFinalResult.EndReason,
+                Is.EqualTo(BattleResultKind.Victory));
+            Assert.That(bridge.LastFinalResult.DamageScore,
+                Is.EqualTo(100L));
             Assert.That(hud.ResultOverlay.activeSelf, Is.False);
             Assert.That(flowController.IsResolvingActivePresentation,
                 Is.False);
             AssertResultInputLocked();
-
-            yield return WaitUntil(
-                () => hud.ResultOverlay.activeSelf,
-                "Active victory overlay did not appear after its delay.",
-                maximumFrames: 120);
         }
 
         [Test]
@@ -1089,7 +1090,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     "fire", 0, ElementType.Fire, 1000, 100d)
             });
             var boss = new BossBattleState(
-                "boss", ElementType.Fire, 1000, 0d);
+                "boss", ElementType.Fire, 1005, 0d);
             var bossProvider = new ControllerBossDamageActionProvider(1);
             AttachCombatBridge(
                 party,
@@ -1109,21 +1110,29 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 
             Assert.That(matchExecutionCount, Is.EqualTo(2));
             Assert.That(boss.CurrentHp, Is.EqualTo(900));
+            Assert.That(boss.MaxHp - boss.CurrentHp, Is.EqualTo(105));
             Assert.That(party.CurrentHp, Is.EqualTo(1000));
             Assert.That(flowController.Context.Phase,
                 Is.EqualTo(BattlePhase.MatchEventResolving));
             Assert.That(bossStartedCount, Is.Zero);
+            Assert.That(bossProvider.CallCount, Is.Zero);
             Assert.That(boardController.IsExternalInputEnabled, Is.False);
             Assert.That(boardController.CanAcceptBoardInput, Is.False);
             Assert.That(flowController.CanUseActive(0), Is.False);
             Assert.That(notUsersTurnPanel.activeSelf, Is.True);
 
             yield return WaitUntil(
-                () => bossStartedCount == 1 && party.CurrentHp < 1000,
-                "The delayed Boss action did not progress.",
+                () => bossStartedCount == 1
+                    && bossProvider.CallCount == 1
+                    && flowController.Context.CurrentTurn == 2
+                    && flowController.Context.Phase
+                        == BattlePhase.PlayerInput,
+                "The delayed Boss action did not complete the turn.",
                 maximumFrames: 120);
 
             Assert.That(bossStartedCount, Is.EqualTo(1));
+            Assert.That(bossProvider.CallCount, Is.EqualTo(1));
+            Assert.That(party.CurrentHp, Is.EqualTo(1000));
         }
 
         [UnityTest]
@@ -2002,7 +2011,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         }
 
         [UnityTest]
-        public IEnumerator LethalVictoryRefreshesHpThenDelaysResultOverlay()
+        public IEnumerator LethalVictoryRefreshesHpWithoutUnpersistedOverlay()
         {
             InitializeStarted(new[] { 3 });
             var party = new PartyBattleState(new[]
@@ -2028,28 +2037,17 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(hud.BossHpSlider.value, Is.Zero);
             Assert.That(hud.ResultOverlay.activeSelf, Is.False);
             AssertResultInputLocked();
-            Coroutine pending = GetField<Coroutine>(
-                hud,
-                "resultOverlayCoroutine");
-            Assert.That(pending, Is.Not.Null);
-
             hud.RefreshInitialSnapshot();
             InvokePrivate(
                 hud,
                 "HandleResultReached",
                 BattleResultKind.Victory);
-            Assert.That(GetField<Coroutine>(
-                hud,
-                "resultOverlayCoroutine"), Is.SameAs(pending));
-
-            yield return WaitUntil(
-                () => hud.ResultOverlay.activeSelf,
-                "Victory overlay did not appear after its delay.",
-                maximumFrames: 120);
+            yield return new WaitForSeconds(0.08f);
+            Assert.That(hud.ResultOverlay.activeSelf, Is.False);
         }
 
         [UnityTest]
-        public IEnumerator DefeatUsesTheSharedResultOverlayDelay()
+        public IEnumerator DefeatDoesNotPresentUnpersistedResultOverlay()
         {
             InitializeStarted(new[] { 3 });
             AttachResultPresentationBridge();
@@ -2064,14 +2062,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(hud.ResultOverlay.activeSelf, Is.False);
             AssertResultInputLocked();
 
-            yield return WaitUntil(
-                () => hud.ResultOverlay.activeSelf,
-                "Defeat overlay did not appear after its delay.",
-                maximumFrames: 120);
+            yield return new WaitForSeconds(0.08f);
+            Assert.That(hud.ResultOverlay.activeSelf, Is.False);
         }
 
         [UnityTest]
-        public IEnumerator TurnLimitUsesTheSharedResultOverlayDelay()
+        public IEnumerator TurnLimitDoesNotPresentUnpersistedResultOverlay()
         {
             InitializeStarted(new[] { 3 }, turnLimit: 1);
             AttachResultPresentationBridge();
@@ -2095,33 +2091,32 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(hud.ResultOverlay.activeSelf, Is.False);
             AssertResultInputLocked();
 
-            yield return WaitUntil(
-                () => hud.ResultOverlay.activeSelf,
-                "Turn-limit overlay did not appear after its delay.",
-                maximumFrames: 120);
+            yield return new WaitForSeconds(0.08f);
+            Assert.That(hud.ResultOverlay.activeSelf, Is.False);
         }
 
         [Test]
-        public void AbortedResultBypassesOverlayDelayAndCoroutine()
+        public void AbortedResultDoesNotPresentResultOverlay()
         {
             InitializeStarted(new[] { 3 });
-            AttachResultPresentationBridge();
+            BattleFlowCombatBridge bridge =
+                AttachResultPresentationBridge();
+            int finalizedCount = 0;
+            bridge.ResultFinalized += _ => finalizedCount++;
             BattleHudController hud = CreateResultHud(10f);
 
             Assert.That(flowController.AbortBattle(), Is.True);
 
             Assert.That(flowController.Context.Result,
                 Is.EqualTo(BattleResultKind.Aborted));
-            Assert.That(hud.ResultOverlay.activeSelf, Is.True);
-            Assert.That(hud.ResultText.text, Is.EqualTo("Battle Aborted"));
-            Assert.That(GetField<Coroutine>(
-                hud,
-                "resultOverlayCoroutine"), Is.Null);
+            Assert.That(bridge.LastFinalResult, Is.Null);
+            Assert.That(finalizedCount, Is.Zero);
+            Assert.That(hud.ResultOverlay.activeSelf, Is.False);
             AssertResultInputLocked();
         }
 
         [UnityTest]
-        public IEnumerator DisableCancelsPendingResultOverlayActivation()
+        public IEnumerator DisableKeepsResultOverlayInactive()
         {
             InitializeStarted(new[] { 3 });
             AttachResultPresentationBridge();
@@ -2130,17 +2125,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Coordinator.NotifyBossDefeated(),
                 Is.True);
             Assert.That(hud.ResultOverlay.activeSelf, Is.False);
-            Assert.That(GetField<Coroutine>(
-                hud,
-                "resultOverlayCoroutine"), Is.Not.Null);
-
             hud.gameObject.SetActive(false);
             yield return new WaitForSeconds(0.08f);
 
             Assert.That(hud.ResultOverlay.activeSelf, Is.False);
-            Assert.That(GetField<Coroutine>(
-                hud,
-                "resultOverlayCoroutine"), Is.Null);
         }
 
         [UnityTest]
@@ -2422,11 +2410,26 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 new CharacterBattleState(
                     "hero", 0, ElementType.Water, 1000, 0d)
             });
-            return AttachCombatBridge(
+            var boss = new BossBattleState(
+                "boss", ElementType.Fire, 1000, 0d);
+            var bridge = new BattleFlowCombatBridge(
+                flowController.Coordinator,
                 party,
-                new BossBattleState(
-                    "boss", ElementType.Fire, 1000, 0d),
-                new ControllerResourceActionProvider());
+                boss,
+                new CombatActionExecutor(
+                    boss,
+                    party,
+                    new DamageContextFactory(new SeededRandomSource(1))),
+                new ControllerResourceActionProvider(),
+                new ControllerBossActionProvider(),
+                new CombatActionIdSequence(),
+                Array.Empty<ActiveAbilityBinding>(),
+                new ActiveAbilityActionProviderRegistry(),
+                boardMutationSink: null,
+                BattleDifficultyIds.Normal,
+                BattleResultBalanceDefaults.Create());
+            flowController.AttachCombatBridge(bridge);
+            return bridge;
         }
 
         private BattleHudController CreateResultHud(float delaySeconds)
@@ -2735,6 +2738,34 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             BossBattleState boss,
             params IActiveAbilityActionProvider[] providers)
         {
+            return AttachActiveCombatBridge(
+                party,
+                boss,
+                difficultyId: null,
+                resultBalance: null,
+                providers);
+        }
+
+        private BattleFlowCombatBridge AttachActiveResultCombatBridge(
+            PartyBattleState party,
+            BossBattleState boss,
+            params IActiveAbilityActionProvider[] providers)
+        {
+            return AttachActiveCombatBridge(
+                party,
+                boss,
+                BattleDifficultyIds.Normal,
+                BattleResultBalanceDefaults.Create(),
+                providers);
+        }
+
+        private BattleFlowCombatBridge AttachActiveCombatBridge(
+            PartyBattleState party,
+            BossBattleState boss,
+            string difficultyId,
+            BattleResultBalance resultBalance,
+            params IActiveAbilityActionProvider[] providers)
+        {
             Assert.That(providers, Has.Length.EqualTo(
                 flowController.Context.ActiveAbilities.Count));
             Assert.That(party.Characters.Count,
@@ -2768,7 +2799,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 new ControllerBossActionProvider(),
                 actionIds,
                 bindings,
-                registry);
+                registry,
+                boardMutationSink: null,
+                difficultyId,
+                resultBalance);
             flowController.AttachCombatBridge(bridge);
             return bridge;
         }
@@ -2968,6 +3002,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         {
             private readonly int actionCount;
 
+            public int CallCount { get; private set; }
+
             public ControllerBossDamageActionProvider(int actionCount)
             {
                 if (actionCount <= 0)
@@ -2981,6 +3017,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             public IReadOnlyList<CombatAction> CreateRootActions(
                 BossCombatActionContext context)
             {
+                CallCount++;
                 var actions = new CombatAction[actionCount];
                 for (int index = 0; index < actions.Length; index++)
                 {

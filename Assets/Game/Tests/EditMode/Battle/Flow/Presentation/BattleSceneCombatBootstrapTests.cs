@@ -8,6 +8,7 @@ using UnityEngine.TestTools;
 using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
+using ValorChronicle.Battle.Results;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Data.Definitions;
@@ -88,6 +89,13 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 combatBootstrap,
                 "fallbackMareaDefinition",
                 mareaDefinition);
+            BattleResultBalanceDefinition resultBalance =
+                CreateResultBalanceDefinition();
+            createdObjects.Add(resultBalance);
+            SetField(
+                combatBootstrap,
+                "fallbackResultBalanceDefinition",
+                resultBalance);
         }
 
         [TearDown]
@@ -159,6 +167,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Has.Count.EqualTo(1));
             Assert.That(composition.WaterElement.MaxAmount, Is.EqualTo(5));
             Assert.That(composition.WaterElement.CurrentAmount, Is.Zero);
+            Assert.That(composition.ResultBalance.RemainingTurnBonusRate,
+                Is.EqualTo(0.30m));
             Assert.That(
                 composition.KragmorConfig,
                 Is.SameAs(((BossDefinition)GetField(
@@ -293,6 +303,41 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Context, Is.Null);
         }
 
+        [Test]
+        public void MissingResultBalanceDoesNotInitialize()
+        {
+            SetField(
+                combatBootstrap,
+                "fallbackResultBalanceDefinition",
+                null);
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex("No BattleResultBalanceDefinition is available"));
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            Assert.That(combatBootstrap.HasInitializedCombat, Is.False);
+            Assert.That(flowController.Context, Is.Null);
+        }
+
+        [Test]
+        public void InvalidResultBalanceDoesNotInitialize()
+        {
+            BattleResultBalanceDefinition definition =
+                (BattleResultBalanceDefinition)GetField(
+                    combatBootstrap,
+                    "fallbackResultBalanceDefinition");
+            SetField(definition, "remainingTurnBonusPercent", 29);
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex("Battle result balance is invalid"));
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            Assert.That(combatBootstrap.HasInitializedCombat, Is.False);
+            Assert.That(flowController.Context, Is.Null);
+        }
+
         private static object InvokePrivate(
             object target,
             string methodName)
@@ -302,6 +347,32 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 BindingFlags.Instance | BindingFlags.NonPublic).Invoke(
                 target,
                 null);
+        }
+
+        private static BattleResultBalanceDefinition
+            CreateResultBalanceDefinition()
+        {
+            BattleResultBalanceDefinition definition =
+                ScriptableObject.CreateInstance<
+                    BattleResultBalanceDefinition>();
+            SetField(
+                definition,
+                "remainingTurnBonusPercent",
+                BattleResultBalanceDefaults.RemainingTurnBonusPercent);
+            SetField(
+                definition,
+                "gradeThresholds",
+                BattleResultBalanceDefaults.CreateGradeThresholds());
+            SetField(
+                definition,
+                "firstGradeRewards",
+                BattleResultBalanceDefaults.CreateFirstGradeRewards());
+            SetField(
+                definition,
+                "difficultyRepeatRewards",
+                BattleResultBalanceDefaults
+                    .CreateDifficultyRepeatRewards());
+            return definition;
         }
 
         private static void SetField(

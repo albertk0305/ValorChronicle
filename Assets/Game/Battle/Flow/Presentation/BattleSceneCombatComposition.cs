@@ -5,15 +5,18 @@ using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Damage;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
+using ValorChronicle.Battle.Results;
+using ValorChronicle.Battle.Results.Persistence;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Characters.Stats;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Save.Services;
 
 namespace ValorChronicle.Battle.Flow.Presentation
 {
-    public sealed class BattleSceneCombatComposition
+    public sealed class BattleSceneCombatComposition : IDisposable
     {
         private readonly IReadOnlyList<ActiveAbilityBinding> activeBindings;
 
@@ -24,7 +27,31 @@ namespace ValorChronicle.Battle.Flow.Presentation
             BossDefinition bossDefinition,
             KragmorCombatConfig kragmorConfig,
             BossDifficultyStats bossDifficultyStats,
-            IRandomSource randomSource)
+            IRandomSource randomSource,
+            BattleResultBalance resultBalance)
+            : this(
+                mareaDefinition,
+                mareaConfig,
+                mareaLevel,
+                bossDefinition,
+                kragmorConfig,
+                bossDifficultyStats,
+                randomSource,
+                resultBalance,
+                saveService: null)
+        {
+        }
+
+        public BattleSceneCombatComposition(
+            CharacterDefinition mareaDefinition,
+            MareaBluefangCombatConfig mareaConfig,
+            int mareaLevel,
+            BossDefinition bossDefinition,
+            KragmorCombatConfig kragmorConfig,
+            BossDifficultyStats bossDifficultyStats,
+            IRandomSource randomSource,
+            BattleResultBalance resultBalance,
+            SaveService saveService)
         {
             if (mareaDefinition == null)
             {
@@ -100,6 +127,18 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 throw new ArgumentNullException(nameof(randomSource));
             }
 
+            if (resultBalance == null)
+            {
+                throw new ArgumentNullException(nameof(resultBalance));
+            }
+
+            BattleResultBalanceValidator.ValidateOrThrow(resultBalance);
+            if (saveService != null)
+            {
+                ResultPersistenceService =
+                    new BattleResultPersistenceService(saveService);
+            }
+
             Marea = CharacterBattleStateFactory.Create(
                 mareaDefinition,
                 mareaLevel,
@@ -109,6 +148,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 bossDefinition.Element,
                 bossDifficultyStats.MaxHp,
                 bossDifficultyStats.Attack);
+            DifficultyId = bossDifficultyStats.DifficultyId;
+            ResultBalance = resultBalance;
             MareaConfig = mareaConfig;
             WaterElement = WaterElementResource.Register(
                 Boss.Resources,
@@ -153,6 +194,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         }
 
         public BattleFlowSetup FlowSetup { get; }
+        public string DifficultyId { get; }
+        public BattleResultBalance ResultBalance { get; }
         public CharacterBattleState Marea { get; }
         public MareaBluefangCombatConfig MareaConfig { get; }
         public KragmorCombatConfig KragmorConfig { get; }
@@ -173,6 +216,15 @@ namespace ValorChronicle.Battle.Flow.Presentation
         public IReadOnlyList<ActiveAbilityBinding> ActiveBindings =>
             activeBindings;
         public BattleFlowCombatBridge Bridge { get; private set; }
+        public BattleResultPersistenceService ResultPersistenceService
+        {
+            get;
+        }
+        public BattleResultPersistenceCoordinator ResultPersistenceCoordinator
+        {
+            get;
+            private set;
+        }
 
         public BattleFlowCombatBridge CreateBridge(
             BattleFlowCoordinator coordinator)
@@ -205,8 +257,23 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 ActionIds,
                 activeBindings,
                 ActiveProviders,
-                boardMutationSink);
+                boardMutationSink,
+                DifficultyId,
+                ResultBalance);
+            if (ResultPersistenceService != null)
+            {
+                ResultPersistenceCoordinator =
+                    new BattleResultPersistenceCoordinator(
+                        Bridge,
+                        ResultPersistenceService);
+            }
+
             return Bridge;
+        }
+
+        public void Dispose()
+        {
+            ResultPersistenceCoordinator?.Dispose();
         }
     }
 }

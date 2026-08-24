@@ -21,10 +21,18 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private BattleFlowController battleFlowController = null;
 
         [SerializeField]
+        private BattleResultPresentationController
+            resultPresentationController = null;
+
+        [SerializeField]
         private BossDefinition fallbackBossDefinition = null;
 
         [SerializeField]
         private CharacterDefinition fallbackMareaDefinition = null;
+
+        [SerializeField]
+        private BattleResultBalanceDefinition
+            fallbackResultBalanceDefinition = null;
 
         [SerializeField, Min(1)]
         private int developmentMareaLevel = 1;
@@ -51,6 +59,11 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private void Awake()
         {
             InitializeFlowOnce();
+        }
+
+        private void OnDestroy()
+        {
+            CombatComposition?.Dispose();
         }
 
         private void InitializeFlowOnce()
@@ -149,11 +162,33 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
+            BattleResultBalanceDefinition selectedResultBalance =
+                ResolveResultBalanceDefinition();
+            if (selectedResultBalance == null)
+            {
+                GameLogger.Error(
+                    "[BattleSceneCombatBootstrap] No "
+                        + "BattleResultBalanceDefinition is available.",
+                    this);
+                return;
+            }
+
+            if (!selectedResultBalance.TryValidate(
+                out string resultBalanceError))
+            {
+                GameLogger.Error(
+                    "[BattleSceneCombatBootstrap] Battle result balance "
+                        + $"is invalid. {resultBalanceError}",
+                    this);
+                return;
+            }
+
             try
             {
                 IRandomSource randomSource =
                     GameBootstrapper.Instance?.RandomSource
                     ?? new UnityRandomSource();
+                var saveService = GameBootstrapper.Instance?.SaveService;
                 CombatComposition = new BattleSceneCombatComposition(
                     selectedMarea,
                     selectedMareaConfig,
@@ -161,12 +196,21 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     selectedBoss,
                     selectedKragmorConfig,
                     selectedDifficulty,
-                    randomSource);
+                    randomSource,
+                    selectedResultBalance.CreateBalance(),
+                    saveService);
                 battleFlowController.Initialize(
                     CombatComposition.FlowSetup,
                     coordinator => CombatComposition.CreateBridge(
                         coordinator,
                         battleFlowController.BoardMutationSink));
+                if (CombatComposition.ResultPersistenceCoordinator != null
+                    && resultPresentationController != null)
+                {
+                    resultPresentationController.Initialize(
+                        CombatComposition.ResultPersistenceCoordinator);
+                }
+
                 HasInitializedFlow = true;
             }
             catch (Exception exception)
@@ -207,6 +251,20 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
 
             return fallbackMareaDefinition;
+        }
+
+        private BattleResultBalanceDefinition
+            ResolveResultBalanceDefinition()
+        {
+            DefinitionDatabase database = DefinitionDatabase;
+            if (database != null
+                && database.IsInitialized
+                && database.BattleResultBalance != null)
+            {
+                return database.BattleResultBalance;
+            }
+
+            return fallbackResultBalanceDefinition;
         }
 
         private static DefinitionDatabase

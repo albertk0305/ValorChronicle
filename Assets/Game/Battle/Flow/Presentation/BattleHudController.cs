@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using TMPro;
@@ -97,6 +96,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private UnityAction[] activeButtonListeners =
             Array.Empty<UnityAction>();
         private bool safeDisplayInitialized;
+        private bool resultHudFrozen;
         private int displayedFinalComboCount;
         private bool partyShieldLayoutCached;
         private float partyShieldFullWidth;
@@ -104,11 +104,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private float partyShieldPivotX;
         private Sprite defaultBossSprite;
         private bool defaultBossSpriteCached;
-        private Coroutine resultOverlayCoroutine;
-        private int resultOverlayPresentationVersion;
-        private BattleResultKind pendingResultOverlay;
-        private BattleResultKind displayedResultOverlay;
-
         public BattleFlowController BattleFlowController =>
             battleFlowController;
         public BattleSceneCombatBootstrap BattleSceneCombatBootstrap =>
@@ -121,6 +116,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
         public TMP_Text ScoreText => scoreText;
         public GameObject ResultOverlay => resultOverlay;
         public TMP_Text ResultText => resultText;
+        public float ResultOverlayDelaySeconds => resultOverlayDelaySeconds;
         public Image BossImage => bossImage;
         public Sprite ResourceFallbackIcon => resourceFallbackIcon;
         public Slider BossHpSlider => bossHpSlider;
@@ -317,13 +313,22 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
+            resultHudFrozen = IsNormalTerminalResult(
+                battleFlowController?.Context?.Result
+                ?? BattleResultKind.None);
+            if (resultHudFrozen)
+            {
+                RefreshCombatState();
+                RefreshActiveAvailability();
+                return;
+            }
+
             RefreshTurnAndPhase();
             RefreshScorePlaceholder();
             RefreshCombatState();
             RefreshBossIntent();
             RefreshCombo();
             RefreshMatchQueue();
-            RefreshResult();
             RefreshActiveAvailability();
             RefreshStatusSnapshot();
         }
@@ -369,6 +374,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
             subscribedCoordinator = coordinator;
             subscribedBridge = bridge;
             subscribedFlowController = battleFlowController;
+            resultHudFrozen = IsNormalTerminalResult(
+                battleFlowController.Context.Result);
             subscribedFlowController
                 .ReconcilePresentationMatchQueueForCurrentRuntime();
             RefreshInitialSnapshot();
@@ -377,7 +384,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void DisconnectRuntime()
         {
-            CancelResultOverlayPresentation();
             if (subscribedCoordinator != null)
             {
                 subscribedCoordinator.PhaseChanged -= HandlePhaseChanged;
@@ -533,6 +539,18 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void HandlePhaseChanged(BattlePhase phase)
         {
+            if (phase == BattlePhase.Result
+                && IsNormalTerminalResult(
+                    battleFlowController?.Context?.Result
+                    ?? BattleResultKind.None))
+            {
+                resultHudFrozen = true;
+                RefreshCombatState();
+                RefreshActiveAvailability();
+                return;
+            }
+
+            resultHudFrozen = false;
             if (phase == BattlePhase.TurnStart)
             {
                 displayedFinalComboCount = 0;
@@ -569,11 +587,19 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void HandleResultReached(BattleResultKind result)
         {
+            if (IsNormalTerminalResult(result))
+            {
+                resultHudFrozen = true;
+                RefreshCombatState();
+                RefreshActiveAvailability();
+                return;
+            }
+
+            resultHudFrozen = false;
             RefreshCombatState();
             RefreshBossIntent();
             RefreshCombo();
             RefreshMatchQueue();
-            RefreshResult();
             RefreshActiveAvailability();
             RefreshStatusSnapshot();
         }
@@ -617,12 +643,29 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void HandleActivePresentationStateChanged()
         {
+            if (resultHudFrozen)
+            {
+                return;
+            }
+
             RefreshActiveAvailability();
         }
 
         private void HandlePresentationMatchQueueChanged()
         {
+            if (resultHudFrozen)
+            {
+                return;
+            }
+
             RefreshMatchQueue();
+        }
+
+        private static bool IsNormalTerminalResult(BattleResultKind result)
+        {
+            return result == BattleResultKind.Victory
+                || result == BattleResultKind.Defeat
+                || result == BattleResultKind.TurnLimitReached;
         }
 
         private void RefreshTurnAndPhase()
@@ -822,123 +865,11 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
         }
 
-        private void RefreshResult()
-        {
-            BattleResultKind result = subscribedCoordinator?.Context.Result
-                ?? BattleResultKind.None;
-            if (result == BattleResultKind.None)
-            {
-                CancelResultOverlayPresentation();
-                return;
-            }
-
-            if (displayedResultOverlay == result
-                && resultOverlay != null
-                && resultOverlay.activeSelf)
-            {
-                return;
-            }
-
-            if (pendingResultOverlay == result
-                && resultOverlayCoroutine != null)
-            {
-                return;
-            }
-
-            BeginResultOverlayPresentation(result);
-        }
-
-        private void BeginResultOverlayPresentation(BattleResultKind result)
-        {
-            CancelResultOverlayPresentation();
-            pendingResultOverlay = result;
-            int version = ++resultOverlayPresentationVersion;
-            if (result == BattleResultKind.Aborted
-                || resultOverlayDelaySeconds <= 0f)
-            {
-                ShowResultOverlay(result, version);
-                return;
-            }
-
-            if (!isActiveAndEnabled)
-            {
-                return;
-            }
-
-            resultOverlayCoroutine = StartCoroutine(
-                ShowResultOverlayAfterDelay(result, version));
-        }
-
-        private IEnumerator ShowResultOverlayAfterDelay(
-            BattleResultKind result,
-            int version)
-        {
-            yield return new WaitForSeconds(resultOverlayDelaySeconds);
-            ShowResultOverlay(result, version);
-        }
-
-        private void ShowResultOverlay(
-            BattleResultKind result,
-            int version)
-        {
-            if (version != resultOverlayPresentationVersion
-                || subscribedCoordinator == null
-                || subscribedCoordinator.Context.Result != result)
-            {
-                return;
-            }
-
-            resultOverlayCoroutine = null;
-            pendingResultOverlay = BattleResultKind.None;
-            displayedResultOverlay = result;
-            if (resultText != null)
-            {
-                resultText.text = GetResultDisplayText(result);
-            }
-
-            SetActive(resultOverlay, true);
-        }
-
-        private void CancelResultOverlayPresentation()
-        {
-            resultOverlayPresentationVersion++;
-            if (resultOverlayCoroutine != null)
-            {
-                StopCoroutine(resultOverlayCoroutine);
-                resultOverlayCoroutine = null;
-            }
-
-            pendingResultOverlay = BattleResultKind.None;
-            displayedResultOverlay = BattleResultKind.None;
-            SetActive(resultOverlay, false);
-            ClearText(resultText);
-        }
-
         private void RefreshScorePlaceholder()
         {
             if (scoreText != null)
             {
                 scoreText.text = "Score --";
-            }
-        }
-
-        private static string GetResultDisplayText(BattleResultKind result)
-        {
-            switch (result)
-            {
-                case BattleResultKind.Victory:
-                    return "Victory";
-                case BattleResultKind.Defeat:
-                    return "Defeat";
-                case BattleResultKind.TurnLimitReached:
-                    return "Turn Limit Reached";
-                case BattleResultKind.Aborted:
-                    return "Battle Aborted";
-                default:
-                    throw new ArgumentOutOfRangeException(
-                        nameof(result),
-                        result,
-                        "Unsupported terminal battle result.");
             }
         }
 

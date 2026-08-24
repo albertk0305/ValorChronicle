@@ -15,6 +15,7 @@ using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
+using ValorChronicle.Battle.Results;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Random;
@@ -208,15 +209,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(emptySlot.ActiveButton.interactable, Is.False);
         }
 
-        [TestCase(BattleResultKind.Victory, "Victory")]
-        [TestCase(BattleResultKind.Defeat, "Defeat")]
-        [TestCase(
-            BattleResultKind.TurnLimitReached,
-            "Turn Limit Reached")]
-        [TestCase(BattleResultKind.Aborted, "Battle Aborted")]
-        public void ResultOverlayUsesRuntimeResult(
-            BattleResultKind result,
-            string expectedText)
+        [TestCase(BattleResultKind.Victory)]
+        [TestCase(BattleResultKind.Defeat)]
+        [TestCase(BattleResultKind.TurnLimitReached)]
+        [TestCase(BattleResultKind.Aborted)]
+        public void ResultReachedDoesNotPresentUnpersistedResult(
+            BattleResultKind result)
         {
             InvokePrivate(hudController, "OnEnable");
             InitializeCombat(turnLimit: 1);
@@ -227,23 +225,107 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             ReachResult(result);
 
             Assert.That(flowController.Context.Result, Is.EqualTo(result));
-            Assert.That(hudController.ResultOverlay.activeSelf, Is.True);
-            Assert.That(hudController.ResultText.text,
-                Is.EqualTo(expectedText));
+            Assert.That(hudController.ResultOverlay.activeSelf, Is.False);
+            Assert.That(hudController.ResultText.text, Is.Empty);
             Assert.That(hudController.ScoreText.text, Is.EqualTo("Score --"));
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
             Assert.That(boardController.IsExternalInputEnabled, Is.False);
 
             InvokePrivate(hudController, "OnDisable");
             InvokePrivate(hudController, "OnEnable");
-            Assert.That(hudController.ResultOverlay.activeSelf, Is.True);
-            Assert.That(hudController.ResultText.text,
-                Is.EqualTo(expectedText));
+            Assert.That(hudController.ResultOverlay.activeSelf, Is.False);
+            Assert.That(hudController.ResultText.text, Is.Empty);
             AssertSingleHudSubscription(flowController.Coordinator);
         }
 
+        [TestCase(BattleResultKind.Victory)]
+        [TestCase(BattleResultKind.Defeat)]
+        [TestCase(BattleResultKind.TurnLimitReached)]
+        public void NormalResultPreservesLastRenderedHudWhileInputsStayLocked(
+            BattleResultKind result)
+        {
+            InvokePrivate(hudController, "OnEnable");
+            InitializeCombat(turnLimit: 1);
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+            if (result == BattleResultKind.TurnLimitReached)
+            {
+                CompletePlayerInputAndEnterBossActing();
+            }
+
+            bossIntentSlots[0].Render(genericIntentSprite, 2);
+            matchEventSlots[0].Render(fireSprite, 3);
+            hudController.ComboText.text = "Combo 7";
+            string bossHpBefore = hudController.BossHpText.text;
+            string partyHpBefore = hudController.PartyHpText.text;
+
+            switch (result)
+            {
+                case BattleResultKind.Victory:
+                    Assert.That(
+                        flowController.Coordinator.NotifyBossDefeated(),
+                        Is.True);
+                    break;
+                case BattleResultKind.Defeat:
+                    Assert.That(
+                        flowController.Coordinator.NotifyPartyIncapacitated(),
+                        Is.True);
+                    break;
+                case BattleResultKind.TurnLimitReached:
+                    Assert.That(
+                        flowController.Coordinator.CompleteBossAction(),
+                        Is.True);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(result));
+            }
+
+            Assert.That(flowController.Context.Result, Is.EqualTo(result));
+            Assert.That(bossIntentSlots[0].Root.activeSelf, Is.True);
+            Assert.That(bossIntentSlots[0].RemainingTurnText.text,
+                Is.EqualTo("2"));
+            Assert.That(matchEventSlots[0].Root.activeSelf, Is.True);
+            Assert.That(matchEventSlots[0].BlockCountText.text,
+                Is.EqualTo("3"));
+            Assert.That(hudController.ComboText.text, Is.EqualTo("Combo 7"));
+            Assert.That(hudController.BossHpText.text,
+                Is.EqualTo(bossHpBefore));
+            Assert.That(hudController.PartyHpText.text,
+                Is.EqualTo(partyHpBefore));
+            Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
+            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+            Assert.That(hudController.ResultOverlay.activeSelf, Is.False);
+
+            InvokePrivate(hudController, "OnDisable");
+            InvokePrivate(hudController, "OnEnable");
+            Assert.That(bossIntentSlots[0].Root.activeSelf, Is.True);
+            Assert.That(matchEventSlots[0].Root.activeSelf, Is.True);
+            Assert.That(hudController.ComboText.text, Is.EqualTo("Combo 7"));
+            Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
+            Assert.That(hudController.ResultOverlay.activeSelf, Is.False);
+        }
+
         [Test]
-        public void VictoryHidesIntentAndPendingQueueWithoutHudMutation()
+        public void AbortedKeepsExistingTerminalHudRefreshBehavior()
+        {
+            InvokePrivate(hudController, "OnEnable");
+            InitializeCombat();
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+            bossIntentSlots[0].Render(genericIntentSprite, 2);
+            matchEventSlots[0].Render(fireSprite, 3);
+
+            Assert.That(flowController.Coordinator.AbortBattle(), Is.True);
+
+            Assert.That(bossIntentSlots[0].Root.activeSelf, Is.False);
+            AssertAllMatchSlotsHidden();
+            Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
+            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+            Assert.That(hudController.ResultOverlay.activeSelf, Is.False);
+        }
+
+        [Test]
+        public void VictoryPreservesIntentAndPendingQueuePresentation()
         {
             InvokePrivate(hudController, "OnEnable");
             BattleSceneCombatComposition composition =
@@ -266,13 +348,13 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 
             Assert.That(flowController.Context.Result,
                 Is.EqualTo(BattleResultKind.Victory));
-            Assert.That(bossIntentSlots[0].Root.activeSelf, Is.False);
-            AssertAllMatchSlotsHidden();
+            Assert.That(bossIntentSlots[0].Root.activeSelf, Is.True);
+            Assert.That(matchEventSlots[0].Root.activeSelf, Is.True);
             Assert.That(flowController.Coordinator.PendingMatchEventCount,
                 Is.Zero);
             Assert.That(flowController.MatchQueuePresentation.Count, Is.Zero);
             Assert.That(pendingBefore, Has.Count.EqualTo(3));
-            Assert.That(hudController.ResultOverlay.activeSelf, Is.True);
+            Assert.That(hudController.ResultOverlay.activeSelf, Is.False);
         }
 
         [Test]
@@ -621,6 +703,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             InitializeCombat();
             Assert.That(flowController.Coordinator.StartBattle(), Is.True);
             InvokePrivate(hudController, "Start");
+            root.SetActive(true);
 
             Assert.DoesNotThrow(() => emptySlot.ActiveButton.onClick.Invoke());
             Assert.That(
@@ -678,6 +761,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             InitializeCombat(partySlotIndex: 2, activeAbilityIndex: 1);
             Assert.That(flowController.Coordinator.StartBattle(), Is.True);
             InvokePrivate(hudController, "Start");
+            root.SetActive(true);
 
             Assert.That(characterSlots[0].ActiveButton.interactable, Is.False);
             Assert.That(characterSlots[2].ActiveButton.interactable, Is.True);
@@ -806,6 +890,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             InitializeCombat();
             Assert.That(flowController.Coordinator.StartBattle(), Is.True);
             InvokePrivate(hudController, "Start");
+            root.SetActive(true);
             Color baseColor = occupiedSlot.CharacterImage.color;
 
             occupiedSlot.ActiveButton.onClick.Invoke();
@@ -834,6 +919,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             InitializeCombat(turnLimit: 12);
             Assert.That(flowController.Coordinator.StartBattle(), Is.True);
             InvokePrivate(hudController, "Start");
+            root.SetActive(true);
             occupiedSlot.ActiveButton.onClick.Invoke();
 
             for (int index = 0;
@@ -1230,6 +1316,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             InitializeCombat();
             Assert.That(flowController.Coordinator.StartBattle(), Is.True);
             InvokePrivate(hudController, "Start");
+            root.SetActive(true);
 
             occupiedSlot.ActiveButton.onClick.Invoke();
 
@@ -1983,7 +2070,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 bossDefinition,
                 kragmorConfig,
                 difficulty,
-                new SeededRandomSource(1));
+                new SeededRandomSource(1),
+                BattleResultBalanceDefaults.Create());
         }
 
         private MatchEventExecution BeginSingleWaterMatch(

@@ -33,6 +33,9 @@ namespace ValorChronicle.Data.Database
         private BossPresentationDefinition[] bossPresentations =
             Array.Empty<BossPresentationDefinition>();
 
+        [SerializeField]
+        private BattleResultBalanceDefinition battleResultBalance;
+
         private Dictionary<string, CharacterDefinition> charactersById;
         private Dictionary<string, BossDefinition> bossesById;
         private Dictionary<string, SkillDefinition> skillsById;
@@ -65,6 +68,9 @@ namespace ValorChronicle.Data.Database
             Array.AsReadOnly(
                 bossPresentations
                     ?? Array.Empty<BossPresentationDefinition>());
+
+        public BattleResultBalanceDefinition BattleResultBalance =>
+            battleResultBalance;
 
         public bool IsInitialized { get; private set; }
 

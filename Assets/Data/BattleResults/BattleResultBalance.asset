@@ -1,0 +1,128 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c69d7ab27fea42c6be4117525ff839f4, type: 3}
+  m_Name: BattleResultBalance
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Data.Definitions.BattleResultBalanceDefinition
+  remainingTurnBonusPercent: 30
+  gradeThresholds:
+  - grade: 1
+    gradeId: grade_c
+    thresholdPercent: 20
+  - grade: 2
+    gradeId: grade_b
+    thresholdPercent: 40
+  - grade: 3
+    gradeId: grade_a
+    thresholdPercent: 60
+  - grade: 4
+    gradeId: grade_s
+    thresholdPercent: 80
+  - grade: 5
+    gradeId: grade_ss
+    thresholdPercent: 100
+  - grade: 6
+    gradeId: grade_sss
+    thresholdPercent: 115
+  firstGradeRewards:
+  - grade: 1
+    amount: 20
+  - grade: 2
+    amount: 30
+  - grade: 3
+    amount: 50
+  - grade: 4
+    amount: 100
+  - grade: 5
+    amount: 200
+  - grade: 6
+    amount: 300
+  difficultyRepeatRewards:
+  - difficultyId: difficulty_intro
+    rewards:
+    - grade: 0
+      amount: 20
+    - grade: 1
+      amount: 50
+    - grade: 2
+      amount: 80
+    - grade: 3
+      amount: 120
+    - grade: 4
+      amount: 180
+    - grade: 5
+      amount: 250
+    - grade: 6
+      amount: 320
+  - difficultyId: difficulty_normal
+    rewards:
+    - grade: 0
+      amount: 20
+    - grade: 1
+      amount: 60
+    - grade: 2
+      amount: 100
+    - grade: 3
+      amount: 150
+    - grade: 4
+      amount: 230
+    - grade: 5
+      amount: 320
+    - grade: 6
+      amount: 420
+  - difficultyId: difficulty_advanced
+    rewards:
+    - grade: 0
+      amount: 20
+    - grade: 1
+      amount: 70
+    - grade: 2
+      amount: 120
+    - grade: 3
+      amount: 190
+    - grade: 4
+      amount: 290
+    - grade: 5
+      amount: 420
+    - grade: 6
+      amount: 560
+  - difficultyId: difficulty_hard
+    rewards:
+    - grade: 0
+      amount: 20
+    - grade: 1
+      amount: 80
+    - grade: 2
+      amount: 140
+    - grade: 3
+      amount: 230
+    - grade: 4
+      amount: 360
+    - grade: 5
+      amount: 550
+    - grade: 6
+      amount: 750
+  - difficultyId: difficulty_challenge
+    rewards:
+    - grade: 0
+      amount: 20
+    - grade: 1
+      amount: 100
+    - grade: 2
+      amount: 180
+    - grade: 3
+      amount: 300
+    - grade: 4
+      amount: 480
+    - grade: 5
+      amount: 700
+    - grade: 6
+      amount: 1000

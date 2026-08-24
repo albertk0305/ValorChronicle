@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using ValorChronicle.Battle.Combat.State;
+using ValorChronicle.Battle.Results;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Data.Database;
@@ -44,6 +47,8 @@ namespace ValorChronicle.Tests.EditMode
                 CreateGameDefinition<RelicDefinition>("relic_test");
             BossPresentationDefinition presentation =
                 CreatePresentation("boss_test");
+            BattleResultBalanceDefinition resultBalance =
+                CreateResultBalanceDefinition();
             DefinitionDatabase database = CreateDatabase(
                 new[] { character },
                 new[] { boss },
@@ -51,7 +56,8 @@ namespace ValorChronicle.Tests.EditMode
                 new[] { effect },
                 new[] { resource },
                 new[] { relic },
-                new[] { presentation });
+                new[] { presentation },
+                resultBalance);
 
             database.Initialize();
 
@@ -69,6 +75,8 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(foundRelic, Is.SameAs(relic));
             Assert.That(database.TryGetBossPresentation(boss.Id, out var foundPresentation), Is.True);
             Assert.That(foundPresentation, Is.SameAs(presentation));
+            Assert.That(database.BattleResultBalance,
+                Is.SameAs(resultBalance));
         }
 
         [Test]
@@ -79,6 +87,31 @@ namespace ValorChronicle.Tests.EditMode
                     "Assets/Data/Database/DefinitionDatabase.asset");
             Assert.That(database, Is.Not.Null);
             database.Initialize();
+            Assert.That(database.BattleResultBalance, Is.Not.Null);
+            BattleResultBalance resultBalance =
+                database.BattleResultBalance.CreateBalance();
+            Assert.That(
+                BattleResultBalanceValidator.TryValidate(
+                    resultBalance,
+                    out string balanceError),
+                Is.True,
+                balanceError);
+            BattleGradeRewardResult challengeSss =
+                BattleGradeRewardCalculator.Calculate(
+                    resultBalance,
+                    BattleDifficultyIds.Challenge,
+                    100000L,
+                    115000L);
+            Assert.That(challengeSss.Grade, Is.EqualTo(BattleGrade.SSS));
+            Assert.That(challengeSss.RepeatRewardAmount, Is.EqualTo(1000L));
+            long firstRewardTotal = 0L;
+            foreach (BattleFirstGradeRewardEntry entry in
+                challengeSss.FirstGradeProgression)
+            {
+                firstRewardTotal += entry.Amount;
+            }
+
+            Assert.That(firstRewardTotal, Is.EqualTo(700L));
 
             string[] bossSkillIds =
             {
@@ -126,6 +159,77 @@ namespace ValorChronicle.Tests.EditMode
                 KragmorRules.CoreCompressionVisualStateId,
                 out Sprite compressionSprite), Is.True);
             Assert.That(compressionSprite, Is.Not.Null);
+        }
+
+        [Test]
+        public void CanonicalResultBalanceContainsConfirmedProductionRules()
+        {
+            DefinitionDatabase database =
+                AssetDatabase.LoadAssetAtPath<DefinitionDatabase>(
+                    "Assets/Data/Database/DefinitionDatabase.asset");
+            Assert.That(database, Is.Not.Null);
+            BattleResultBalanceDefinition definition =
+                database.BattleResultBalance;
+            Assert.That(definition, Is.Not.Null);
+            BattleResultBalance balance = definition.CreateBalance();
+
+            Assert.That(balance.RemainingTurnBonusRate, Is.EqualTo(0.30m));
+            Assert.That(
+                balance.GradeThresholds.Select(entry =>
+                    entry.ThresholdPercent),
+                Is.EqualTo(new[] { 20, 40, 60, 80, 100, 115 }));
+            Assert.That(
+                balance.GradeThresholds.Select(entry => entry.GradeId),
+                Is.EqualTo(new[]
+                {
+                    BattleGradeIds.C,
+                    BattleGradeIds.B,
+                    BattleGradeIds.A,
+                    BattleGradeIds.S,
+                    BattleGradeIds.SS,
+                    BattleGradeIds.SSS
+                }));
+            Assert.That(
+                balance.FirstGradeRewards.Select(entry => entry.Amount),
+                Is.EqualTo(new long[] { 20, 30, 50, 100, 200, 300 }));
+
+            long[][] expectedRepeatRewards =
+            {
+                new long[] { 20, 50, 80, 120, 180, 250, 320 },
+                new long[] { 20, 60, 100, 150, 230, 320, 420 },
+                new long[] { 20, 70, 120, 190, 290, 420, 560 },
+                new long[] { 20, 80, 140, 230, 360, 550, 750 },
+                new long[] { 20, 100, 180, 300, 480, 700, 1000 }
+            };
+            Assert.That(balance.DifficultyRepeatRewards, Has.Count.EqualTo(5));
+            for (int index = 0; index < expectedRepeatRewards.Length; index++)
+            {
+                BattleDifficultyRepeatRewardTable table =
+                    balance.DifficultyRepeatRewards[index];
+                Assert.That(table.DifficultyId,
+                    Is.EqualTo(BattleDifficultyIds.RequiredIds[index]));
+                Assert.That(
+                    table.Rewards.Select(entry => entry.Amount),
+                    Is.EqualTo(expectedRepeatRewards[index]));
+            }
+
+            BattleGradeRewardResult ss =
+                BattleGradeRewardCalculator.Calculate(
+                    balance,
+                    BattleDifficultyIds.Challenge,
+                    100000L,
+                    100000L);
+            Assert.That(ss.FirstGradeProgression.Sum(entry => entry.Amount),
+                Is.EqualTo(400L));
+            BattleGradeRewardResult sss =
+                BattleGradeRewardCalculator.Calculate(
+                    balance,
+                    BattleDifficultyIds.Challenge,
+                    100000L,
+                    115000L);
+            Assert.That(sss.RepeatRewardAmount, Is.EqualTo(1000L));
+            Assert.That(sss.FirstGradeProgression.Sum(entry => entry.Amount),
+                Is.EqualTo(700L));
         }
 
         [Test]
@@ -223,6 +327,34 @@ namespace ValorChronicle.Tests.EditMode
             return definition;
         }
 
+        private BattleResultBalanceDefinition
+            CreateResultBalanceDefinition()
+        {
+            BattleResultBalanceDefinition definition =
+                ScriptableObject.CreateInstance<
+                    BattleResultBalanceDefinition>();
+            createdObjects.Add(definition);
+            var serializedObject = new SerializedObject(definition);
+            serializedObject.FindProperty("remainingTurnBonusPercent")
+                .intValue =
+                    BattleResultBalanceDefaults.RemainingTurnBonusPercent;
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
+            SetField(
+                definition,
+                "gradeThresholds",
+                BattleResultBalanceDefaults.CreateGradeThresholds());
+            SetField(
+                definition,
+                "firstGradeRewards",
+                BattleResultBalanceDefaults.CreateFirstGradeRewards());
+            SetField(
+                definition,
+                "difficultyRepeatRewards",
+                BattleResultBalanceDefaults
+                    .CreateDifficultyRepeatRewards());
+            return definition;
+        }
+
         private DefinitionDatabase CreateDatabase(
             CharacterDefinition[] characters = null,
             BossDefinition[] bosses = null,
@@ -230,7 +362,8 @@ namespace ValorChronicle.Tests.EditMode
             EffectDefinition[] effects = null,
             ResourceDefinition[] resources = null,
             RelicDefinition[] relics = null,
-            BossPresentationDefinition[] bossPresentations = null)
+            BossPresentationDefinition[] bossPresentations = null,
+            BattleResultBalanceDefinition battleResultBalance = null)
         {
             DefinitionDatabase database =
                 ScriptableObject.CreateInstance<DefinitionDatabase>();
@@ -242,7 +375,23 @@ namespace ValorChronicle.Tests.EditMode
             SetObjectArray(database, "resources", resources);
             SetObjectArray(database, "relics", relics);
             SetObjectArray(database, "bossPresentations", bossPresentations);
+            var serializedObject = new SerializedObject(database);
+            serializedObject.FindProperty("battleResultBalance")
+                .objectReferenceValue = battleResultBalance;
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
             return database;
+        }
+
+        private static void SetField(
+            object target,
+            string fieldName,
+            object value)
+        {
+            FieldInfo field = target.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, fieldName);
+            field.SetValue(target, value);
         }
 
         private static void SetString(

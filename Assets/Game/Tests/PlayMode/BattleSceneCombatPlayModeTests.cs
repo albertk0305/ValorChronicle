@@ -15,6 +15,7 @@ using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
+using ValorChronicle.Battle.Results;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Bootstrap;
@@ -129,6 +130,17 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(combat.ActiveBindings, Has.Count.EqualTo(1));
             Assert.That(combat.ActiveBindings[0].ActiveAbilityIndex, Is.Zero);
             Assert.That(combat.ActiveBindings[0].PartySlotIndex, Is.Zero);
+            Assert.That(combat.ResultBalance.RemainingTurnBonusRate,
+                Is.EqualTo(0.30m));
+            BattleGradeRewardResult challengeSss =
+                BattleGradeRewardCalculator.Calculate(
+                    combat.ResultBalance,
+                    BattleDifficultyIds.Challenge,
+                    100000L,
+                    115000L);
+            Assert.That(challengeSss.Grade, Is.EqualTo(BattleGrade.SSS));
+            Assert.That(challengeSss.RepeatRewardAmount,
+                Is.EqualTo(1000L));
 
             ActiveAbilityRuntimeState active =
                 flow.Context.ActiveAbilities[0];
