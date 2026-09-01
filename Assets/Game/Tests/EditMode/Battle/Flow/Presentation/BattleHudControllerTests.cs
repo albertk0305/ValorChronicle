@@ -673,7 +673,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         }
 
         [Test]
-        public void MissingElementSpriteAndBattleResultHideQueueSafely()
+        public void MissingElementSpriteHidesOnlyAffectedSlotSafely()
         {
             SetField(elementSpriteSet, "dark", null);
             InvokePrivate(hudController, "OnEnable");
@@ -683,17 +683,20 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             EnterMatchResolving(3);
 
             Assert.DoesNotThrow(() => hudController.RefreshInitialSnapshot());
+            Assert.That(matchEventSlots[0].Root.activeSelf, Is.True);
+            Assert.That(matchEventSlots[0].ElementImage.sprite,
+                Is.SameAs(waterSprite));
+            Assert.That(matchEventSlots[0].BlockCountText.text,
+                Is.EqualTo("3"));
+            Assert.That(matchEventSlots[1].Root.activeSelf, Is.True);
+            Assert.That(matchEventSlots[1].ElementImage.sprite,
+                Is.SameAs(waterSprite));
+            Assert.That(matchEventSlots[1].BlockCountText.text,
+                Is.EqualTo("4"));
             Assert.That(matchEventSlots[2].Root.activeSelf, Is.False);
+            Assert.That(matchEventSlots[2].BlockCountText.text, Is.Empty);
             Assert.That(flowController.Coordinator.PendingMatchEventCount,
                 Is.EqualTo(3));
-
-            Assert.That(flowController.Coordinator.NotifyBossDefeated(),
-                Is.True);
-
-            AssertAllMatchSlotsHidden();
-            Assert.That(hudController.ComboText.text, Is.Empty);
-            Assert.That(flowController.Coordinator.PendingMatchEventCount,
-                Is.Zero);
         }
 
         [Test]

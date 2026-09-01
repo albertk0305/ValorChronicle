@@ -539,10 +539,10 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void HandlePhaseChanged(BattlePhase phase)
         {
-            if (phase == BattlePhase.Result
-                && IsNormalTerminalResult(
-                    battleFlowController?.Context?.Result
-                    ?? BattleResultKind.None))
+            BattleContext context = battleFlowController?.Context;
+            if (IsNormalTerminalResult(
+                    context?.Result ?? BattleResultKind.None)
+                || IsPendingTurnLimitResult(phase, context))
             {
                 resultHudFrozen = true;
                 RefreshCombatState();
@@ -666,6 +666,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
             return result == BattleResultKind.Victory
                 || result == BattleResultKind.Defeat
                 || result == BattleResultKind.TurnLimitReached;
+        }
+
+        private static bool IsPendingTurnLimitResult(
+            BattlePhase phase,
+            BattleContext context)
+        {
+            return context != null
+                && context.Result == BattleResultKind.None
+                && context.CurrentTurn >= context.TurnLimit
+                && (phase == BattlePhase.TurnEnd
+                    || phase == BattlePhase.ResultCheck);
         }
 
         private void RefreshTurnAndPhase()
