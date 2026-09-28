@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Bosses.Kragmor;
@@ -8,6 +9,9 @@ using ValorChronicle.Core.Logging;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Party.Battle;
+using ValorChronicle.Save.DTO;
+using ValorChronicle.Save.Services;
 
 namespace ValorChronicle.Battle.Flow.Presentation
 {
@@ -28,14 +32,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private BossDefinition fallbackBossDefinition = null;
 
         [SerializeField]
-        private CharacterDefinition fallbackMareaDefinition = null;
-
-        [SerializeField]
         private BattleResultBalanceDefinition
             fallbackResultBalanceDefinition = null;
-
-        [SerializeField, Min(1)]
-        private int developmentMareaLevel = 1;
 
         [SerializeField]
         private string developmentDifficultyId =
@@ -90,6 +88,56 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
+            if (DefinitionDatabase == null)
+            {
+                GameLogger.Error(
+                    "[BattleSceneCombatBootstrap] An initialized "
+                        + "DefinitionDatabase is required.",
+                    this);
+                return;
+            }
+
+            SaveService saveService =
+                GameBootstrapper.Instance?.SaveService;
+            if (saveService == null || !saveService.HasCurrentProfile)
+            {
+                GameLogger.Error(
+                    "[BattleSceneCombatBootstrap] SaveService with a "
+                        + "current profile is required.",
+                    this);
+                return;
+            }
+
+            ProfileSaveData profileSnapshot;
+            try
+            {
+                profileSnapshot = saveService.GetCurrentProfileSnapshot();
+            }
+            catch (Exception exception)
+            {
+                GameLogger.Exception(exception, this);
+                GameLogger.Error(
+                    "[BattleSceneCombatBootstrap] Current profile "
+                        + "snapshot could not be read.",
+                    this);
+                return;
+            }
+
+            var partyResolver = new BattlePartyResolver(
+                DefinitionDatabase);
+            BattlePartyResolutionResult partyResolution =
+                partyResolver.Resolve(profileSnapshot);
+            if (!partyResolution.IsSuccess)
+            {
+                GameLogger.Error(
+                    "[BattleSceneCombatBootstrap] Battle party "
+                        + $"resolution failed. Status="
+                        + $"{partyResolution.Status}. "
+                        + partyResolution.ErrorMessage,
+                    this);
+                return;
+            }
+
             BossDefinition selectedBoss = ResolveBossDefinition();
             if (selectedBoss == null)
             {
@@ -132,36 +180,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
-            CharacterDefinition selectedMarea = ResolveMareaDefinition();
-            if (selectedMarea == null)
-            {
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] No Marea "
-                        + "CharacterDefinition is available.",
-                    this);
-                return;
-            }
-
-            if (!(selectedMarea.CombatConfig is
-                MareaBluefangCombatConfig selectedMareaConfig))
-            {
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] Marea requires a "
-                        + "MareaBluefangCombatConfig.",
-                    this);
-                return;
-            }
-
-            if (!selectedMareaConfig.TryValidate(
-                out string configError))
-            {
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] Marea combat config "
-                        + $"is invalid. {configError}",
-                    this);
-                return;
-            }
-
             BattleResultBalanceDefinition selectedResultBalance =
                 ResolveResultBalanceDefinition();
             if (selectedResultBalance == null)
@@ -183,16 +201,21 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
+            BattleSceneCombatComposition composition = null;
             try
             {
                 IRandomSource randomSource =
                     GameBootstrapper.Instance?.RandomSource
                     ?? new UnityRandomSource();
-                var saveService = GameBootstrapper.Instance?.SaveService;
-                CombatComposition = new BattleSceneCombatComposition(
-                    selectedMarea,
-                    selectedMareaConfig,
-                    developmentMareaLevel,
+                var characterRegistrars =
+                    new CharacterCombatProviderRegistrarCatalog(
+                        new ICharacterCombatProviderRegistrar[]
+                        {
+                            new MareaBluefangCombatProviderRegistrar()
+                        });
+                composition = new BattleSceneCombatComposition(
+                    partyResolution.Members,
+                    characterRegistrars,
                     selectedBoss,
                     selectedKragmorConfig,
                     selectedDifficulty,
@@ -200,21 +223,23 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     selectedResultBalance.CreateBalance(),
                     saveService);
                 battleFlowController.Initialize(
-                    CombatComposition.FlowSetup,
-                    coordinator => CombatComposition.CreateBridge(
+                    composition.FlowSetup,
+                    coordinator => composition.CreateBridge(
                         coordinator,
                         battleFlowController.BoardMutationSink));
-                if (CombatComposition.ResultPersistenceCoordinator != null
+                if (composition.ResultPersistenceCoordinator != null
                     && resultPresentationController != null)
                 {
                     resultPresentationController.Initialize(
-                        CombatComposition.ResultPersistenceCoordinator);
+                        composition.ResultPersistenceCoordinator);
                 }
 
+                CombatComposition = composition;
                 HasInitializedFlow = true;
             }
             catch (Exception exception)
             {
+                composition?.Dispose();
                 GameLogger.Exception(exception, this);
                 GameLogger.Error(
                     "[BattleSceneCombatBootstrap] Battle Flow "
@@ -236,21 +261,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
 
             return fallbackBossDefinition;
-        }
-
-        private CharacterDefinition ResolveMareaDefinition()
-        {
-            DefinitionDatabase database = DefinitionDatabase;
-            if (database != null
-                && database.IsInitialized
-                && database.TryGetCharacter(
-                    MareaBluefangRules.CharacterId,
-                    out CharacterDefinition databaseMarea))
-            {
-                return databaseMarea;
-            }
-
-            return fallbackMareaDefinition;
         }
 
         private BattleResultBalanceDefinition

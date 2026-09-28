@@ -54,8 +54,8 @@ namespace ValorChronicle.Tests.EditMode
         {
             ProfileSaveData profile = SaveValidationTestSupport.CreateValidProfile();
             profile.Party.Presets[0].PresetId = "";
-            profile.Party.Presets.Add(new PartyPresetSaveData { PresetId = "party_recovered_1", CharacterSlotIds = EmptySlots() });
-            profile.Party.Presets.Add(new PartyPresetSaveData { PresetId = "party_recovered_1", CharacterSlotIds = EmptySlots() });
+            profile.Party.Presets[1].PresetId = "party_recovered_1";
+            profile.Party.Presets[2].PresetId = "party_recovered_1";
             profile.RelicInstances.Add(new RelicInstanceSaveData { InstanceId = "one", RelicDefinitionId = "sword", EquippedCharacterId = "hero", EquippedSlotIndex = 0 });
             profile.RelicInstances.Add(new RelicInstanceSaveData { InstanceId = "two", RelicDefinitionId = "shield", EquippedCharacterId = "hero", EquippedSlotIndex = 0 });
             profile.RelicInstances.Add(new RelicInstanceSaveData { InstanceId = "three", RelicDefinitionId = "sword", EquippedCharacterId = "hero", EquippedSlotIndex = 1 });
@@ -63,7 +63,16 @@ namespace ValorChronicle.Tests.EditMode
             SaveSanitizationResult first = sanitizer.SanitizeStructure(profile);
             SaveSanitizationResult second = sanitizer.SanitizeStructure(first.Profile);
 
-            Assert.That(first.Profile.Party.Presets.Select(item => item.PresetId), Is.EqualTo(new[] { "party_recovered_2", "party_recovered_1", "party_recovered_3" }));
+            Assert.That(
+                first.Profile.Party.Presets.Select(item => item.PresetId),
+                Is.EqualTo(new[]
+                {
+                    "party_recovered_2",
+                    "party_recovered_1",
+                    "party_recovered_3",
+                    "party_4",
+                    "party_5"
+                }));
             Assert.That(first.Profile.RelicInstances[0].EquippedCharacterId, Is.EqualTo("hero"));
             Assert.That(first.Profile.RelicInstances[1].EquippedCharacterId, Is.Empty);
             Assert.That(first.Profile.RelicInstances[2].EquippedCharacterId, Is.Empty);

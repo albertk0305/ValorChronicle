@@ -75,6 +75,35 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
+        public void LoadOrCreate_V1Main_MigratesAndPersistsFivePresets()
+        {
+            ProfileSaveData v1 = SaveTestDataBuilder.Valid("legacy");
+            v1.SaveVersion = 1;
+            v1.Party.Presets.RemoveRange(1, 4);
+            var repository = new FakeSaveRepository
+            {
+                MainText = SaveTestDataBuilder.Json(v1)
+            };
+
+            SaveLoadResult result = SaveServiceTestFactory.Create(
+                repository,
+                new FixedUnixTimeProvider(200)).LoadOrCreate("ignored");
+
+            Assert.That(
+                result.Status,
+                Is.EqualTo(SaveLoadStatus.LoadedAndRepairedMain));
+            Assert.That(result.MigrationResult.SourceVersion, Is.EqualTo(1));
+            Assert.That(result.MigrationResult.TargetVersion, Is.EqualTo(2));
+            Assert.That(result.ProfileSnapshot.SaveVersion, Is.EqualTo(2));
+            Assert.That(result.ProfileSnapshot.Party.Presets, Has.Count.EqualTo(5));
+
+            ProfileSaveData persisted = new NewtonsoftJsonSaveSerializer()
+                .Deserialize(repository.MainText);
+            Assert.That(persisted.SaveVersion, Is.EqualTo(2));
+            Assert.That(persisted.Party.Presets, Has.Count.EqualTo(5));
+        }
+
+        [Test]
         public void LoadOrCreate_StaleTempDeleteFails_MainStillLoads()
         {
             var repository = new FakeSaveRepository

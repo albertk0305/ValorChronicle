@@ -40,7 +40,12 @@ namespace ValorChronicle.Save.Services
                 new NewtonsoftJsonSaveSerializer(),
                 new NewProfileFactory(),
                 cloner,
-                new SaveMigrationRunner(cloner, Array.Empty<ISaveMigrationStep>()),
+                new SaveMigrationRunner(
+                    cloner,
+                    new ISaveMigrationStep[]
+                    {
+                        new V1ToV2PartyMigration()
+                    }),
                 validationProcessor,
                 new DefinitionDatabaseSaveContentCatalog(definitionDatabase),
                 new SystemUnixTimeProvider());

@@ -596,12 +596,19 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             IEnumerator animation,
             int maximumFrames)
         {
-            int frameCount = 0;
-            while (animation.MoveNext())
+            try
             {
-                Assert.That(++frameCount, Is.LessThan(maximumFrames),
-                    "EditMode Time.deltaTime did not advance the animation.");
-                yield return animation.Current;
+                int frameCount = 0;
+                while (animation.MoveNext())
+                {
+                    Assert.That(++frameCount, Is.LessThan(maximumFrames),
+                        "EditMode Time.deltaTime did not advance the animation.");
+                    yield return animation.Current;
+                }
+            }
+            finally
+            {
+                Dispose(animation);
             }
         }
 

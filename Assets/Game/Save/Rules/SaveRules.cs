@@ -9,6 +9,8 @@ namespace ValorChronicle.Save.Rules
     {
         /// <summary>The schema version supported by the current application.</summary>
         public const int CurrentSaveVersion = SaveSchema.CurrentVersion;
+        /// <summary>The fixed number of party presets in every profile.</summary>
+        public const int PartyPresetCount = 5;
         /// <summary>The fixed number of ordered character slots in every party preset.</summary>
         public const int PartySlotCount = 5;
         /// <summary>The minimum valid character level.</summary>
@@ -36,5 +38,22 @@ namespace ValorChronicle.Save.Rules
 
         /// <summary>The canonical representation of an empty content identifier or party slot.</summary>
         public static readonly string EmptyId = string.Empty;
+
+        /// <summary>Returns the deterministic ID assigned to a newly created preset.</summary>
+        public static string GetDefaultPartyPresetId(int presetIndex)
+        {
+            if (presetIndex < 0 || presetIndex >= PartyPresetCount)
+            {
+                throw new System.ArgumentOutOfRangeException(
+                    nameof(presetIndex),
+                    presetIndex,
+                    $"Party preset index must be between 0 and "
+                        + $"{PartyPresetCount - 1}.");
+            }
+
+            return presetIndex == 0
+                ? DefaultPartyPresetId
+                : $"party_{presetIndex + 1}";
+        }
     }
 }

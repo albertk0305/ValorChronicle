@@ -8,10 +8,10 @@ using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Battle.Results.Persistence;
 using ValorChronicle.Bosses.Kragmor;
-using ValorChronicle.Characters.Marea;
 using ValorChronicle.Characters.Stats;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Party.Battle;
 using ValorChronicle.Save.Services;
 
 namespace ValorChronicle.Battle.Flow.Presentation
@@ -21,18 +21,16 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private readonly IReadOnlyList<ActiveAbilityBinding> activeBindings;
 
         public BattleSceneCombatComposition(
-            CharacterDefinition mareaDefinition,
-            MareaBluefangCombatConfig mareaConfig,
-            int mareaLevel,
+            IReadOnlyList<BattlePartyMemberInput> partyMembers,
+            CharacterCombatProviderRegistrarCatalog characterRegistrars,
             BossDefinition bossDefinition,
             KragmorCombatConfig kragmorConfig,
             BossDifficultyStats bossDifficultyStats,
             IRandomSource randomSource,
             BattleResultBalance resultBalance)
             : this(
-                mareaDefinition,
-                mareaConfig,
-                mareaLevel,
+                partyMembers,
+                characterRegistrars,
                 bossDefinition,
                 kragmorConfig,
                 bossDifficultyStats,
@@ -43,9 +41,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         }
 
         public BattleSceneCombatComposition(
-            CharacterDefinition mareaDefinition,
-            MareaBluefangCombatConfig mareaConfig,
-            int mareaLevel,
+            IReadOnlyList<BattlePartyMemberInput> partyMembers,
+            CharacterCombatProviderRegistrarCatalog characterRegistrars,
             BossDefinition bossDefinition,
             KragmorCombatConfig kragmorConfig,
             BossDifficultyStats bossDifficultyStats,
@@ -53,40 +50,23 @@ namespace ValorChronicle.Battle.Flow.Presentation
             BattleResultBalance resultBalance,
             SaveService saveService)
         {
-            if (mareaDefinition == null)
+            if (partyMembers == null)
             {
-                throw new ArgumentNullException(nameof(mareaDefinition));
+                throw new ArgumentNullException(nameof(partyMembers));
             }
 
-            if (!string.Equals(
-                    mareaDefinition.Id,
-                    MareaBluefangRules.CharacterId,
-                    StringComparison.Ordinal)
-                || mareaDefinition.Element != ElementType.Water)
+            if (partyMembers.Count == 0)
             {
-                throw new ArgumentException(
-                    "Marea's canonical Water CharacterDefinition is required.",
-                    nameof(mareaDefinition));
+                throw new ArgumentOutOfRangeException(
+                    nameof(partyMembers),
+                    partyMembers.Count,
+                    "Battle party cannot be empty.");
             }
 
-            if (mareaConfig == null)
+            if (characterRegistrars == null)
             {
-                throw new ArgumentNullException(nameof(mareaConfig));
-            }
-
-            if (!ReferenceEquals(mareaDefinition.CombatConfig, mareaConfig))
-            {
-                throw new ArgumentException(
-                    "Marea config must be the config referenced by the "
-                        + "CharacterDefinition.",
-                    nameof(mareaConfig));
-            }
-
-            if (!mareaConfig.TryValidate(out string configError))
-            {
-                throw new ArgumentException(
-                    configError,
-                    nameof(mareaConfig));
+                throw new ArgumentNullException(
+                    nameof(characterRegistrars));
             }
 
             if (bossDefinition == null)
@@ -139,10 +119,25 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     new BattleResultPersistenceService(saveService);
             }
 
-            Marea = CharacterBattleStateFactory.Create(
-                mareaDefinition,
-                mareaLevel,
-                partySlotIndex: 0);
+            var characterStates = new CharacterBattleState[
+                partyMembers.Count];
+            for (int index = 0; index < partyMembers.Count; index++)
+            {
+                BattlePartyMemberInput member = partyMembers[index];
+                if (member == null)
+                {
+                    throw new ArgumentException(
+                        $"Battle party member {index} is null.",
+                        nameof(partyMembers));
+                }
+
+                characterStates[index] = CharacterBattleStateFactory.Create(
+                    member.CharacterDefinition,
+                    member.Level,
+                    member.PartySlotIndex);
+            }
+
+            Party = new PartyBattleState(characterStates);
             Boss = new BossBattleState(
                 bossDefinition.Id,
                 bossDefinition.Element,
@@ -150,11 +145,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 bossDifficultyStats.Attack);
             DifficultyId = bossDifficultyStats.DifficultyId;
             ResultBalance = resultBalance;
-            MareaConfig = mareaConfig;
-            WaterElement = WaterElementResource.Register(
-                Boss.Resources,
-                mareaConfig.WaterElementMaxAmount);
-            Party = new PartyBattleState(new[] { Marea });
 
             ActionIds = new CombatActionIdSequence();
             KragmorConfig = kragmorConfig;
@@ -176,32 +166,75 @@ namespace ValorChronicle.Battle.Flow.Presentation
             ActiveProviders = new ActiveAbilityActionProviderRegistry();
             BossActionProvider = new KragmorBossCombatActionProvider(
                 KragmorRuntimeState);
-            MareaBluefangCombatProviderRegistration.Register(
-                MatchProviders,
-                ActiveProviders,
-                mareaConfig);
-            activeBindings = Array.AsReadOnly(new[]
+
+            var membersBySlot = new Dictionary<int, BattlePartyMemberInput>(
+                partyMembers.Count);
+            for (int index = 0; index < partyMembers.Count; index++)
             {
-                new ActiveAbilityBinding(
-                    activeAbilityIndex: 0,
-                    partySlotIndex: Marea.PartySlotIndex,
-                    characterId: Marea.CharacterId,
-                    activeAbilityId: MareaBluefangRules.ActiveAbilityId)
-            });
+                BattlePartyMemberInput member = partyMembers[index];
+                membersBySlot.Add(member.PartySlotIndex, member);
+            }
+
+            var bindings = new List<ActiveAbilityBinding>(
+                partyMembers.Count);
+            var cooldowns = new List<int>(partyMembers.Count);
+            for (int index = 0; index < Party.Characters.Count; index++)
+            {
+                CharacterBattleState character = Party.Characters[index];
+                BattlePartyMemberInput member =
+                    membersBySlot[character.PartySlotIndex];
+                CharacterCombatProviderRegistrationResult registration =
+                    characterRegistrars.Register(
+                        member,
+                        character,
+                        Boss,
+                        MatchProviders,
+                        ActiveProviders);
+
+                if (!MatchProviders.TryResolve(
+                    character.CharacterId,
+                    out _))
+                {
+                    throw new InvalidOperationException(
+                        $"The registrar for '{character.CharacterId}' did "
+                            + "not register a match provider.");
+                }
+
+                if (!registration.HasActiveAbility)
+                {
+                    continue;
+                }
+
+                if (!ActiveProviders.TryResolve(
+                    character.CharacterId,
+                    registration.ActiveAbilityId,
+                    out _))
+                {
+                    throw new InvalidOperationException(
+                        $"The registrar for '{character.CharacterId}' did "
+                            + "not register its active provider.");
+                }
+
+                bindings.Add(new ActiveAbilityBinding(
+                    activeAbilityIndex: bindings.Count,
+                    partySlotIndex: character.PartySlotIndex,
+                    characterId: character.CharacterId,
+                    activeAbilityId: registration.ActiveAbilityId));
+                cooldowns.Add(registration.ActiveCooldownTurns);
+            }
+
+            activeBindings = Array.AsReadOnly(bindings.ToArray());
             FlowSetup = new BattleFlowSetup(
                 bossDefinition.TurnLimit,
-                new[] { mareaConfig.ActiveCooldownTurns });
+                cooldowns);
         }
 
         public BattleFlowSetup FlowSetup { get; }
         public string DifficultyId { get; }
         public BattleResultBalance ResultBalance { get; }
-        public CharacterBattleState Marea { get; }
-        public MareaBluefangCombatConfig MareaConfig { get; }
         public KragmorCombatConfig KragmorConfig { get; }
         public PartyBattleState Party { get; }
         public BossBattleState Boss { get; }
-        public ResourceState WaterElement { get; }
         public CombatActionIdSequence ActionIds { get; }
         public CombatTriggerResolver TriggerResolver { get; }
         public CombatActionExecutor Executor { get; }

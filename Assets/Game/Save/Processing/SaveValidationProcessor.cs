@@ -111,8 +111,8 @@ namespace ValorChronicle.Save.Processing
                 if (state == null || state.GachaId == null) return true;
             foreach (BossRecordSaveData record in profile.BossRecords)
                 if (record == null || record.BossId == null || record.DifficultyId == null || record.HighestGradeId == null || record.ClaimedFirstRewardGradeIds == null || ContainsNull(record.ClaimedFirstRewardGradeIds)) return true;
-            if (profile.Party.Presets == null || profile.Party.Presets.Count == 0 || profile.Party.LastBossId == null || profile.Party.LastDifficultyId == null) return true;
-            if (profile.Party.ActivePresetIndex < 0 || profile.Party.ActivePresetIndex >= profile.Party.Presets.Count) return true;
+            if (profile.Party.Presets == null || profile.Party.Presets.Count != SaveRules.PartyPresetCount || profile.Party.LastBossId == null || profile.Party.LastDifficultyId == null) return true;
+            if (profile.Party.ActivePresetIndex < 0 || profile.Party.ActivePresetIndex >= SaveRules.PartyPresetCount) return true;
             foreach (PartyPresetSaveData preset in profile.Party.Presets)
                 if (preset == null || preset.PresetId == null || preset.CharacterSlotIds == null || preset.CharacterSlotIds.Count != SaveRules.PartySlotCount || ContainsNull(preset.CharacterSlotIds)) return true;
             return false;

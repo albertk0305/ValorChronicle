@@ -393,13 +393,19 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                 board,
                 0.01f,
                 0.002f);
-            int frameCount = 0;
-
-            while (animation.MoveNext())
+            try
             {
-                Assert.That(++frameCount, Is.LessThan(300),
-                    "EditMode Time.deltaTime did not advance the drop.");
-                yield return animation.Current;
+                int frameCount = 0;
+                while (animation.MoveNext())
+                {
+                    Assert.That(++frameCount, Is.LessThan(300),
+                        "EditMode Time.deltaTime did not advance the drop.");
+                    yield return animation.Current;
+                }
+            }
+            finally
+            {
+                Dispose(animation);
             }
 
             Assert.That(boardView.IsAnimating, Is.False);

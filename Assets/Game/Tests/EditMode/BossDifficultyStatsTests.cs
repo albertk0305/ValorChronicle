@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
+using ValorChronicle.Battle.Combat.Integration;
+using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Party.Battle;
 
 namespace ValorChronicle.Tests.EditMode
 {
@@ -110,9 +113,8 @@ namespace ValorChronicle.Tests.EditMode
                     out BossDifficultyStats stats),
                 Is.True);
 
-            var composition = new BattleSceneCombatComposition(
+            var composition = CreateComposition(
                 marea,
-                (MareaBluefangCombatConfig)marea.CombatConfig,
                 1,
                 boss,
                 (KragmorCombatConfig)boss.CombatConfig,
@@ -138,9 +140,8 @@ namespace ValorChronicle.Tests.EditMode
                     "difficulty_normal",
                     out BossDifficultyStats stats),
                 Is.True);
-            var composition = new BattleSceneCombatComposition(
+            var composition = CreateComposition(
                 marea,
-                (MareaBluefangCombatConfig)marea.CombatConfig,
                 1,
                 boss,
                 (KragmorCombatConfig)boss.CombatConfig,
@@ -184,9 +185,8 @@ namespace ValorChronicle.Tests.EditMode
 
             try
             {
-                var composition = new BattleSceneCombatComposition(
+                var composition = CreateComposition(
                     marea,
-                    config,
                     1,
                     boss,
                     (KragmorCombatConfig)boss.CombatConfig,
@@ -194,7 +194,8 @@ namespace ValorChronicle.Tests.EditMode
                     new SeededRandomSource(1),
                     BattleResultBalanceDefaults.Create());
 
-                Assert.That(composition.WaterElement.MaxAmount,
+                Assert.That(composition.Boss.Resources.Get(
+                        WaterElementResource.Id).MaxAmount,
                     Is.EqualTo(7));
                 Assert.That(composition.FlowSetup.ActiveAbilityCooldowns,
                     Is.EqualTo(new[] { 4 }));
@@ -212,6 +213,37 @@ namespace ValorChronicle.Tests.EditMode
                 BossDefinition>(BossAssetPath);
             Assert.That(boss, Is.Not.Null);
             return boss;
+        }
+
+        private static BattleSceneCombatComposition CreateComposition(
+            CharacterDefinition character,
+            int level,
+            BossDefinition boss,
+            KragmorCombatConfig kragmorConfig,
+            BossDifficultyStats stats,
+            IRandomSource randomSource,
+            BattleResultBalance resultBalance)
+        {
+            return new BattleSceneCombatComposition(
+                new[]
+                {
+                    new BattlePartyMemberInput(
+                        character.Id,
+                        partySlotIndex: 0,
+                        level: level,
+                        awakening: 0,
+                        characterDefinition: character)
+                },
+                new CharacterCombatProviderRegistrarCatalog(
+                    new ICharacterCombatProviderRegistrar[]
+                    {
+                        new MareaBluefangCombatProviderRegistrar()
+                    }),
+                boss,
+                kragmorConfig,
+                stats,
+                randomSource,
+                resultBalance);
         }
     }
 }

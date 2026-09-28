@@ -33,26 +33,39 @@ namespace ValorChronicle.Save.Services
 
         private static PartySaveData CreateDefaultParty()
         {
-            var characterSlotIds = new List<string>(SaveRules.PartySlotCount);
-
-            for (int i = 0; i < SaveRules.PartySlotCount; i++)
+            var presets = new List<PartyPresetSaveData>(
+                SaveRules.PartyPresetCount);
+            for (int presetIndex = 0;
+                presetIndex < SaveRules.PartyPresetCount;
+                presetIndex++)
             {
-                characterSlotIds.Add(SaveRules.EmptyId);
+                presets.Add(CreateEmptyPreset(presetIndex));
             }
 
             return new PartySaveData
             {
                 ActivePresetIndex = 0,
-                Presets = new List<PartyPresetSaveData>
-                {
-                    new PartyPresetSaveData
-                    {
-                        PresetId = SaveRules.DefaultPartyPresetId,
-                        CharacterSlotIds = characterSlotIds
-                    }
-                },
+                Presets = presets,
                 LastBossId = SaveRules.EmptyId,
                 LastDifficultyId = SaveRules.EmptyId
+            };
+        }
+
+        private static PartyPresetSaveData CreateEmptyPreset(int presetIndex)
+        {
+            var characterSlotIds = new List<string>(
+                SaveRules.PartySlotCount);
+            for (int slotIndex = 0;
+                slotIndex < SaveRules.PartySlotCount;
+                slotIndex++)
+            {
+                characterSlotIds.Add(SaveRules.EmptyId);
+            }
+
+            return new PartyPresetSaveData
+            {
+                PresetId = SaveRules.GetDefaultPartyPresetId(presetIndex),
+                CharacterSlotIds = characterSlotIds
             };
         }
     }

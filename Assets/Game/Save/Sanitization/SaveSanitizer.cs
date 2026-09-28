@@ -156,7 +156,9 @@ namespace ValorChronicle.Save.Sanitization
         private static void SanitizeParty(PartySaveData party)
         {
             if (party?.Presets == null || party.Presets.Count == 0) return;
-            if (party.ActivePresetIndex < 0 || party.ActivePresetIndex >= party.Presets.Count) party.ActivePresetIndex = 0;
+            if (party.ActivePresetIndex < 0
+                || party.ActivePresetIndex >= SaveRules.PartyPresetCount)
+                party.ActivePresetIndex = 0;
             var reserved = new HashSet<string>(party.Presets.Where(item => item != null && !string.IsNullOrWhiteSpace(item.PresetId)).Select(item => item.PresetId), StringComparer.Ordinal);
             var accepted = new HashSet<string>(StringComparer.Ordinal);
             int recoveredIndex = 1;

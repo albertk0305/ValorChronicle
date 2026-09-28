@@ -39,6 +39,7 @@ namespace ValorChronicle.Save.Validation
         DuplicateRelicDefinitionEquipped,
         MissingPartyPresetId,
         DuplicatePartyPresetId,
+        InvalidPartyPresetCount,
         InvalidActivePresetIndex,
         InvalidPartySlotCount,
         DuplicatePartyCharacter,

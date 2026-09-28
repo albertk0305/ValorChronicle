@@ -96,9 +96,17 @@ namespace ValorChronicle.Save.Normalization
             party.LastBossId ??= SaveRules.EmptyId;
             party.LastDifficultyId ??= SaveRules.EmptyId;
 
-            if (party.Presets.Count == 0)
+            if (party.Presets.Count > SaveRules.PartyPresetCount)
             {
-                party.Presets.Add(CreateDefaultPreset());
+                party.Presets.RemoveRange(
+                    SaveRules.PartyPresetCount,
+                    party.Presets.Count - SaveRules.PartyPresetCount);
+            }
+
+            while (party.Presets.Count < SaveRules.PartyPresetCount)
+            {
+                party.Presets.Add(CreateDefaultPreset(
+                    party.Presets.Count));
             }
 
             for (int i = 0; i < party.Presets.Count; i++)
@@ -111,13 +119,15 @@ namespace ValorChronicle.Save.Normalization
                 party.Presets[i] = preset;
             }
 
-            if (party.ActivePresetIndex < 0 || party.ActivePresetIndex >= party.Presets.Count)
+            if (party.ActivePresetIndex < 0
+                || party.ActivePresetIndex >= SaveRules.PartyPresetCount)
             {
                 party.ActivePresetIndex = 0;
             }
         }
 
-        private static PartyPresetSaveData CreateDefaultPreset()
+        private static PartyPresetSaveData CreateDefaultPreset(
+            int presetIndex)
         {
             var slots = new List<string>(SaveRules.PartySlotCount);
 
@@ -128,7 +138,7 @@ namespace ValorChronicle.Save.Normalization
 
             return new PartyPresetSaveData
             {
-                PresetId = SaveRules.DefaultPartyPresetId,
+                PresetId = SaveRules.GetDefaultPartyPresetId(presetIndex),
                 CharacterSlotIds = slots
             };
         }

@@ -31,7 +31,9 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(result.Characters, Is.Empty);
             Assert.That(result.RelicInstances, Is.Empty);
             Assert.That(result.Party, Is.Not.Null);
-            Assert.That(result.Party.Presets, Has.Count.EqualTo(1));
+            Assert.That(
+                result.Party.Presets,
+                Has.Count.EqualTo(SaveRules.PartyPresetCount));
             Assert.That(result.Party.Presets[0].PresetId, Is.EqualTo(SaveRules.DefaultPartyPresetId));
             Assert.That(result.Party.Presets[0].CharacterSlotIds, Has.Count.EqualTo(SaveRules.PartySlotCount));
             Assert.That(result.GachaStates, Is.Empty);
@@ -149,7 +151,6 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [TestCase(-1)]
-        [TestCase(1)]
         [TestCase(100)]
         public void NormalizeCopy_ResetsInvalidActivePresetIndex(int activePresetIndex)
         {
@@ -286,10 +287,25 @@ namespace ValorChronicle.Tests.EditMode
 
         private static void AssertDefaultPreset(PartySaveData party)
         {
-            Assert.That(party.Presets, Has.Count.EqualTo(1));
-            Assert.That(party.Presets[0].PresetId, Is.EqualTo(SaveRules.DefaultPartyPresetId));
-            Assert.That(party.Presets[0].CharacterSlotIds, Has.Count.EqualTo(SaveRules.PartySlotCount));
-            Assert.That(party.Presets[0].CharacterSlotIds.All(value => value == string.Empty), Is.True);
+            Assert.That(
+                party.Presets,
+                Has.Count.EqualTo(SaveRules.PartyPresetCount));
+            for (int presetIndex = 0;
+                presetIndex < SaveRules.PartyPresetCount;
+                presetIndex++)
+            {
+                Assert.That(
+                    party.Presets[presetIndex].PresetId,
+                    Is.EqualTo(SaveRules.GetDefaultPartyPresetId(
+                        presetIndex)));
+                Assert.That(
+                    party.Presets[presetIndex].CharacterSlotIds,
+                    Has.Count.EqualTo(SaveRules.PartySlotCount));
+                Assert.That(
+                    party.Presets[presetIndex].CharacterSlotIds.All(
+                        value => value == string.Empty),
+                    Is.True);
+            }
         }
     }
 }

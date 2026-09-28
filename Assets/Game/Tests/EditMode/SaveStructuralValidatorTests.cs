@@ -70,7 +70,7 @@ namespace ValorChronicle.Tests.EditMode
         public void Validate_DetectsPartyGachaBossAndStringListRules()
         {
             ProfileSaveData profile = SaveValidationTestSupport.CreateValidProfile();
-            profile.Party.ActivePresetIndex = 2;
+            profile.Party.ActivePresetIndex = SaveRules.PartyPresetCount;
             profile.Party.Presets.Add(new PartyPresetSaveData { PresetId = SaveRules.DefaultPartyPresetId, CharacterSlotIds = new List<string> { "hero", "hero" } });
             profile.GachaStates.Add(new GachaStateSaveData { GachaId = "g", PityCount = 3, TotalPullCount = 2 });
             profile.GachaStates.Add(new GachaStateSaveData { GachaId = "g", PityCount = -1, TotalPullCount = -1 });
@@ -82,6 +82,7 @@ namespace ValorChronicle.Tests.EditMode
             SaveValidationReport report = validator.Validate(profile);
 
             Assert.That(report.Contains(SaveValidationCode.InvalidActivePresetIndex), Is.True);
+            Assert.That(report.Contains(SaveValidationCode.InvalidPartyPresetCount), Is.True);
             Assert.That(report.Contains(SaveValidationCode.DuplicatePartyPresetId), Is.True);
             Assert.That(report.Contains(SaveValidationCode.InvalidPartySlotCount), Is.True);
             Assert.That(report.Contains(SaveValidationCode.DuplicatePartyCharacter), Is.True);

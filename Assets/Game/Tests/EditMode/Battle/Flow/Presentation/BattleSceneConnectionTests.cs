@@ -203,15 +203,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Assert.That(fallbackBoss, Is.Not.Null);
                 Assert.That(fallbackBoss.name, Is.EqualTo("boss_kragmor"));
                 Assert.That(fallbackBoss.TurnLimit, Is.EqualTo(25));
-                CharacterDefinition fallbackMarea =
+                Assert.That(
                     bootstrapObject.FindProperty(
-                    "fallbackMareaDefinition").objectReferenceValue
-                    as CharacterDefinition;
-                Assert.That(fallbackMarea, Is.Not.Null);
-                Assert.That(fallbackMarea.Id,
-                    Is.EqualTo("character_marea_bluefang"));
-                Assert.That(fallbackMarea.Element,
-                    Is.EqualTo(ElementType.Water));
+                        "fallbackMareaDefinition"),
+                    Is.Null);
                 BattleResultBalanceDefinition fallbackResultBalance =
                     bootstrapObject.FindProperty(
                         "fallbackResultBalanceDefinition")
@@ -223,9 +218,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     Is.True,
                     error);
                 Assert.That(
-                    bootstrapObject.FindProperty("developmentMareaLevel")
-                        .intValue,
-                    Is.EqualTo(1));
+                    bootstrapObject.FindProperty("developmentMareaLevel"),
+                    Is.Null);
                 Assert.That(
                     bootstrapObject.FindProperty("developmentDifficultyId")
                         .stringValue,

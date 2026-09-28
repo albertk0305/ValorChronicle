@@ -164,7 +164,12 @@ namespace ValorChronicle.Tests.EditMode
                 new NewtonsoftJsonSaveSerializer(),
                 new NewProfileFactory(),
                 cloner,
-                new SaveMigrationRunner(cloner, Array.Empty<ISaveMigrationStep>()),
+                new SaveMigrationRunner(
+                    cloner,
+                    new ISaveMigrationStep[]
+                    {
+                        new V1ToV2PartyMigration()
+                    }),
                 new SaveValidationProcessor(),
                 new FakeSaveContentCatalog(),
                 timeProvider);

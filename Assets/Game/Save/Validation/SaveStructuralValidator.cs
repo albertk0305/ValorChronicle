@@ -115,12 +115,17 @@ namespace ValorChronicle.Save.Validation
 
         private static void ValidateParty(PartySaveData party, SaveValidationReport report)
         {
-            if (party?.Presets == null || party.Presets.Count == 0)
+            if (party?.Presets == null
+                || party.Presets.Count != SaveRules.PartyPresetCount)
             {
-                Add(report, SaveValidationCode.InvalidPartySlotCount, SaveValidationSeverity.RecoverableError, "Party.Presets", true);
+                Add(report, SaveValidationCode.InvalidPartyPresetCount, SaveValidationSeverity.RecoverableError, "Party.Presets", true);
+            }
+            if (party?.Presets == null)
+            {
                 return;
             }
-            if (party.ActivePresetIndex < 0 || party.ActivePresetIndex >= party.Presets.Count)
+            if (party.ActivePresetIndex < 0
+                || party.ActivePresetIndex >= SaveRules.PartyPresetCount)
                 Add(report, SaveValidationCode.InvalidActivePresetIndex, SaveValidationSeverity.RecoverableError, "Party.ActivePresetIndex", true);
             var presetIds = new HashSet<string>(StringComparer.Ordinal);
             for (int i = 0; i < party.Presets.Count; i++)

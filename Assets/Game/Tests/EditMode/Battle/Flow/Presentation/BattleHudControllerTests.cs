@@ -21,6 +21,7 @@ using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Party.Battle;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 {
@@ -1113,7 +1114,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 composition.FlowSetup,
                 coordinator => composition.CreateBridge(coordinator));
             bridge = composition.Bridge;
-            composition.WaterElement.Add(2);
+            composition.Boss.Resources.Get(
+                WaterElementResource.Id).Add(2);
             Assert.That(flowController.Coordinator.StartBattle(), Is.True);
             InvokePrivate(hudController, "Start");
 
@@ -1148,7 +1150,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 composition.FlowSetup,
                 coordinator => composition.CreateBridge(coordinator));
             bridge = composition.Bridge;
-            composition.WaterElement.Add(3);
+            composition.Boss.Resources.Get(
+                WaterElementResource.Id).Add(3);
             Assert.That(flowController.Coordinator.StartBattle(), Is.True);
             InvokePrivate(hudController, "Start");
 
@@ -2067,9 +2070,20 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             MareaBluefangTestConfig.Assign(mareaDefinition, config);
 
             return new BattleSceneCombatComposition(
-                mareaDefinition,
-                config,
-                1,
+                new[]
+                {
+                    new BattlePartyMemberInput(
+                        mareaDefinition.Id,
+                        partySlotIndex: 0,
+                        level: 1,
+                        awakening: 0,
+                        characterDefinition: mareaDefinition)
+                },
+                new CharacterCombatProviderRegistrarCatalog(
+                    new ICharacterCombatProviderRegistrar[]
+                    {
+                        new MareaBluefangCombatProviderRegistrar()
+                    }),
                 bossDefinition,
                 kragmorConfig,
                 difficulty,

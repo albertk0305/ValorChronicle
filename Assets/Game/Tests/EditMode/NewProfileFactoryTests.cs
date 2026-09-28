@@ -34,21 +34,32 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
-        public void Create_BuildsOneEmptyFiveSlotPartyPreset()
+        public void Create_BuildsFiveEmptyFiveSlotPartyPresets()
         {
             var factory = new NewProfileFactory();
 
             ProfileSaveData profile = factory.Create("profile_test", 1);
 
             Assert.That(profile.Party.ActivePresetIndex, Is.Zero);
-            Assert.That(profile.Party.Presets, Has.Count.EqualTo(1));
             Assert.That(
-                profile.Party.Presets[0].PresetId,
-                Is.EqualTo(SaveRules.DefaultPartyPresetId));
-            Assert.That(
-                profile.Party.Presets[0].CharacterSlotIds,
-                Has.Count.EqualTo(SaveRules.PartySlotCount));
-            Assert.That(profile.Party.Presets[0].CharacterSlotIds.All(string.IsNullOrEmpty), Is.True);
+                profile.Party.Presets,
+                Has.Count.EqualTo(SaveRules.PartyPresetCount));
+            for (int presetIndex = 0;
+                presetIndex < SaveRules.PartyPresetCount;
+                presetIndex++)
+            {
+                Assert.That(
+                    profile.Party.Presets[presetIndex].PresetId,
+                    Is.EqualTo(SaveRules.GetDefaultPartyPresetId(
+                        presetIndex)));
+                Assert.That(
+                    profile.Party.Presets[presetIndex].CharacterSlotIds,
+                    Has.Count.EqualTo(SaveRules.PartySlotCount));
+                Assert.That(
+                    profile.Party.Presets[presetIndex]
+                        .CharacterSlotIds.All(value => value == string.Empty),
+                    Is.True);
+            }
             Assert.That(profile.Party.LastBossId, Is.Empty);
             Assert.That(profile.Party.LastDifficultyId, Is.Empty);
         }

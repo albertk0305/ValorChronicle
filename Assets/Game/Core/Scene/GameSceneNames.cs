@@ -11,6 +11,7 @@ namespace ValorChronicle.Core.Scene
                 GameScene.Init => "Init",
                 GameScene.Main => "Main",
                 GameScene.Battle => "Battle",
+                GameScene.Party => "Party",
                 _ => throw new ArgumentOutOfRangeException(
                     nameof(scene),
                     scene,

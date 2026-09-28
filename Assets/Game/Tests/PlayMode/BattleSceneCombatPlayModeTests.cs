@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
@@ -20,7 +21,10 @@ using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Random;
+using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Save.DTO;
+using ValorChronicle.Save.Services;
 
 namespace ValorChronicle.Tests.PlayMode
 {
@@ -33,6 +37,12 @@ namespace ValorChronicle.Tests.PlayMode
         private BattleBoardView boardView;
         private BattleBoardInput boardInput;
         private GameObject bootstrapRoot;
+        private DefinitionDatabase testDefinitionDatabase;
+        private CharacterDefinition testMareaDefinition;
+        private BossDefinition testKragmorDefinition;
+        private MareaBluefangCombatConfig testMareaConfig;
+        private KragmorCombatConfig testKragmorConfig;
+        private string saveRoot;
 
         [UnitySetUp]
         public IEnumerator LoadBattleScene()
@@ -95,6 +105,37 @@ namespace ValorChronicle.Tests.PlayMode
                 UnityEngine.Object.Destroy(bootstrapRoot);
             }
 
+            if (testDefinitionDatabase != null)
+            {
+                UnityEngine.Object.Destroy(testDefinitionDatabase);
+            }
+
+            if (testMareaDefinition != null)
+            {
+                UnityEngine.Object.Destroy(testMareaDefinition);
+            }
+
+            if (testKragmorDefinition != null)
+            {
+                UnityEngine.Object.Destroy(testKragmorDefinition);
+            }
+
+            if (testKragmorConfig != null)
+            {
+                UnityEngine.Object.Destroy(testKragmorConfig);
+            }
+
+            if (testMareaConfig != null)
+            {
+                UnityEngine.Object.Destroy(testMareaConfig);
+            }
+
+            if (!string.IsNullOrEmpty(saveRoot)
+                && Directory.Exists(saveRoot))
+            {
+                Directory.Delete(saveRoot, recursive: true);
+            }
+
             yield return null;
         }
 
@@ -104,12 +145,13 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(flow.RequiresCombatBridge, Is.True);
             Assert.That(flow.CombatBridge, Is.SameAs(combat.Bridge));
             Assert.That(combat.Party.Characters, Has.Count.EqualTo(1));
-            Assert.That(combat.Marea.CharacterId,
+            Assert.That(combat.Party.Characters[0].CharacterId,
                 Is.EqualTo(MareaBluefangRules.CharacterId));
-            Assert.That(combat.Marea.PartySlotIndex, Is.Zero);
-            Assert.That(combat.Marea.Element, Is.EqualTo(ElementType.Water));
-            Assert.That(combat.Marea.MaxHp, Is.EqualTo(900));
-            Assert.That(combat.Marea.Attack, Is.EqualTo(180d));
+            Assert.That(combat.Party.Characters[0].PartySlotIndex, Is.Zero);
+            Assert.That(combat.Party.Characters[0].Element,
+                Is.EqualTo(ElementType.Water));
+            Assert.That(combat.Party.Characters[0].MaxHp, Is.EqualTo(900));
+            Assert.That(combat.Party.Characters[0].Attack, Is.EqualTo(180d));
             Assert.That(combat.Boss.BossId, Is.EqualTo("kragmor"));
             Assert.That(combat.Boss.MaxHp, Is.EqualTo(66000));
             Assert.That(combat.Boss.CurrentHp, Is.EqualTo(66000));
@@ -118,8 +160,12 @@ namespace ValorChronicle.Tests.PlayMode
                 Is.SameAs(combat.BossIntentSource));
             Assert.That(combat.BossIntentSource.NextIntent.ActionKind,
                 Is.EqualTo(KragmorActionKind.ColossusIronFist));
-            Assert.That(combat.WaterElement.MaxAmount, Is.EqualTo(5));
-            Assert.That(combat.WaterElement.CurrentAmount, Is.Zero);
+            Assert.That(combat.Boss.Resources.Get(
+                    WaterElementResource.Id).MaxAmount,
+                Is.EqualTo(5));
+            Assert.That(combat.Boss.Resources.GetAmount(
+                    WaterElementResource.Id),
+                Is.Zero);
             Assert.That(combat.MatchProviders.TryResolve(
                 MareaBluefangRules.CharacterId,
                 out _), Is.True);
@@ -149,8 +195,8 @@ namespace ValorChronicle.Tests.PlayMode
 
             Assert.That(flow.TryUseActive(0), Is.True);
             Assert.That(active.RemainingCooldown,
-                Is.EqualTo(combat.MareaConfig.ActiveCooldownTurns));
-            Assert.That(combat.Marea.Effects.FindByEffectId(
+                Is.EqualTo(combat.FlowSetup.ActiveAbilityCooldowns[0]));
+            Assert.That(combat.Party.Characters[0].Effects.FindByEffectId(
                 MareaBluefangRules.ActiveEffectId), Has.Count.EqualTo(1));
             Assert.That(combat.Bridge.LastActiveExecutionResult
                 .ActionResults.Single(), Is.TypeOf<ApplyEffectActionResult>());
@@ -162,7 +208,9 @@ namespace ValorChronicle.Tests.PlayMode
                 .Single();
             Assert.That(damage.Context.ElementDamageIncreaseRateSum,
                 Is.EqualTo(0.25d).Within(0.000000001d));
-            Assert.That(combat.WaterElement.CurrentAmount, Is.EqualTo(1));
+            Assert.That(combat.Boss.Resources.GetAmount(
+                    WaterElementResource.Id),
+                Is.EqualTo(1));
             yield return null;
         }
 
@@ -179,8 +227,8 @@ namespace ValorChronicle.Tests.PlayMode
 
             bool started = presentation.TryPresent(
                 new MatchDamageProjectileRequest(
-                    combat.Marea.PartySlotIndex,
-                    combat.Marea.CharacterId,
+                    combat.Party.Characters[0].PartySlotIndex,
+                    combat.Party.Characters[0].CharacterId,
                     ElementType.Water),
                 result =>
                 {
@@ -329,7 +377,9 @@ namespace ValorChronicle.Tests.PlayMode
                 Is.TypeOf<DamageActionResult>());
             Assert.That(threeMatch.ActionResults[1],
                 Is.TypeOf<AddResourceActionResult>());
-            Assert.That(combat.WaterElement.CurrentAmount, Is.EqualTo(1));
+            Assert.That(combat.Boss.Resources.GetAmount(
+                    WaterElementResource.Id),
+                Is.EqualTo(1));
             BossDamageActionResult firstBossAction = combat.Bridge
                 .LastBossExecutionResult.ActionResults
                 .OfType<BossDamageActionResult>()
@@ -352,7 +402,9 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(
                 fourDamage.ContextRequest.ActionLocalDealtDamageIncreaseRate,
                 Is.EqualTo(0.15d));
-            Assert.That(combat.WaterElement.CurrentAmount, Is.EqualTo(2));
+            Assert.That(combat.Boss.Resources.GetAmount(
+                    WaterElementResource.Id),
+                Is.EqualTo(2));
             BossDamageActionResult secondBossAction = combat.Bridge
                 .LastBossExecutionResult.ActionResults
                 .OfType<BossDamageActionResult>()
@@ -378,7 +430,9 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(consumption.ConsumptionRecord, Is.Not.Null);
             Assert.That(consumption.ConsumptionRecord.ConsumerId,
                 Is.EqualTo(MareaBluefangRules.CharacterId));
-            Assert.That(combat.WaterElement.CurrentAmount, Is.Zero);
+            Assert.That(combat.Boss.Resources.GetAmount(
+                    WaterElementResource.Id),
+                Is.Zero);
             Assert.That(combat.Bridge.LastBossExecutionResult.ActionResults
                     .Select(result => result.GetType()),
                 Is.EqualTo(new[]
@@ -404,6 +458,21 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(flow.Context.Phase, Is.EqualTo(BattlePhase.Result));
             Assert.That(flow.Context.CurrentTurn, Is.EqualTo(turnBeforeLethal));
             yield return null;
+
+            Assert.That(
+                combat.ResultPersistenceCoordinator.IsPersistenceCompleted,
+                Is.True);
+            Assert.That(
+                combat.ResultPersistenceCoordinator.LastPersistenceOperation
+                    .IsSuccess,
+                Is.True);
+            ProfileSaveData savedProfile = GameBootstrapper.Instance
+                .SaveService.GetCurrentProfileSnapshot();
+            BossRecordSaveData savedRecord = savedProfile.BossRecords.Single(
+                record => record.BossId == "kragmor"
+                    && record.DifficultyId
+                        == BattleDifficultyIds.Normal);
+            Assert.That(savedRecord.IsCleared, Is.True);
         }
 
         [UnityTest]
@@ -795,6 +864,135 @@ namespace ValorChronicle.Tests.PlayMode
 
         private void InstallTestBootstrapper()
         {
+            testMareaConfig = ScriptableObject.CreateInstance<
+                MareaBluefangCombatConfig>();
+            SetField(testMareaConfig, "match3Coefficient", 0.90d);
+            SetField(testMareaConfig, "match4BaseCoefficient", 1.50d);
+            SetField(
+                testMareaConfig,
+                "match4WaterElementBonusCoefficient",
+                0.40d);
+            SetField(testMareaConfig, "match5BaseCoefficient", 2.40d);
+            SetField(
+                testMareaConfig,
+                "match5CoefficientPerWaterElement",
+                1.40d);
+            SetField(
+                testMareaConfig,
+                "passiveDealtDamageIncreaseRate",
+                0.15d);
+            SetField(
+                testMareaConfig,
+                "activeWaterDamageIncreaseRate",
+                0.25d);
+            SetField(testMareaConfig, "activeDurationTurns", 3);
+            SetField(testMareaConfig, "activeCooldownTurns", 8);
+            SetField(testMareaConfig, "waterElementMaxAmount", 5);
+
+            testMareaDefinition = ScriptableObject.CreateInstance<
+                CharacterDefinition>();
+            SetField(
+                testMareaDefinition,
+                "id",
+                MareaBluefangRules.CharacterId);
+            SetField(testMareaDefinition, "element", ElementType.Water);
+            SetField(testMareaDefinition, "level1Hp", 900);
+            SetField(testMareaDefinition, "level1Attack", 180);
+            SetField(testMareaDefinition, "level100Hp", 3400);
+            SetField(testMareaDefinition, "level100Attack", 1050);
+            SetField(
+                testMareaDefinition,
+                "combatConfig",
+                testMareaConfig);
+
+            testKragmorDefinition = ScriptableObject.CreateInstance<
+                BossDefinition>();
+            testKragmorConfig = ScriptableObject.CreateInstance<
+                KragmorCombatConfig>();
+            SetField(
+                testKragmorConfig,
+                "colossusIronFistCoefficient",
+                0.75d);
+            SetField(
+                testKragmorConfig,
+                "rockshardEruptionCoefficient",
+                0.65d);
+            SetField(testKragmorConfig, "rockshardRockCreationCount", 3);
+            SetField(testKragmorConfig, "maximumRockCount", 6);
+            SetField(
+                testKragmorConfig,
+                "earthCollapseCoefficient",
+                2.40d);
+            SetField(
+                testKragmorConfig,
+                "volcanicCarapaceReductionRate",
+                0.10d);
+            SetField(
+                testKragmorConfig,
+                "coreCompressionReductionRate",
+                0.20d);
+            SetField(
+                testKragmorConfig,
+                "coreExposureIncreaseRate",
+                0.30d);
+            SetField(testKragmorDefinition, "id", "kragmor");
+            SetField(testKragmorDefinition, "element", ElementType.Fire);
+            SetField(testKragmorDefinition, "turnLimit", 25);
+            SetField(
+                testKragmorDefinition,
+                "combatConfig",
+                testKragmorConfig);
+            SetField(
+                testKragmorDefinition,
+                "difficultyStats",
+                new[]
+                {
+                    new BossDifficultyStats(
+                        BattleDifficultyIds.Normal,
+                        maxHp: 66000,
+                        attack: 850d),
+                    new BossDifficultyStats(
+                        BattleDifficultyIds.Challenge,
+                        maxHp: 66000,
+                        attack: 850d)
+                });
+
+            testDefinitionDatabase = ScriptableObject.CreateInstance<
+                DefinitionDatabase>();
+            SetField(
+                testDefinitionDatabase,
+                "characters",
+                new[] { testMareaDefinition });
+            SetField(
+                testDefinitionDatabase,
+                "bosses",
+                new[] { testKragmorDefinition });
+            testDefinitionDatabase.Initialize();
+
+            saveRoot = Path.Combine(
+                Application.temporaryCachePath,
+                "ValorChronicleBattleSceneTests",
+                Guid.NewGuid().ToString("N"));
+            SaveService saveService = SaveSystemFactory.Create(
+                saveRoot,
+                testDefinitionDatabase);
+            SaveLoadResult load = saveService.LoadOrCreate(
+                "battle_scene_test");
+            Assert.That(load.IsSuccess, Is.True, load.Message);
+            SaveTransactionResult partySetup =
+                saveService.ExecuteTransaction(profile =>
+                {
+                    profile.Characters.Add(new CharacterSaveData
+                    {
+                        CharacterId = MareaBluefangRules.CharacterId,
+                        Level = 1,
+                        Awakening = 0
+                    });
+                    profile.Party.Presets[0].CharacterSlotIds[0] =
+                        MareaBluefangRules.CharacterId;
+                });
+            Assert.That(partySetup.IsSuccess, Is.True, partySetup.Message);
+
             bootstrapRoot = new GameObject("Test GameBootstrapper");
             bootstrapRoot.SetActive(false);
             GameBootstrapper bootstrapper =
@@ -809,6 +1007,40 @@ namespace ValorChronicle.Tests.PlayMode
                 "RandomSource",
                 bootstrapper,
                 new SeededRandomSource(54321));
+            SetField(
+                bootstrapper,
+                "definitionDatabase",
+                testDefinitionDatabase);
+            SetAutoProperty(
+                typeof(GameBootstrapper),
+                "SaveService",
+                bootstrapper,
+                saveService);
+        }
+
+        private static void SetField(
+            object target,
+            string fieldName,
+            object value)
+        {
+            Type type = target.GetType();
+            while (type != null)
+            {
+                FieldInfo field = type.GetField(
+                    fieldName,
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    field.SetValue(target, value);
+                    return;
+                }
+
+                type = type.BaseType;
+            }
+
+            throw new MissingFieldException(
+                target.GetType().FullName,
+                fieldName);
         }
 
         private static void SetAutoProperty(
