@@ -2,6 +2,7 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using ValorChronicle.Battle.Combat.State;
+using ValorChronicle.Characters.Build;
 using ValorChronicle.Characters.Stats;
 using ValorChronicle.Data.Definitions;
 
@@ -76,19 +77,24 @@ namespace ValorChronicle.Tests.EditMode.Characters.Stats
         }
 
         [Test]
-        public void BattleStateFactoryPreservesDefinitionAndUsesCalculatedStats()
+        public void BattleStateFactoryPreservesDefinitionAndUsesResolvedBuild()
         {
+            ResolvedCharacterBuild build =
+                CharacterBuildResolverFactory.CreateDefault().Resolve(
+                    definition,
+                    40,
+                    2);
             CharacterBattleState state = CharacterBattleStateFactory.Create(
                 definition,
-                40,
+                build,
                 3);
 
             Assert.That(state.CharacterId,
                 Is.EqualTo("character_marea_bluefang"));
             Assert.That(state.PartySlotIndex, Is.EqualTo(3));
             Assert.That(state.Element, Is.EqualTo(ElementType.Water));
-            Assert.That(state.MaxHp, Is.EqualTo(1885));
-            Assert.That(state.Attack, Is.EqualTo(523d));
+            Assert.That(state.MaxHp, Is.EqualTo(1979));
+            Assert.That(state.Attack, Is.EqualTo(549d));
             Assert.That(definition.Level1Hp, Is.EqualTo(900));
             Assert.That(definition.Level1Attack, Is.EqualTo(180));
             Assert.That(definition.Level100Hp, Is.EqualTo(3400));

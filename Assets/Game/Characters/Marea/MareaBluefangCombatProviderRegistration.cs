@@ -10,6 +10,19 @@ namespace ValorChronicle.Characters.Marea
             ActiveAbilityActionProviderRegistry activeProviders,
             MareaBluefangCombatConfig config)
         {
+            Register(
+                matchProviders,
+                activeProviders,
+                config,
+                awakening: 0);
+        }
+
+        public static void Register(
+            MatchEventActionProviderRegistry matchProviders,
+            ActiveAbilityActionProviderRegistry activeProviders,
+            MareaBluefangCombatConfig config,
+            int awakening)
+        {
             if (matchProviders == null)
             {
                 throw new ArgumentNullException(nameof(matchProviders));
@@ -32,7 +45,7 @@ namespace ValorChronicle.Characters.Marea
 
             matchProviders.Register(
                 MareaBluefangRules.CharacterId,
-                new MareaBluefangMatchActionProvider(config));
+                new MareaBluefangMatchActionProvider(config, awakening));
             activeProviders.Register(
                 MareaBluefangRules.CharacterId,
                 MareaBluefangRules.ActiveAbilityId,

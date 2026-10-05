@@ -5,6 +5,12 @@ TextureImporter:
   - first:
       213: -7352339073622421304
     second: Title_0
+  - first:
+      213: 578584420991164872
+    second: Title_1
+  - first:
+      213: -2586058674264470982
+    second: Title_2
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -76,7 +82,7 @@ TextureImporter:
     resizeAlgorithm: 0
     textureFormat: -1
     textureCompression: 1
-    compressionQuality: 100
+    compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
     overridden: 0
@@ -130,9 +136,9 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 0
-        y: 13
-        width: 2048
-        height: 1352
+        y: 0
+        width: 1353
+        height: 1020
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -143,6 +149,50 @@ TextureImporter:
       bones: []
       spriteID: 8c0d280219e37f990800000000000000
       internalID: -7352339073622421304
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_1
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 296
+        width: 6
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8c1e0c5277b870800800000000000000
+      internalID: 578584420991164872
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_2
+      rect:
+        serializedVersion: 2
+        x: 500
+        y: 11
+        width: 13
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a3a062856597c1cd0800000000000000
+      internalID: -2586058674264470982
       vertices: []
       indices: 
       edges: []
@@ -162,6 +212,8 @@ TextureImporter:
       entries: []
     nameFileIdTable:
       Title_0: -7352339073622421304
+      Title_1: 578584420991164872
+      Title_2: -2586058674264470982
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -15,5 +15,5 @@ MonoBehaviour:
   id: boss_action_kragmor_colossus_iron_fist
   displayNameKey: boss_action.kragmor.colossus_iron_fist.name
   descriptionKey: boss_action.kragmor.colossus_iron_fist.description
-  icon: {fileID: 21300000, guid: f8a461799d004a14aa218fc1ed90cd14, type: 3}
+  icon: {fileID: 21300000, guid: b71367242b62d864b9a3adba4b47d738, type: 3}
   skillKind: 3

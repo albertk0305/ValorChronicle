@@ -49,7 +49,9 @@ namespace ValorChronicle.Party.Presentation
             int presetIndex,
             int slotIndex,
             string characterId,
-            bool inputEnabled)
+            bool inputEnabled,
+            Sprite characterSprite = null,
+            Sprite typeSprite = null)
         {
             if (!IsConfigured)
             {
@@ -76,8 +78,10 @@ namespace ValorChronicle.Party.Presentation
             SlotIndex = slotIndex;
             button.interactable = inputEnabled;
 
-            ClearUnboundImage(characterImage);
-            ClearUnboundImage(typeImage);
+            SetSprite(
+                characterImage,
+                IsEmpty ? null : characterSprite);
+            SetSprite(typeImage, IsEmpty ? null : typeSprite);
         }
 
         public void SetInputEnabled(bool inputEnabled)
@@ -98,11 +102,11 @@ namespace ValorChronicle.Party.Presentation
             Clicked?.Invoke(PresetIndex, SlotIndex);
         }
 
-        private static void ClearUnboundImage(Image image)
+        private static void SetSprite(Image image, Sprite sprite)
         {
-            image.sprite = null;
+            image.sprite = sprite;
             Color color = image.color;
-            color.a = 0f;
+            color.a = sprite == null ? 0f : 1f;
             image.color = color;
         }
 

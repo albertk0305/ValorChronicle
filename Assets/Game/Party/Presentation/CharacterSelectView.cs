@@ -151,6 +151,12 @@ namespace ValorChronicle.Party.Presentation
                 faceResolver,
                 elementIconResolver,
                 resetScroll);
+            IReadOnlyList<CharacterRosterCellView> cells =
+                characterGrid.PoolCells;
+            for (int index = 0; index < cells.Count; index++)
+            {
+                cells[index].SetAlwaysShowBorder(true);
+            }
         }
 
         public void RefreshCellSelection(string selectedCharacterId)

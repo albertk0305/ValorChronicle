@@ -5,6 +5,15 @@ TextureImporter:
   - first:
       213: 4544909822489184200
     second: KragmorCompressing_0
+  - first:
+      213: 4704317952433845095
+    second: KragmorCompressing_1
+  - first:
+      213: 8210357078723537046
+    second: KragmorCompressing_2
+  - first:
+      213: 3329775983169158662
+    second: KragmorCompressing_3
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -129,10 +138,10 @@ TextureImporter:
       name: KragmorCompressing_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 330
-        height: 330
+        x: 172
+        y: 160
+        width: 688
+        height: 688
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -143,6 +152,72 @@ TextureImporter:
       bones: []
       spriteID: 8c7c6a15763c21f30800000000000000
       internalID: 4544909822489184200
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: KragmorCompressing_1
+      rect:
+        serializedVersion: 2
+        x: 690
+        y: 760
+        width: 104
+        height: 100
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 763ff41d048194140800000000000000
+      internalID: 4704317952433845095
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: KragmorCompressing_2
+      rect:
+        serializedVersion: 2
+        x: 826
+        y: 566
+        width: 38
+        height: 66
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6982e64434c01f170800000000000000
+      internalID: 8210357078723537046
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: KragmorCompressing_3
+      rect:
+        serializedVersion: 2
+        x: 164
+        y: 372
+        width: 44
+        height: 88
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 60ebc626d9db53e20800000000000000
+      internalID: 3329775983169158662
       vertices: []
       indices: 
       edges: []
@@ -162,6 +237,9 @@ TextureImporter:
       entries: []
     nameFileIdTable:
       KragmorCompressing_0: 4544909822489184200
+      KragmorCompressing_1: 4704317952433845095
+      KragmorCompressing_2: 8210357078723537046
+      KragmorCompressing_3: 3329775983169158662
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

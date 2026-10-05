@@ -3,6 +3,7 @@
     "rootNamespace": "ValorChronicle.Tests.EditMode",
     "references": [
         "ValorChronicle.Game",
+        "ValorChronicle.Game.Editor",
         "Unity.TextMeshPro"
     ],
     "includePlatforms": [

@@ -2,7 +2,8 @@
     "name": "ValorChronicle.Game.PlayModeTests",
     "rootNamespace": "ValorChronicle.Tests.PlayMode",
     "references": [
-        "ValorChronicle.Game"
+        "ValorChronicle.Game",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

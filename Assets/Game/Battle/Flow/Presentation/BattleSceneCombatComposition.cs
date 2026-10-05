@@ -8,6 +8,7 @@ using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Battle.Results.Persistence;
 using ValorChronicle.Bosses.Kragmor;
+using ValorChronicle.Characters.Build;
 using ValorChronicle.Characters.Stats;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
@@ -119,6 +120,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     new BattleResultPersistenceService(saveService);
             }
 
+            CharacterBuildResolver buildResolver =
+                CharacterBuildResolverFactory.CreateDefault();
             var characterStates = new CharacterBattleState[
                 partyMembers.Count];
             for (int index = 0; index < partyMembers.Count; index++)
@@ -131,9 +134,13 @@ namespace ValorChronicle.Battle.Flow.Presentation
                         nameof(partyMembers));
                 }
 
-                characterStates[index] = CharacterBattleStateFactory.Create(
+                ResolvedCharacterBuild build = buildResolver.Resolve(
                     member.CharacterDefinition,
                     member.Level,
+                    member.Awakening);
+                characterStates[index] = CharacterBattleStateFactory.Create(
+                    member.CharacterDefinition,
+                    build,
                     member.PartySlotIndex);
             }
 

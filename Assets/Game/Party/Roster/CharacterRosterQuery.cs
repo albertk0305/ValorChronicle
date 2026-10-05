@@ -59,11 +59,12 @@ namespace ValorChronicle.Party.Roster
             }
 
             comparison = right.Awakening.CompareTo(left.Awakening);
-            return comparison != 0
-                ? comparison
-                : StringComparer.Ordinal.Compare(
-                    left.CharacterId,
-                    right.CharacterId);
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+
+            return CompareContentOrderThenId(left, right);
         }
 
         private static int CompareByAwakening(
@@ -77,6 +78,20 @@ namespace ValorChronicle.Party.Roster
             }
 
             comparison = right.Level.CompareTo(left.Level);
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+
+            return CompareContentOrderThenId(left, right);
+        }
+
+        private static int CompareContentOrderThenId(
+            CharacterRosterEntry left,
+            CharacterRosterEntry right)
+        {
+            int comparison = left.ContentOrder.CompareTo(
+                right.ContentOrder);
             return comparison != 0
                 ? comparison
                 : StringComparer.Ordinal.Compare(

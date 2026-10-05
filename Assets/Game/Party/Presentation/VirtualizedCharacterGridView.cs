@@ -25,6 +25,8 @@ namespace ValorChronicle.Party.Presentation
 
         private readonly List<CharacterRosterCellView> pool =
             new List<CharacterRosterCellView>();
+        private readonly List<CharacterRosterCellView> runtimeCreatedCells =
+            new List<CharacterRosterCellView>();
         private IReadOnlyList<CharacterRosterEntry> items =
             Array.Empty<CharacterRosterEntry>();
         private Func<string, Sprite> faceResolver;
@@ -33,6 +35,7 @@ namespace ValorChronicle.Party.Presentation
         private int firstBoundRow = -1;
         private bool interactionEnabled = true;
         private bool initialized;
+        private bool scrollSubscribed;
 
         public event Action<string> CharacterRequested;
 
@@ -67,18 +70,42 @@ namespace ValorChronicle.Party.Presentation
         private void OnEnable()
         {
             InitializeIfNeeded();
-            if (scrollRect != null)
-            {
-                scrollRect.onValueChanged.AddListener(HandleScrollChanged);
-            }
+            SubscribeScroll();
         }
 
         private void OnDisable()
         {
-            if (scrollRect != null)
+            UnsubscribeScroll();
+        }
+
+        public void Configure(
+            ScrollRect configuredScrollRect,
+            RectTransform configuredViewport,
+            RectTransform configuredContent,
+            CharacterRosterCellView[] configuredInitialCells,
+            Vector2 configuredCellSize,
+            Vector2 configuredSpacing,
+            float configuredTopPadding = 11f,
+            float configuredBottomPadding = 11f,
+            int configuredBufferRows = 1)
+        {
+            UnsubscribeScroll();
+            scrollRect = configuredScrollRect;
+            viewport = configuredViewport;
+            content = configuredContent;
+            initialCells = configuredInitialCells
+                ?? Array.Empty<CharacterRosterCellView>();
+            columnCount = 5;
+            bufferRows = configuredBufferRows;
+            cellSize = configuredCellSize;
+            spacing = configuredSpacing;
+            topPadding = configuredTopPadding;
+            bottomPadding = configuredBottomPadding;
+            initialized = false;
+            InitializeIfNeeded();
+            if (isActiveAndEnabled)
             {
-                scrollRect.onValueChanged.RemoveListener(
-                    HandleScrollChanged);
+                SubscribeScroll();
             }
         }
 
@@ -159,23 +186,56 @@ namespace ValorChronicle.Party.Presentation
                 return;
             }
 
+            ApplyScrollInteractionPolicy();
+
             if (!initialized)
             {
+                RemovePoolCellListeners();
                 pool.Clear();
                 for (int index = 0; index < initialCells.Length; index++)
                 {
-                    AddPoolCell(initialCells[index]);
+                    AddPoolCellIfMissing(initialCells[index]);
+                }
+
+                for (int index = runtimeCreatedCells.Count - 1;
+                    index >= 0;
+                    index--)
+                {
+                    if (runtimeCreatedCells[index] == null)
+                    {
+                        runtimeCreatedCells.RemoveAt(index);
+                    }
+                }
+
+                for (int index = 0; index < runtimeCreatedCells.Count; index++)
+                {
+                    CharacterRosterCellView runtimeCell = runtimeCreatedCells[index];
+                    if (runtimeCell.transform.parent != content)
+                    {
+                        runtimeCell.transform.SetParent(content, false);
+                    }
+
+                    AddPoolCellIfMissing(runtimeCell);
                 }
 
                 initialized = true;
-                scrollRect.horizontal = false;
-                scrollRect.vertical = true;
                 scrollRect.viewport = viewport;
                 scrollRect.content = content;
             }
 
             EnsurePoolCapacity();
             HideAllCells();
+        }
+
+        private void ApplyScrollInteractionPolicy()
+        {
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            scrollRect.elasticity = 0.1f;
+            scrollRect.inertia = true;
+            scrollRect.decelerationRate = 0.135f;
+            scrollRect.scrollSensitivity = 1f;
         }
 
         private void EnsurePoolCapacity()
@@ -195,20 +255,58 @@ namespace ValorChronicle.Party.Presentation
                 CharacterRosterCellView clone = Instantiate(
                     template,
                     content);
-                clone.name = $"Character (Virtual {pool.Count})";
-                AddPoolCell(clone);
+                clone.name =
+                    $"Character (Virtual {runtimeCreatedCells.Count})";
+                runtimeCreatedCells.Add(clone);
+                AddPoolCellIfMissing(clone);
             }
         }
 
-        private void AddPoolCell(CharacterRosterCellView cell)
+        private void AddPoolCellIfMissing(CharacterRosterCellView cell)
         {
+            if (pool.Contains(cell))
+            {
+                return;
+            }
+
             pool.Add(cell);
             cell.Clicked += HandleCellClicked;
+        }
+
+        private void RemovePoolCellListeners()
+        {
+            for (int index = 0; index < pool.Count; index++)
+            {
+                if (pool[index] != null)
+                {
+                    pool[index].Clicked -= HandleCellClicked;
+                }
+            }
         }
 
         private void HandleScrollChanged(Vector2 _)
         {
             RebindVisibleCells(force: false);
+        }
+
+        private void SubscribeScroll()
+        {
+            if (!scrollSubscribed && scrollRect != null)
+            {
+                scrollRect.onValueChanged.AddListener(HandleScrollChanged);
+                scrollSubscribed = true;
+            }
+        }
+
+        private void UnsubscribeScroll()
+        {
+            if (scrollSubscribed && scrollRect != null)
+            {
+                scrollRect.onValueChanged.RemoveListener(
+                    HandleScrollChanged);
+            }
+
+            scrollSubscribed = false;
         }
 
         private void HandleCellClicked(string characterId)
@@ -336,6 +434,11 @@ namespace ValorChronicle.Party.Presentation
 
         private void OnValidate()
         {
+            if (Application.isPlaying)
+            {
+                return;
+            }
+
             if (!IsConfigured)
             {
                 GameLogger.Warning(

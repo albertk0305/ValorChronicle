@@ -22,19 +22,30 @@ namespace ValorChronicle.Party.Presentation
         public bool IsSelected { get; private set; }
         public bool IsConfigured => button != null && selectionTarget != null;
 
+        private bool buttonSubscribed;
+
         private void OnEnable()
         {
-            if (button != null)
-            {
-                button.onClick.AddListener(HandleClick);
-            }
+            SubscribeButton();
         }
 
         private void OnDisable()
         {
-            if (button != null)
+            UnsubscribeButton();
+        }
+
+        public void Configure(
+            ElementType configuredElement,
+            Button configuredButton,
+            Image configuredSelectionTarget)
+        {
+            UnsubscribeButton();
+            element = configuredElement;
+            button = configuredButton;
+            selectionTarget = configuredSelectionTarget;
+            if (isActiveAndEnabled)
             {
-                button.onClick.RemoveListener(HandleClick);
+                SubscribeButton();
             }
         }
 
@@ -60,6 +71,25 @@ namespace ValorChronicle.Party.Presentation
             {
                 Clicked?.Invoke(element);
             }
+        }
+
+        private void SubscribeButton()
+        {
+            if (!buttonSubscribed && button != null)
+            {
+                button.onClick.AddListener(HandleClick);
+                buttonSubscribed = true;
+            }
+        }
+
+        private void UnsubscribeButton()
+        {
+            if (buttonSubscribed && button != null)
+            {
+                button.onClick.RemoveListener(HandleClick);
+            }
+
+            buttonSubscribed = false;
         }
 
         private void OnValidate()

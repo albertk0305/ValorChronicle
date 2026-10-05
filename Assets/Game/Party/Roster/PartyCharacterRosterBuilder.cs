@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using ValorChronicle.Characters.Stats;
+using ValorChronicle.Characters.Build;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Save.DTO;
@@ -10,16 +10,23 @@ namespace ValorChronicle.Party.Roster
     public sealed class PartyCharacterRosterBuilder
     {
         private readonly DefinitionDatabase definitionDatabase;
+        private readonly CharacterBuildResolver buildResolver;
         private readonly Action<string> warningReporter;
+        private readonly Dictionary<string, int> contentOrderByCharacterId;
 
         public PartyCharacterRosterBuilder(
             DefinitionDatabase definitionDatabase,
-            Action<string> warningReporter = null)
+            Action<string> warningReporter = null,
+            CharacterBuildResolver characterBuildResolver = null)
         {
             this.definitionDatabase = definitionDatabase
                 ?? throw new ArgumentNullException(
                     nameof(definitionDatabase));
+            buildResolver = characterBuildResolver
+                ?? CharacterBuildResolverFactory.CreateDefault();
             this.warningReporter = warningReporter;
+            contentOrderByCharacterId = BuildContentOrderLookup(
+                definitionDatabase.Characters);
         }
 
         public IReadOnlyList<CharacterRosterEntry> Build(
@@ -60,20 +67,40 @@ namespace ValorChronicle.Party.Roster
                     continue;
                 }
 
-                CharacterStatValues stats =
-                    CharacterStatCalculator.Calculate(
-                        definition,
-                        owned.Level);
+                ResolvedCharacterBuild build = buildResolver.Resolve(
+                    definition,
+                    owned.Level,
+                    owned.Awakening);
                 entries.Add(new CharacterRosterEntry(
                     owned.CharacterId,
                     definition.Element,
                     owned.Level,
                     owned.Awakening,
-                    stats.MaxHp,
-                    stats.Attack));
+                    build.MaxHp,
+                    build.Attack,
+                    contentOrderByCharacterId[owned.CharacterId]));
             }
 
             return entries;
+        }
+
+        private static Dictionary<string, int> BuildContentOrderLookup(
+            IReadOnlyList<CharacterDefinition> definitions)
+        {
+            var result = new Dictionary<string, int>(
+                definitions.Count,
+                StringComparer.Ordinal);
+            for (int index = 0; index < definitions.Count; index++)
+            {
+                CharacterDefinition definition = definitions[index];
+                if (definition != null
+                    && !string.IsNullOrEmpty(definition.Id))
+                {
+                    result[definition.Id] = index;
+                }
+            }
+
+            return result;
         }
     }
 }

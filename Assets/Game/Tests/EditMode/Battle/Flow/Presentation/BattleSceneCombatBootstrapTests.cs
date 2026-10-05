@@ -5,7 +5,10 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Board.Presentation;
+using ValorChronicle.Battle.Combat.Actions;
+using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
@@ -17,6 +20,7 @@ using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Party.Battle;
 using ValorChronicle.Save.DTO;
 using ValorChronicle.Save.Services;
 
@@ -289,6 +293,68 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Is.EqualTo(2));
         }
 
+        [TestCase(1, 0, 900L, 180d)]
+        [TestCase(1, 1, 900L, 189d)]
+        [TestCase(1, 2, 945L, 189d)]
+        [TestCase(40, 2, 1979L, 549d)]
+        [TestCase(100, 0, 3400L, 1050d)]
+        [TestCase(100, 1, 3400L, 1103d)]
+        [TestCase(100, 2, 3570L, 1103d)]
+        [TestCase(100, 3, 3570L, 1103d)]
+        [TestCase(100, 4, 3570L, 1103d)]
+        [TestCase(100, 5, 3570L, 1103d)]
+        [TestCase(100, 6, 3570L, 1103d)]
+        public void ProductionCompositionUsesResolvedBuildStats(
+            int level,
+            int awakening,
+            long expectedMaxHp,
+            double expectedAttack)
+        {
+            InstallProfile(ProfileWithMarea(
+                level: level,
+                awakening: awakening));
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            BattleSceneCombatComposition composition =
+                combatBootstrap.CombatComposition;
+            CharacterBattleState character =
+                composition.Party.Characters[0];
+            Assert.That(character.MaxHp, Is.EqualTo(expectedMaxHp));
+            Assert.That(character.Attack, Is.EqualTo(expectedAttack));
+            Assert.That(composition.Party.MaxHp,
+                Is.EqualTo(expectedMaxHp));
+            Assert.That(composition.Party.CurrentHp,
+                Is.EqualTo(expectedMaxHp));
+            Assert.That(composition.MatchProviders.TryResolve(
+                MareaBluefangRules.CharacterId,
+                out IMatchEventActionProvider provider), Is.True);
+            Assert.That(provider,
+                Is.TypeOf<MareaBluefangMatchActionProvider>());
+            if (awakening == 6)
+            {
+                composition.Boss.Resources.Get(
+                    WaterElementResource.Id).Add(5);
+                IReadOnlyList<CombatAction> actions =
+                    ((MareaBluefangMatchActionProvider)provider)
+                        .CreateActions(
+                            character,
+                            composition.Party,
+                            composition.Boss,
+                            BoardMatchTier.FiveOrMore,
+                            finalComboCount: 1,
+                            composition.ActionIds);
+                var damage = (DamageAction)actions[0];
+
+                Assert.That(damage.ContextRequest.SkillCoefficient,
+                    Is.EqualTo(10.40d).Within(0.000000001d));
+                Assert.That(
+                    damage.ContextRequest
+                        .ActionLocalDealtDamageIncreaseRate,
+                    Is.EqualTo(0.18d).Within(0.000000001d));
+            }
+        }
+
         [Test]
         public void EmptyPartyStopsBeforeCompositionAndFlowInitialization()
         {
@@ -400,6 +466,70 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 combatBootstrap.CombatComposition.Party.Characters[0],
                 Is.SameAs(battleCharacter));
             Assert.That(battleCharacter.PartySlotIndex, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void RunningBattleKeepsBuildSnapshotAndNextBattleUsesChanges()
+        {
+            InstallProfile(ProfileWithMarea(
+                activePresetIndex: 0,
+                partySlotIndex: 2,
+                level: 1,
+                awakening: 0));
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+            CharacterBattleState battleCharacter =
+                combatBootstrap.CombatComposition.Party.Characters[0];
+
+            SaveTransactionResult transaction =
+                saveService.ExecuteTransaction(profile =>
+                {
+                    profile.Characters[0].Level = 100;
+                    profile.Characters[0].Awakening = 6;
+                });
+
+            Assert.That(transaction.IsSuccess, Is.True);
+            Assert.That(
+                combatBootstrap.CombatComposition.Party.Characters,
+                Has.Count.EqualTo(1));
+            Assert.That(
+                combatBootstrap.CombatComposition.Party.Characters[0],
+                Is.SameAs(battleCharacter));
+            Assert.That(battleCharacter.MaxHp, Is.EqualTo(900));
+            Assert.That(battleCharacter.Attack, Is.EqualTo(180d));
+            Assert.That(battleCharacter.PartySlotIndex, Is.EqualTo(2));
+
+            BattlePartyResolutionResult nextParty =
+                new BattlePartyResolver(definitionDatabase).Resolve(
+                    saveService.GetCurrentProfileSnapshot());
+            BossDefinition boss = (BossDefinition)GetField(
+                combatBootstrap,
+                "fallbackBossDefinition");
+            Assert.That(nextParty.IsSuccess, Is.True);
+            Assert.That(boss.TryGetDifficultyStats(
+                "difficulty_normal",
+                out BossDifficultyStats difficulty), Is.True);
+            using var nextBattle = new BattleSceneCombatComposition(
+                nextParty.Members,
+                new CharacterCombatProviderRegistrarCatalog(
+                    new ICharacterCombatProviderRegistrar[]
+                    {
+                        new MareaBluefangCombatProviderRegistrar()
+                    }),
+                boss,
+                (KragmorCombatConfig)boss.CombatConfig,
+                difficulty,
+                new SeededRandomSource(2),
+                BattleResultBalanceDefaults.Create());
+
+            CharacterBattleState nextCharacter =
+                nextBattle.Party.Characters[0];
+            Assert.That(nextCharacter.MaxHp, Is.EqualTo(3570));
+            Assert.That(nextCharacter.Attack, Is.EqualTo(1103d));
+            Assert.That(nextBattle.MatchProviders.TryResolve(
+                MareaBluefangRules.CharacterId,
+                out IMatchEventActionProvider provider), Is.True);
+            Assert.That(provider,
+                Is.TypeOf<MareaBluefangMatchActionProvider>());
         }
 
         [Test]
@@ -539,14 +669,15 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         private static ProfileSaveData ProfileWithMarea(
             int activePresetIndex = 0,
             int partySlotIndex = 0,
-            int level = 1)
+            int level = 1,
+            int awakening = 0)
         {
             ProfileSaveData profile = SaveTestDataBuilder.Valid();
             profile.Characters.Add(new CharacterSaveData
             {
                 CharacterId = MareaBluefangRules.CharacterId,
                 Level = level,
-                Awakening = 0
+                Awakening = awakening
             });
             profile.Party.ActivePresetIndex = activePresetIndex;
             profile.Party.Presets[activePresetIndex]

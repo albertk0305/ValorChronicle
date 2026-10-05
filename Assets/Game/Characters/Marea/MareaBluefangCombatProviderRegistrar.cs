@@ -68,7 +68,8 @@ namespace ValorChronicle.Characters.Marea
             MareaBluefangCombatProviderRegistration.Register(
                 matchProviders,
                 activeProviders,
-                config);
+                config,
+                member.Awakening);
             return CharacterCombatProviderRegistrationResult
                 .WithActiveAbility(
                     MareaBluefangRules.ActiveAbilityId,

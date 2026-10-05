@@ -11,7 +11,8 @@ namespace ValorChronicle.Party.Roster
             int level,
             int awakening,
             long maxHp,
-            long attack)
+            long attack,
+            int contentOrder = int.MaxValue)
         {
             if (string.IsNullOrEmpty(characterId))
             {
@@ -26,6 +27,7 @@ namespace ValorChronicle.Party.Roster
             Awakening = awakening;
             MaxHp = maxHp;
             Attack = attack;
+            ContentOrder = contentOrder;
         }
 
         public string CharacterId { get; }
@@ -34,5 +36,6 @@ namespace ValorChronicle.Party.Roster
         public int Awakening { get; }
         public long MaxHp { get; }
         public long Attack { get; }
+        public int ContentOrder { get; }
     }
 }

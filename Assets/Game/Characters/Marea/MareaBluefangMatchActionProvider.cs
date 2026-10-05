@@ -4,6 +4,7 @@ using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Battle.Combat.Damage;
+using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Data.Definitions;
@@ -14,11 +15,22 @@ namespace ValorChronicle.Characters.Marea
         : IMatchEventActionProvider
     {
         private readonly MareaBluefangCombatConfig config;
+        private readonly MareaBluefangResolvedCombatRules combatRules;
 
         public MareaBluefangMatchActionProvider(
             MareaBluefangCombatConfig config)
+            : this(config, awakening: 0)
+        {
+        }
+
+        public MareaBluefangMatchActionProvider(
+            MareaBluefangCombatConfig config,
+            int awakening)
         {
             this.config = ValidateConfig(config);
+            combatRules = MareaBluefangCombatRuleResolver.Resolve(
+                config,
+                awakening);
         }
 
         public IReadOnlyList<CombatAction> CreateRootActions(
@@ -69,7 +81,7 @@ namespace ValorChronicle.Characters.Marea
             int waterAtAttackStart = water.CurrentAmount;
             bool hasWaterAtAttackStart = waterAtAttackStart > 0;
             double localDealtDamageIncrease = hasWaterAtAttackStart
-                ? config.PassiveDealtDamageIncreaseRate
+                ? combatRules.PassiveDealtDamageIncreaseRate
                 : 0d;
             AttackTag matchTag = ResolveMatchTag(matchTier);
             double skillCoefficient = ResolveSkillCoefficient(
@@ -101,11 +113,12 @@ namespace ValorChronicle.Characters.Marea
                     return new CombatAction[] { damageAction };
                 }
 
-                return new CombatAction[]
+                long consumeActionId = actionIds.Next();
+                var actions = new List<CombatAction>
                 {
                     damageAction,
                     new ConsumeResourceAction(
-                        actionIds.Next(),
+                        consumeActionId,
                         ActionOrigin.System,
                         boss,
                         WaterElementResource.Id,
@@ -115,20 +128,61 @@ namespace ValorChronicle.Characters.Marea
                         damageActionId,
                         damageActionId)
                 };
+
+                if (combatRules.HasLingeringSurge
+                    && waterAtAttackStart
+                        == MareaBluefangCombatRuleResolver
+                            .LingeringSurgeRequiredWaterAmount)
+                {
+                    actions.AddRange(
+                        MareaBluefangLingeringSurgeState
+                            .CreateGrantActions(
+                                attacker,
+                                combatRules
+                                    .LingeringSurgeDamageIncreaseRate,
+                                actionIds,
+                                damageActionId,
+                                consumeActionId));
+                }
+
+                return actions.AsReadOnly();
             }
 
-            return new CombatAction[]
+            var nonDevourActions = new List<CombatAction>
             {
-                damageAction,
-                new AddResourceAction(
+                damageAction
+            };
+            if (combatRules.HasLingeringSurge
+                && MareaBluefangLingeringSurgeState.TryGetChargeEffects(
+                    attacker,
+                    out EffectInstance match3Effect,
+                    out EffectInstance match4Effect))
+            {
+                nonDevourActions.Add(new RemoveEffectAction(
                     actionIds.Next(),
                     ActionOrigin.System,
-                    boss,
-                    WaterElementResource.Id,
-                    1,
+                    attacker,
+                    match3Effect.RuntimeId,
                     damageActionId,
-                    damageActionId)
-            };
+                    damageActionId));
+                nonDevourActions.Add(new RemoveEffectAction(
+                    actionIds.Next(),
+                    ActionOrigin.System,
+                    attacker,
+                    match4Effect.RuntimeId,
+                    damageActionId,
+                    damageActionId));
+            }
+
+            nonDevourActions.Add(new AddResourceAction(
+                actionIds.Next(),
+                ActionOrigin.System,
+                boss,
+                WaterElementResource.Id,
+                1,
+                damageActionId,
+                damageActionId));
+            return nonDevourActions.AsReadOnly();
         }
 
         private double ResolveSkillCoefficient(
@@ -138,15 +192,16 @@ namespace ValorChronicle.Characters.Marea
             switch (matchTier)
             {
                 case BoardMatchTier.Three:
-                    return config.Match3Coefficient;
+                    return combatRules.Match3Coefficient;
                 case BoardMatchTier.Four:
-                    return config.Match4BaseCoefficient
+                    return combatRules.Match4BaseCoefficient
                         + (waterAtAttackStart > 0
-                            ? config.Match4WaterElementBonusCoefficient
+                            ? combatRules
+                                .Match4WaterElementBonusCoefficient
                             : 0d);
                 case BoardMatchTier.FiveOrMore:
-                    return config.Match5BaseCoefficient
-                        + config.Match5CoefficientPerWaterElement
+                    return combatRules.Match5BaseCoefficient
+                        + combatRules.Match5CoefficientPerWaterElement
                         * waterAtAttackStart;
                 default:
                     throw new ArgumentOutOfRangeException(

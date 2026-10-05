@@ -15,5 +15,5 @@ MonoBehaviour:
   id: boss_action_kragmor_earth_collapse
   displayNameKey: boss_action.kragmor.earth_collapse.name
   descriptionKey: boss_action.kragmor.earth_collapse.description
-  icon: {fileID: 21300000, guid: 48c0cbcb37d391d41bafd6859002196d, type: 3}
+  icon: {fileID: 21300000, guid: f0e40e577101d7143a4a66a1f06da7c1, type: 3}
   skillKind: 3

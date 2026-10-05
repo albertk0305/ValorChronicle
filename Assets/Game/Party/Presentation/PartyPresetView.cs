@@ -58,7 +58,9 @@ namespace ValorChronicle.Party.Presentation
             int presetIndex,
             IReadOnlyList<string> characterSlotIds,
             bool isActive,
-            bool inputEnabled)
+            bool inputEnabled,
+            Func<string, Sprite> characterFaceResolver = null,
+            Func<string, Sprite> characterTypeIconResolver = null)
         {
             if (!IsConfigured)
             {
@@ -95,11 +97,19 @@ namespace ValorChronicle.Party.Presentation
                 slotIndex < SaveRules.PartySlotCount;
                 slotIndex++)
             {
+                string characterId = characterSlotIds[slotIndex];
+                bool isEmpty = string.IsNullOrEmpty(characterId);
                 slotViews[slotIndex].Bind(
                     presetIndex,
                     slotIndex,
-                    characterSlotIds[slotIndex],
-                    inputEnabled);
+                    characterId,
+                    inputEnabled,
+                    isEmpty
+                        ? null
+                        : characterFaceResolver?.Invoke(characterId),
+                    isEmpty
+                        ? null
+                        : characterTypeIconResolver?.Invoke(characterId));
             }
         }
 

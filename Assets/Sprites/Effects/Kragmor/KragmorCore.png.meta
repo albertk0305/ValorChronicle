@@ -129,10 +129,10 @@ TextureImporter:
       name: KragmorCore_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 350
-        height: 350
+        x: 132
+        y: 103
+        width: 762
+        height: 815
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}

@@ -139,6 +139,9 @@ namespace ValorChronicle.Party.Presentation
                     "[CharacterSelectController] " + message,
                     this));
             dependenciesReady = true;
+            partyScreen.ConfigureSlotPresentationResolvers(
+                ResolveFaceSprite,
+                ResolveElementIcon);
         }
 
         public void Open(
@@ -305,7 +308,7 @@ namespace ValorChronicle.Party.Presentation
 
             view.BindPreview(
                 entry,
-                ResolvePreviewSprite(entry.CharacterId),
+                ResolveFaceSprite(entry.CharacterId),
                 elementIconSet.GetIcon(entry.Element));
         }
 
@@ -316,11 +319,13 @@ namespace ValorChronicle.Party.Presentation
                 : null;
         }
 
-        private Sprite ResolvePreviewSprite(string characterId)
+        private Sprite ResolveElementIcon(string characterId)
         {
-            return TryGetPresentation(characterId, out var presentation)
-                ? presentation.PreviewSprite
-                : null;
+            return definitionDatabase.TryGetCharacter(
+                characterId,
+                out CharacterDefinition definition)
+                    ? elementIconSet.GetIcon(definition.Element)
+                    : null;
         }
 
         private bool TryGetPresentation(

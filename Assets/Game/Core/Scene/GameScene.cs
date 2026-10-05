@@ -5,6 +5,7 @@ namespace ValorChronicle.Core.Scene
         Init = 0,
         Main = 1,
         Battle = 2,
-        Party = 3
+        Party = 3,
+        Character = 4
     }
 }

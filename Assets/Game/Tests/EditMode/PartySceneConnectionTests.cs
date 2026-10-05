@@ -5,7 +5,9 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using ValorChronicle.Core.Scene;
+using ValorChronicle.Data.Definitions;
 using ValorChronicle.Party.Presentation;
+using ValorChronicle.Party.Roster;
 using ValorChronicle.UI.Navigation;
 
 namespace ValorChronicle.Tests.EditMode
@@ -91,6 +93,13 @@ namespace ValorChronicle.Tests.EditMode
                     Is.SameAs(virtualGrids[0]));
                 Assert.That(scrollRects[0].horizontal, Is.False);
                 Assert.That(scrollRects[0].vertical, Is.True);
+                Assert.That(scrollRects[0].movementType,
+                    Is.EqualTo(ScrollRect.MovementType.Clamped));
+                Assert.That(scrollRects[0].elasticity, Is.EqualTo(0.1f));
+                Assert.That(scrollRects[0].inertia, Is.True);
+                Assert.That(scrollRects[0].decelerationRate,
+                    Is.EqualTo(0.135f));
+                Assert.That(scrollRects[0].scrollSensitivity, Is.EqualTo(1f));
                 Assert.That(scrollRects[0].viewport, Is.Not.Null);
                 Assert.That(scrollRects[0].content, Is.Not.Null);
                 Assert.That(
@@ -110,11 +119,53 @@ namespace ValorChronicle.Tests.EditMode
                     gridData.FindProperty("initialCells").arraySize,
                     Is.EqualTo(31));
                 Assert.That(
+                    gridData.FindProperty("cellSize").vector2Value,
+                    Is.EqualTo(new Vector2(200f, 200f)));
+                Assert.That(
+                    gridData.FindProperty("spacing").vector2Value,
+                    Is.EqualTo(new Vector2(10f, 10f)));
+                Assert.That(
+                    scrollRects[0].viewport.GetComponent<Image>()
+                        .raycastTarget,
+                    Is.True);
+                Assert.That(scrollRects[0].viewport.childCount,
+                    Is.EqualTo(1),
+                    "Party ScrollRect uses its own raycast Image and has no "
+                        + "sibling overlay above the roster content.");
+
+                characterSelectViews[0].BindCells(
+                    new[]
+                    {
+                        new CharacterRosterEntry(
+                            "character_marea_bluefang",
+                            ElementType.Water,
+                            1,
+                            0,
+                            1,
+                            1)
+                    },
+                    string.Empty,
+                    _ => null,
+                    _ => null,
+                    resetScroll: true);
+                CharacterRosterCellView boundCell = virtualGrids[0]
+                    .PoolCells[0];
+                Assert.That(boundCell.IsBound, Is.True);
+                Assert.That(boundCell.SelectedBorder.activeSelf, Is.True);
+                Bounds firstRowBounds = RectTransformUtility
+                    .CalculateRelativeRectTransformBounds(
+                        scrollRects[0].viewport,
+                        boundCell.transform);
+                Assert.That(
+                    firstRowBounds.max.y,
+                    Is.LessThanOrEqualTo(
+                        scrollRects[0].viewport.rect.yMax + 0.01f));
+                Assert.That(
                     characterSelectViews[0].ConfirmButton.name,
-                    Is.EqualTo("SelectButton"));
+                    Is.EqualTo("O Button"));
                 Assert.That(
                     characterSelectViews[0].SecondaryActionButton.name,
-                    Is.EqualTo("Empty Button"));
+                    Is.EqualTo("X Button"));
                 Assert.That(
                     characterSelectViews[0].ConfirmButton.transform.parent.name,
                     Is.EqualTo("ChosenCharacter"));

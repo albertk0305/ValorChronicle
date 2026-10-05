@@ -35,6 +35,8 @@ namespace ValorChronicle.Party.Presentation
         private PartyPresetEditor presetEditor;
         private PartyPersistenceService persistenceService;
         private ProfileSaveData currentSnapshot;
+        private Func<string, Sprite> characterFaceResolver;
+        private Func<string, Sprite> characterTypeIconResolver;
         private bool operationInProgress;
         private bool started;
 
@@ -118,6 +120,22 @@ namespace ValorChronicle.Party.Presentation
                 saveService,
                 presetEditor);
             RefreshFromAuthoritativeProfile();
+        }
+
+        public void ConfigureSlotPresentationResolvers(
+            Func<string, Sprite> configuredCharacterFaceResolver,
+            Func<string, Sprite> configuredCharacterTypeIconResolver)
+        {
+            characterFaceResolver = configuredCharacterFaceResolver
+                ?? throw new ArgumentNullException(
+                    nameof(configuredCharacterFaceResolver));
+            characterTypeIconResolver = configuredCharacterTypeIconResolver
+                ?? throw new ArgumentNullException(
+                    nameof(configuredCharacterTypeIconResolver));
+            if (currentSnapshot != null)
+            {
+                Render(currentSnapshot);
+            }
         }
 
         public void OpenCharacterSelect(
@@ -419,7 +437,9 @@ namespace ValorChronicle.Party.Presentation
                     presetIndex,
                     preset.CharacterSlotIds,
                     profile.Party.ActivePresetIndex == presetIndex,
-                    inputEnabled);
+                    inputEnabled,
+                    characterFaceResolver,
+                    characterTypeIconResolver);
             }
 
             SetPartyInputEnabled(inputEnabled);

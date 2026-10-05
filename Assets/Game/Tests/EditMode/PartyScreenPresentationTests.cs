@@ -227,6 +227,48 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
+        public void ConfirmAndClear_RenderConfiguredFaceAndTypeSprites()
+        {
+            Sprite face = Sprite.Create(
+                Texture2D.whiteTexture,
+                new Rect(0f, 0f, 1f, 1f),
+                new Vector2(0.5f, 0.5f));
+            Sprite type = Sprite.Create(
+                Texture2D.whiteTexture,
+                new Rect(0f, 0f, 1f, 1f),
+                new Vector2(0.5f, 0.5f));
+            try
+            {
+                ScreenFixture fixture = CreateFixture(Profile());
+                fixture.Controller.ConfigureSlotPresentationResolvers(
+                    characterId => characterId == "a" ? face : null,
+                    characterId => characterId == "a" ? type : null);
+
+                OpenAndPreview(fixture, 0, 0, "a");
+                fixture.Controller.ConfirmCharacterSelection();
+
+                PartySlotView slot = fixture.Presets[0].SlotViews[0];
+                Assert.That(slot.CharacterId, Is.EqualTo("a"));
+                Assert.That(slot.CharacterImage.sprite, Is.SameAs(face));
+                Assert.That(slot.TypeImage.sprite, Is.SameAs(type));
+                Assert.That(slot.CharacterImage.color.a, Is.EqualTo(1f));
+                Assert.That(slot.TypeImage.color.a, Is.EqualTo(1f));
+
+                slot.Button.onClick.Invoke();
+                fixture.Controller.PerformCharacterSelectSecondaryAction();
+
+                Assert.That(slot.CharacterId, Is.Empty);
+                Assert.That(slot.CharacterImage.sprite, Is.Null);
+                Assert.That(slot.TypeImage.sprite, Is.Null);
+            }
+            finally
+            {
+                Object.DestroyImmediate(face);
+                Object.DestroyImmediate(type);
+            }
+        }
+
+        [Test]
         public void Confirm_MoveAndSwap_RenderAllAffectedSlots()
         {
             ProfileSaveData moveProfile = ProfileWithSlots(

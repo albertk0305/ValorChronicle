@@ -1,5 +1,6 @@
 using System;
 using ValorChronicle.Battle.Combat.State;
+using ValorChronicle.Characters.Build;
 using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Characters.Stats
@@ -8,7 +9,7 @@ namespace ValorChronicle.Characters.Stats
     {
         public static CharacterBattleState Create(
             CharacterDefinition definition,
-            int level,
+            ResolvedCharacterBuild build,
             int partySlotIndex)
         {
             if (definition == null)
@@ -16,14 +17,28 @@ namespace ValorChronicle.Characters.Stats
                 throw new ArgumentNullException(nameof(definition));
             }
 
-            CharacterStatValues stats =
-                CharacterStatCalculator.Calculate(definition, level);
-            return new CharacterBattleState(
+            if (build == null)
+            {
+                throw new ArgumentNullException(nameof(build));
+            }
+
+            if (!string.Equals(
                 definition.Id,
+                build.CharacterId,
+                StringComparison.Ordinal))
+            {
+                throw new ArgumentException(
+                    "The resolved build must match the character "
+                        + "definition.",
+                    nameof(build));
+            }
+
+            return new CharacterBattleState(
+                build.CharacterId,
                 partySlotIndex,
                 definition.Element,
-                stats.MaxHp,
-                stats.Attack);
+                build.MaxHp,
+                build.Attack);
         }
     }
 }

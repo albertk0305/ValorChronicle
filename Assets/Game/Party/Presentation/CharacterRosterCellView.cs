@@ -1,4 +1,6 @@
 using System;
+using System.Globalization;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using ValorChronicle.Core.Logging;
@@ -12,6 +14,11 @@ namespace ValorChronicle.Party.Presentation
         [SerializeField] private Image characterImage = null;
         [SerializeField] private Image typeImage = null;
         [SerializeField] private GameObject selectedBorder = null;
+        [SerializeField] private TMP_Text levelText = null;
+        [SerializeField] private TMP_Text awakeningText = null;
+        [SerializeField] private bool alwaysShowBorder;
+
+        private bool buttonSubscribed;
 
         public event Action<string> Clicked;
 
@@ -22,6 +29,9 @@ namespace ValorChronicle.Party.Presentation
         public Image CharacterImage => characterImage;
         public Image TypeImage => typeImage;
         public GameObject SelectedBorder => selectedBorder;
+        public TMP_Text LevelText => levelText;
+        public TMP_Text AwakeningText => awakeningText;
+        public bool AlwaysShowBorder => alwaysShowBorder;
         public bool IsConfigured =>
             button != null
             && characterImage != null
@@ -30,17 +40,34 @@ namespace ValorChronicle.Party.Presentation
 
         private void OnEnable()
         {
-            if (button != null)
-            {
-                button.onClick.AddListener(HandleClick);
-            }
+            SubscribeButton();
         }
 
         private void OnDisable()
         {
-            if (button != null)
+            UnsubscribeButton();
+        }
+
+        public void Configure(
+            Button configuredButton,
+            Image configuredCharacterImage,
+            Image configuredTypeImage,
+            GameObject configuredSelectedBorder,
+            TMP_Text configuredLevelText = null,
+            TMP_Text configuredAwakeningText = null,
+            bool configuredAlwaysShowBorder = false)
+        {
+            UnsubscribeButton();
+            button = configuredButton;
+            characterImage = configuredCharacterImage;
+            typeImage = configuredTypeImage;
+            selectedBorder = configuredSelectedBorder;
+            levelText = configuredLevelText;
+            awakeningText = configuredAwakeningText;
+            alwaysShowBorder = configuredAlwaysShowBorder;
+            if (isActiveAndEnabled)
             {
-                button.onClick.RemoveListener(HandleClick);
+                SubscribeButton();
             }
         }
 
@@ -67,6 +94,18 @@ namespace ValorChronicle.Party.Presentation
             button.interactable = true;
             SetSprite(characterImage, faceSprite);
             SetSprite(typeImage, elementIcon);
+            if (levelText != null)
+            {
+                levelText.text = entry.Level.ToString(
+                    CultureInfo.InvariantCulture);
+            }
+
+            if (awakeningText != null)
+            {
+                awakeningText.text = entry.Awakening.ToString(
+                    CultureInfo.InvariantCulture);
+            }
+
             SetSelected(selected);
         }
 
@@ -75,8 +114,15 @@ namespace ValorChronicle.Party.Presentation
             IsSelected = IsBound && selected;
             if (selectedBorder != null)
             {
-                selectedBorder.SetActive(IsSelected);
+                selectedBorder.SetActive(
+                    IsBound && (alwaysShowBorder || IsSelected));
             }
+        }
+
+        public void SetAlwaysShowBorder(bool visible)
+        {
+            alwaysShowBorder = visible;
+            SetSelected(IsSelected);
         }
 
         public void HideAndClear()
@@ -104,7 +150,36 @@ namespace ValorChronicle.Party.Presentation
                 selectedBorder.SetActive(false);
             }
 
+            if (levelText != null)
+            {
+                levelText.text = string.Empty;
+            }
+
+            if (awakeningText != null)
+            {
+                awakeningText.text = string.Empty;
+            }
+
             gameObject.SetActive(false);
+        }
+
+        private void SubscribeButton()
+        {
+            if (!buttonSubscribed && button != null)
+            {
+                button.onClick.AddListener(HandleClick);
+                buttonSubscribed = true;
+            }
+        }
+
+        private void UnsubscribeButton()
+        {
+            if (buttonSubscribed && button != null)
+            {
+                button.onClick.RemoveListener(HandleClick);
+            }
+
+            buttonSubscribed = false;
         }
 
         private void HandleClick()
@@ -125,6 +200,11 @@ namespace ValorChronicle.Party.Presentation
 
         private void OnValidate()
         {
+            if (Application.isPlaying)
+            {
+                return;
+            }
+
             if (!IsConfigured)
             {
                 GameLogger.Warning(

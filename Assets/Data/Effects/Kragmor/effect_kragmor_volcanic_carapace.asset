@@ -15,4 +15,4 @@ MonoBehaviour:
   id: effect_kragmor_volcanic_carapace
   displayNameKey: effect.kragmor.volcanic_carapace.name
   descriptionKey: effect.kragmor.volcanic_carapace.description
-  icon: {fileID: 21300000, guid: 9013aafe9ed23dd4fb4eb183f6d436d2, type: 3}
+  icon: {fileID: 21300000, guid: a06a1a6a68905b14bb452a8d36e1e967, type: 3}

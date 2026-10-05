@@ -474,16 +474,16 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(firstGradeHead.GetComponent<TMPro.TMP_Text>().text,
                 Is.EqualTo("First Grade Bonus"));
 
-            Transform exitTransform = view.transform.Find("ExitButton");
-            Assert.That(exitTransform, Is.Not.Null);
-            Button exitButton = exitTransform.GetComponent<Button>();
-            Assert.That(exitButton, Is.Not.Null);
-            Assert.That(exitButton.onClick.GetPersistentEventCount(), Is.Zero);
+            Transform returnTransform = view.transform.Find("ReturnButton");
+            Assert.That(returnTransform, Is.Not.Null);
+            Button returnButton = returnTransform.GetComponent<Button>();
+            Assert.That(returnButton, Is.Not.Null);
+            Assert.That(returnButton.onClick.GetPersistentEventCount(), Is.Zero);
             Assert.That(
-                exitTransform.GetComponents<SceneNavigationButton>(),
+                returnTransform.GetComponents<SceneNavigationButton>(),
                 Has.Length.EqualTo(1));
             SceneNavigationButton navigation =
-                exitTransform.GetComponent<SceneNavigationButton>();
+                returnTransform.GetComponent<SceneNavigationButton>();
             Assert.That(navigation, Is.Not.Null);
             var navigationObject = new SerializedObject(navigation);
             Assert.That(

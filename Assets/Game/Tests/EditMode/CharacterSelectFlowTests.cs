@@ -7,6 +7,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using ValorChronicle.Characters.Build;
 using ValorChronicle.Characters.Stats;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
@@ -295,15 +296,19 @@ namespace ValorChronicle.Tests.EditMode
                         faceResolver: _ => null,
                         elementIconResolver: _ => null,
                         resetScroll: true);
-                    Assert.That(view.DisplayedCellCount,
+                    Assert.That(view.CharacterGrid.ItemCount,
                         Is.EqualTo(partialCount));
+                    Assert.That(view.DisplayedCellCount,
+                        Is.LessThanOrEqualTo(
+                            view.CharacterGrid.PoolSize));
+                    view.CharacterGrid.SetScrollOffsetForTesting(
+                        float.MaxValue);
                     Assert.That(
-                        view.CellViews[partialCount - 1].IsBound,
+                        view.CellViews.Any(cell =>
+                            cell.IsBound
+                            && cell.CharacterId
+                                == $"character_{partialCount - 1:D2}"),
                         Is.True);
-                    Assert.That(
-                        view.CellViews.Skip(partialCount),
-                        Has.All.Matches<CharacterRosterCellView>(
-                            cell => !cell.IsBound));
                 }
 
                 view.BindCells(
@@ -606,6 +611,16 @@ namespace ValorChronicle.Tests.EditMode
                 CharacterSelectView view =
                     Object.FindFirstObjectByType<CharacterSelectView>(
                         FindObjectsInactive.Include);
+                var controllerData = new SerializedObject(controller);
+                CharacterPresentationCatalog presentationCatalog =
+                    (CharacterPresentationCatalog)controllerData
+                        .FindProperty("presentationCatalog")
+                        .objectReferenceValue;
+                presentationCatalog.Initialize();
+                Assert.That(presentationCatalog.TryGet(
+                    "character_marea_bluefang",
+                    out CharacterPresentationDefinition presentation),
+                    Is.True);
                 var partyData = new SerializedObject(party);
                 PartyPresetView preset = (PartyPresetView)partyData
                     .FindProperty("presetViews")
@@ -619,6 +634,24 @@ namespace ValorChronicle.Tests.EditMode
                 party.OpenCharacterSelect(0, 0);
                 Assert.That(view.CellViews[0].Button.interactable, Is.True);
                 view.CellViews[0].Button.onClick.Invoke();
+                Assert.That(
+                    view.PreviewCharacterImage.sprite,
+                    Is.SameAs(presentation.FaceSprite));
+                Assert.That(
+                    view.PreviewCharacterImage.sprite,
+                    Is.Not.SameAs(presentation.PreviewSprite));
+                Assert.That(database.TryGetCharacter(
+                    "character_marea_bluefang",
+                    out CharacterDefinition marea), Is.True);
+                ResolvedCharacterBuild expectedBuild =
+                    CharacterBuildResolverFactory.CreateDefault().Resolve(
+                        marea,
+                        20,
+                        1);
+                Assert.That(view.HpText.text,
+                    Is.EqualTo(expectedBuild.MaxHp.ToString()));
+                Assert.That(view.AttackText.text,
+                    Is.EqualTo(expectedBuild.Attack.ToString()));
                 view.FilterButtons.Single(item =>
                     item.Element == ElementType.Fire).Button.onClick.Invoke();
                 view.AwakeningSortButton.onClick.Invoke();
@@ -627,10 +660,30 @@ namespace ValorChronicle.Tests.EditMode
                 Assert.That(party.IsCharacterSelectOpen, Is.False);
                 Assert.That(preset.SlotViews[0].CharacterId,
                     Is.EqualTo("character_marea_bluefang"));
+                Assert.That(
+                    preset.SlotViews[0].CharacterImage.sprite,
+                    Is.SameAs(presentation.FaceSprite));
+                Assert.That(preset.SlotViews[0].TypeImage.sprite, Is.Not.Null);
                 Assert.That(preset.SlotViews[1].CharacterId, Is.Empty);
                 Assert.That(repository.Count(
                     nameof(FakeSaveRepository.WriteTemp)),
                     Is.EqualTo(writesBefore + 1));
+
+                party.OpenCharacterSelect(0, 0);
+                Assert.That(
+                    party.CurrentEditSession.PreviewCharacterId,
+                    Is.EqualTo("character_marea_bluefang"));
+                Assert.That(view.CellViews.Single(cell => cell.IsBound)
+                    .IsSelected, Is.True);
+                Assert.That(
+                    view.PreviewCharacterImage.sprite,
+                    Is.SameAs(presentation.FaceSprite));
+                view.SecondaryActionButton.onClick.Invoke();
+                Assert.That(preset.SlotViews[0].CharacterId, Is.Empty);
+                Assert.That(preset.SlotViews[0].CharacterImage.sprite, Is.Null);
+                Assert.That(repository.Count(
+                    nameof(FakeSaveRepository.WriteTemp)),
+                    Is.EqualTo(writesBefore + 2));
 
                 party.OpenCharacterSelect(0, 2);
 

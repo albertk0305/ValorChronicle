@@ -4,6 +4,7 @@ using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
+using ValorChronicle.Characters.Build;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Party.Presentation;
@@ -74,8 +75,51 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(result[0].Awakening, Is.EqualTo(4));
             Assert.That(result[0].MaxHp, Is.EqualTo(590));
             Assert.That(result[0].Attack, Is.EqualTo(55));
+            Assert.That(result[0].ContentOrder, Is.Zero);
             Assert.That(warnings, Has.Count.EqualTo(1));
             Assert.That(warnings[0], Does.Contain("missing"));
+        }
+
+        [TestCase(100, 0, 3400L, 1050L)]
+        [TestCase(100, 1, 3400L, 1103L)]
+        [TestCase(100, 2, 3570L, 1103L)]
+        [TestCase(100, 6, 3570L, 1103L)]
+        [TestCase(50, 2, 2244L, 642L)]
+        public void Builder_UsesDefaultCharacterBuildForFinalStats(
+            int level,
+            int awakening,
+            long expectedHp,
+            long expectedAttack)
+        {
+            CharacterDefinition marea = Definition(
+                "character_marea_bluefang",
+                ElementType.Water,
+                level1Hp: 900,
+                level1Attack: 180,
+                level100Hp: 3400,
+                level100Attack: 1050);
+            var builder = new PartyCharacterRosterBuilder(Database(marea));
+
+            CharacterRosterEntry entry = builder.Build(
+                new[]
+                {
+                    new CharacterSaveData
+                    {
+                        CharacterId = marea.Id,
+                        Level = level,
+                        Awakening = awakening
+                    }
+                }).Single();
+            ResolvedCharacterBuild expected =
+                CharacterBuildResolverFactory.CreateDefault().Resolve(
+                    marea,
+                    level,
+                    awakening);
+
+            Assert.That(entry.MaxHp, Is.EqualTo(expectedHp));
+            Assert.That(entry.Attack, Is.EqualTo(expectedAttack));
+            Assert.That(entry.MaxHp, Is.EqualTo(expected.MaxHp));
+            Assert.That(entry.Attack, Is.EqualTo(expected.Attack));
         }
 
         [Test]
@@ -129,6 +173,56 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(
                 awakening.Select(item => item.CharacterId),
                 Is.EqualTo(new[] { "c", "a", "b" }));
+        }
+
+        [Test]
+        public void Query_UsesContentOrderBeforeCharacterIdForFinalTie()
+        {
+            var roster = new[]
+            {
+                Entry("a", ElementType.Fire, 10, 2, contentOrder: 2),
+                Entry("z", ElementType.Fire, 10, 2, contentOrder: 0),
+                Entry("m", ElementType.Fire, 10, 2, contentOrder: 1)
+            };
+
+            IReadOnlyList<CharacterRosterEntry> result =
+                CharacterRosterQuery.Apply(
+                    roster,
+                    selectedElement: null,
+                    CharacterRosterSortMode.Level);
+            IReadOnlyList<CharacterRosterEntry> awakeningResult =
+                CharacterRosterQuery.Apply(
+                    roster,
+                    selectedElement: null,
+                    CharacterRosterSortMode.Awakening);
+
+            Assert.That(
+                result.Select(item => item.CharacterId),
+                Is.EqualTo(new[] { "z", "m", "a" }));
+            Assert.That(
+                awakeningResult.Select(item => item.CharacterId),
+                Is.EqualTo(new[] { "z", "m", "a" }));
+        }
+
+        [Test]
+        public void AwakeningSort_UsesLevelThenContentOrder()
+        {
+            var roster = new[]
+            {
+                Entry("lower", ElementType.Fire, 9, 4, contentOrder: 0),
+                Entry("later", ElementType.Fire, 10, 4, contentOrder: 2),
+                Entry("earlier", ElementType.Fire, 10, 4, contentOrder: 1)
+            };
+
+            IReadOnlyList<CharacterRosterEntry> result =
+                CharacterRosterQuery.Apply(
+                    roster,
+                    selectedElement: null,
+                    CharacterRosterSortMode.Awakening);
+
+            Assert.That(
+                result.Select(item => item.CharacterId),
+                Is.EqualTo(new[] { "earlier", "later", "lower" }));
         }
 
         [Test]
@@ -223,7 +317,8 @@ namespace ValorChronicle.Tests.EditMode
             string id,
             ElementType element,
             int level,
-            int awakening)
+            int awakening,
+            int contentOrder = int.MaxValue)
         {
             return new CharacterRosterEntry(
                 id,
@@ -231,7 +326,8 @@ namespace ValorChronicle.Tests.EditMode
                 level,
                 awakening,
                 maxHp: 1,
-                attack: 1);
+                attack: 1,
+                contentOrder: contentOrder);
         }
 
         private static void SetArray<T>(
