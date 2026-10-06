@@ -119,6 +119,35 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 Assert.That(upgrade.Find("LevelUp/LevelUpCostText"), Is.Not.Null);
                 Assert.That(upgrade.Find("LevelUp/LevelUpButton"), Is.Not.Null);
                 Assert.That(upgrade.Find("ReturnButton"), Is.Not.Null);
+                Assert.That(upgrade.Find("AwakeningButton"), Is.Not.Null);
+                Assert.That(upgrade.Find("SkillsButton"), Is.Not.Null);
+                Transform lookup = installers[0].transform.parent.Find(
+                    "CharacterLookup");
+                Assert.That(lookup, Is.Not.Null);
+                Assert.That(lookup.Find("ReturnButton"), Is.Not.Null);
+                Assert.That(lookup.Find("AwakeningButton"), Is.Not.Null);
+                Assert.That(lookup.Find("SkillsButton"), Is.Not.Null);
+                Assert.That(lookup.Find("Text/Text"), Is.Not.Null);
+                Assert.That(lookup.Find("Text/Text")
+                    .GetComponent<TMP_Text>().text, Is.Empty);
+                for (int stage = 1; stage <= 6; stage++)
+                {
+                    Assert.That(lookup.Find(
+                        $"AwakeningLookUp/Awakening{stage}"), Is.Not.Null);
+                }
+
+                foreach (string skillButton in new[]
+                {
+                    "3MatchButton",
+                    "4MatchButton",
+                    "5MatchButton",
+                    "PassiveButton",
+                    "ActiveButton"
+                })
+                {
+                    Assert.That(lookup.Find(
+                        $"SkillLookUp/{skillButton}"), Is.Not.Null);
+                }
                 Transform content = installers[0].transform.Find(
                     "CharacterSlots/CharacterSelectSlots");
                 Assert.That(content, Is.Not.Null);
@@ -192,7 +221,14 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 Assert.That(
                     parent.GetComponents<CharacterUpgradeScreenController>(),
                     Has.Length.EqualTo(1));
+                Assert.That(
+                    parent.GetComponents<CharacterLookupScreenController>(),
+                    Has.Length.EqualTo(1));
                 Assert.That(parent.GetComponents<CharacterScreenCoordinator>(),
+                    Has.Length.EqualTo(1));
+                Transform lookup = parent.Find("CharacterLookup");
+                Assert.That(
+                    lookup.GetComponents<CharacterLookupScreenView>(),
                     Has.Length.EqualTo(1));
                 Assert.That(viewport.GetComponents<ScrollRect>(),
                     Has.Length.EqualTo(1));
@@ -288,6 +324,19 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 Assert.That(
                     requestedCharacterId,
                     Is.EqualTo("character_listener_probe"));
+
+                CharacterLookupScreenView lookupView =
+                    lookup.GetComponent<CharacterLookupScreenView>();
+                int awakeningRequestCount = 0;
+                int requestedStage = 0;
+                lookupView.AwakeningStageRequested += stage =>
+                {
+                    awakeningRequestCount++;
+                    requestedStage = stage;
+                };
+                lookupView.AwakeningButtons[4].onClick.Invoke();
+                Assert.That(awakeningRequestCount, Is.EqualTo(1));
+                Assert.That(requestedStage, Is.EqualTo(5));
             }
             finally
             {

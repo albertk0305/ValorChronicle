@@ -739,6 +739,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ValorChronicle.Core.Bootstrap.GameBootstrapper
   definitionDatabase: {fileID: 11400000, guid: b5d10842f1dc81d4593dd7dd6aeaa8a1, type: 2}
+  localizationCatalog: {fileID: 11400000, guid: bc351a22a861472e8585ac3ce07e375c, type: 2}
 --- !u!4 &1446676612
 Transform:
   m_ObjectHideFlags: 0

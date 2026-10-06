@@ -7,12 +7,16 @@ namespace ValorChronicle.Characters.Presentation
     {
         private GameObject rosterRoot;
         private GameObject upgradeRoot;
+        private GameObject lookupRoot;
         private CharacterRosterScreenController rosterController;
         private CharacterUpgradeScreenController upgradeController;
+        private CharacterLookupScreenController lookupController;
         private bool subscribed;
 
         public bool IsShowingUpgrade =>
             upgradeRoot != null && upgradeRoot.activeSelf;
+        public bool IsShowingLookup =>
+            lookupRoot != null && lookupRoot.activeSelf;
 
         private void OnEnable()
         {
@@ -28,7 +32,9 @@ namespace ValorChronicle.Characters.Presentation
             GameObject configuredRosterRoot,
             GameObject configuredUpgradeRoot,
             CharacterRosterScreenController configuredRosterController,
-            CharacterUpgradeScreenController configuredUpgradeController)
+            CharacterUpgradeScreenController configuredUpgradeController,
+            GameObject configuredLookupRoot,
+            CharacterLookupScreenController configuredLookupController)
         {
             Unsubscribe();
             rosterRoot = configuredRosterRoot
@@ -43,10 +49,19 @@ namespace ValorChronicle.Characters.Presentation
             upgradeController = configuredUpgradeController
                 ?? throw new ArgumentNullException(
                     nameof(configuredUpgradeController));
-            if (ReferenceEquals(rosterRoot, upgradeRoot))
+            lookupRoot = configuredLookupRoot
+                ?? throw new ArgumentNullException(
+                    nameof(configuredLookupRoot));
+            lookupController = configuredLookupController
+                ?? throw new ArgumentNullException(
+                    nameof(configuredLookupController));
+            if (ReferenceEquals(rosterRoot, upgradeRoot)
+                || ReferenceEquals(rosterRoot, lookupRoot)
+                || ReferenceEquals(upgradeRoot, lookupRoot))
             {
                 throw new ArgumentException(
-                    "Roster and upgrade roots must be different objects.");
+                    "Roster, upgrade, and lookup roots must be different "
+                        + "objects.");
             }
 
             if (isActiveAndEnabled)
@@ -59,11 +74,14 @@ namespace ValorChronicle.Characters.Presentation
 
         public void ShowRoster()
         {
-            if (rosterRoot == null || upgradeRoot == null)
+            if (rosterRoot == null
+                || upgradeRoot == null
+                || lookupRoot == null)
             {
                 return;
             }
 
+            lookupRoot.SetActive(false);
             upgradeRoot.SetActive(false);
             rosterRoot.SetActive(true);
         }
@@ -77,6 +95,7 @@ namespace ValorChronicle.Characters.Presentation
             }
 
             rosterRoot.SetActive(false);
+            lookupRoot.SetActive(false);
             upgradeRoot.SetActive(true);
         }
 
@@ -87,11 +106,43 @@ namespace ValorChronicle.Characters.Presentation
                 resetControls: false);
         }
 
+        private void HandleAwakeningLookupRequested(string characterId)
+        {
+            ShowLookup(characterId, CharacterLookupMode.Awakening);
+        }
+
+        private void HandleSkillsLookupRequested(string characterId)
+        {
+            ShowLookup(characterId, CharacterLookupMode.Skills);
+        }
+
+        private void ShowLookup(
+            string characterId,
+            CharacterLookupMode mode)
+        {
+            if (!lookupController.TryOpen(characterId, mode))
+            {
+                return;
+            }
+
+            rosterRoot.SetActive(false);
+            upgradeRoot.SetActive(false);
+            lookupRoot.SetActive(true);
+        }
+
+        private void HandleLookupReturnRequested()
+        {
+            rosterRoot.SetActive(false);
+            lookupRoot.SetActive(false);
+            upgradeRoot.SetActive(true);
+        }
+
         private void Subscribe()
         {
             if (subscribed
                 || rosterController == null
-                || upgradeController == null)
+                || upgradeController == null
+                || lookupController == null)
             {
                 return;
             }
@@ -101,6 +152,11 @@ namespace ValorChronicle.Characters.Presentation
             upgradeController.ReturnRequested += HandleReturnRequested;
             upgradeController.AuthoritativeProfileRefreshRequested +=
                 HandleAuthoritativeProfileRefreshRequested;
+            upgradeController.AwakeningLookupRequested +=
+                HandleAwakeningLookupRequested;
+            upgradeController.SkillsLookupRequested +=
+                HandleSkillsLookupRequested;
+            lookupController.ReturnRequested += HandleLookupReturnRequested;
             subscribed = true;
         }
 
@@ -116,6 +172,11 @@ namespace ValorChronicle.Characters.Presentation
             upgradeController.ReturnRequested -= HandleReturnRequested;
             upgradeController.AuthoritativeProfileRefreshRequested -=
                 HandleAuthoritativeProfileRefreshRequested;
+            upgradeController.AwakeningLookupRequested -=
+                HandleAwakeningLookupRequested;
+            upgradeController.SkillsLookupRequested -=
+                HandleSkillsLookupRequested;
+            lookupController.ReturnRequested -= HandleLookupReturnRequested;
             subscribed = false;
         }
 

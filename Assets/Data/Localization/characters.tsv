@@ -1,0 +1,28 @@
+key	en	ko
+marea	Marea Bluefang	
+character.lookup.description_unavailable	Description unavailable.	
+character.lookup.awakening.title	Awakening {stage} — {name}	
+marea.skill.match3.name	Wave Bullet - 3 Match	
+marea.skill.match3.description	Deals {coefficient}% ATK as Water damage.	
+marea.skill.match4.name	Opening Wounds - 4 Match	
+marea.skill.match4.description	Deals {base_coefficient}% ATK as Water damage. If Water Element is present at attack start, adds {conditional_coefficient}% ATK.	
+marea.skill.match5.name	Time of Devouring - 5 Match	
+marea.skill.match5.description	Deals {base_coefficient}% ATK as Water damage, plus {per_water_coefficient}% ATK for each Water Element consumed.	
+marea.skill.passive.name	Predator's Instinct	
+marea.skill.passive.description	If Water Element is present at attack start, increases damage dealt by {damage_increase}%.	
+marea.skill.active.name	Charge Order	
+marea.skill.active.description	Increases this character's Water damage by {damage_increase}% for {duration} turns. Cooldown: {cooldown} turns.	
+marea.skill.lingering_surge.use	If Lingering Surge is held, this 3 or 4 Match attack deals {damage_increase}% more final damage and consumes Lingering Surge after the attack.	
+marea.skill.lingering_surge.grant	Consuming {required_water} Water Elements at once grants one Lingering Surge. A 5 Match attack neither uses nor consumes it. The next 3 or 4 Match attack deals {damage_increase}% more final damage.	
+marea.awakening.1.name	Sharpened Edge	
+marea.awakening.2.name	Tough Mariner	
+marea.awakening.3.name	Blood Banquet	
+marea.awakening.4.name	Razor Cuts	
+marea.awakening.5.name	Storm Devour	
+marea.awakening.6.name	Lingering Surge	
+marea.awakening.1.description	ATK multiplier increases from {multiplier_before}% to {multiplier_after}%.	
+marea.awakening.2.description	HP multiplier increases from {multiplier_before}% to {multiplier_after}%.	
+marea.awakening.3.description	Predator's Instinct damage increase changes from {passive_before}% to {passive_after}%.	
+marea.awakening.4.description	3 Match changes from {match3_before}% to {match3_after}% ATK. 4 Match base changes from {match4_base_before}% to {match4_base_after}% ATK, and its Water Element bonus changes from {match4_conditional_before}% to {match4_conditional_after}% ATK.	
+marea.awakening.5.description	Time of Devouring's coefficient per consumed Water Element changes from {per_water_before}% to {per_water_after}% ATK.	
+marea.awakening.6.description	Consuming {required_water} Water Elements at once grants one Lingering Surge. It persists until the next 3 or 4 Match attack, increases that attack's final damage by {damage_increase}%, and is then consumed. A 5 Match attack neither uses nor consumes it.	

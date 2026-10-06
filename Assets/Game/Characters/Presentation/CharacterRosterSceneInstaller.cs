@@ -27,6 +27,12 @@ namespace ValorChronicle.Characters.Presentation
             private set;
         }
 
+        public CharacterLookupScreenController LookupController
+        {
+            get;
+            private set;
+        }
+
         public CharacterScreenCoordinator Coordinator
         {
             get;
@@ -115,7 +121,13 @@ namespace ValorChronicle.Characters.Presentation
                     "LevelUp/LevelUpButton")),
                 RequireComponent<Button>(RequireTransform(
                     upgradeRoot,
-                    "ReturnButton")));
+                    "ReturnButton")),
+                RequireComponent<Button>(RequireTransform(
+                    upgradeRoot,
+                    "AwakeningButton")),
+                RequireComponent<Button>(RequireTransform(
+                    upgradeRoot,
+                    "SkillsButton")));
 
             UpgradeController =
                 GetOrAdd<CharacterUpgradeScreenController>(
@@ -124,13 +136,85 @@ namespace ValorChronicle.Characters.Presentation
                 upgradeView,
                 presentationCatalog,
                 elementIconSet);
+
+            RectTransform lookupRoot = RequireTransform(
+                parent,
+                "CharacterLookup");
+            CharacterLookupScreenView lookupView =
+                GetOrAdd<CharacterLookupScreenView>(
+                    lookupRoot.gameObject);
+            RectTransform awakeningLookupRoot = RequireTransform(
+                lookupRoot,
+                "AwakeningLookUp");
+            RectTransform skillLookupRoot = RequireTransform(
+                lookupRoot,
+                "SkillLookUp");
+            lookupView.Configure(
+                RequireComponent<Button>(RequireTransform(
+                    lookupRoot,
+                    "ReturnButton")),
+                RequireComponent<Button>(RequireTransform(
+                    lookupRoot,
+                    "AwakeningButton")),
+                RequireComponent<Button>(RequireTransform(
+                    lookupRoot,
+                    "SkillsButton")),
+                RequireComponent<TMP_Text>(RequireTransform(
+                    lookupRoot,
+                    "Text/Text")),
+                awakeningLookupRoot.gameObject,
+                skillLookupRoot.gameObject,
+                new[]
+                {
+                    RequireComponent<Button>(RequireTransform(
+                        awakeningLookupRoot,
+                        "Awakening1")),
+                    RequireComponent<Button>(RequireTransform(
+                        awakeningLookupRoot,
+                        "Awakening2")),
+                    RequireComponent<Button>(RequireTransform(
+                        awakeningLookupRoot,
+                        "Awakening3")),
+                    RequireComponent<Button>(RequireTransform(
+                        awakeningLookupRoot,
+                        "Awakening4")),
+                    RequireComponent<Button>(RequireTransform(
+                        awakeningLookupRoot,
+                        "Awakening5")),
+                    RequireComponent<Button>(RequireTransform(
+                        awakeningLookupRoot,
+                        "Awakening6"))
+                },
+                new[]
+                {
+                    RequireComponent<Button>(RequireTransform(
+                        skillLookupRoot,
+                        "3MatchButton")),
+                    RequireComponent<Button>(RequireTransform(
+                        skillLookupRoot,
+                        "4MatchButton")),
+                    RequireComponent<Button>(RequireTransform(
+                        skillLookupRoot,
+                        "5MatchButton")),
+                    RequireComponent<Button>(RequireTransform(
+                        skillLookupRoot,
+                        "PassiveButton")),
+                    RequireComponent<Button>(RequireTransform(
+                        skillLookupRoot,
+                        "ActiveButton"))
+                });
+            LookupController = GetOrAdd<CharacterLookupScreenController>(
+                parent.gameObject);
+            LookupController.Configure(lookupView);
             Coordinator = GetOrAdd<CharacterScreenCoordinator>(
                 parent.gameObject);
             Coordinator.Configure(
                 gameObject,
                 upgradeRoot.gameObject,
                 Controller,
-                UpgradeController);
+                UpgradeController,
+                lookupRoot.gameObject,
+                LookupController);
         }
 
         private CharacterRosterScreenView BuildView()

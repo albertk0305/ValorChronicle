@@ -6,10 +6,12 @@ using TMPro;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
+using ValorChronicle.Characters.Marea;
 using ValorChronicle.Characters.Presentation;
 using ValorChronicle.Characters.Progression;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Localization;
 using ValorChronicle.Party.Presentation;
 using ValorChronicle.Party.Roster;
 using ValorChronicle.Save.DTO;
@@ -109,14 +111,14 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
             CharacterUpgradePresentationModel model =
                 fixture.UpgradeController.CurrentModel;
             Assert.That(model.CharacterId, Is.EqualTo(MareaId));
-            Assert.That(model.DisplayName, Is.EqualTo("marea"));
+            Assert.That(model.DisplayName, Is.EqualTo("Marea Bluefang"));
             Assert.That(model.Level, Is.EqualTo(40));
             Assert.That(model.Awakening, Is.EqualTo(3));
             Assert.That(model.BattleRecords, Is.EqualTo(long.MaxValue - 7));
             Assert.That(model.FullArtSprite, Is.SameAs(fixture.FullArt));
             Assert.That(model.ElementIcon, Is.SameAs(fixture.WaterIcon));
             Assert.That(fixture.UpgradeView.CharacterNameText.text,
-                Is.EqualTo("marea"));
+                Is.EqualTo("Marea Bluefang"));
             Assert.That(fixture.UpgradeView.LevelText.text, Is.EqualTo("40"));
             Assert.That(fixture.UpgradeView.AwakeningText.text,
                 Is.EqualTo("3"));
@@ -126,6 +128,290 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 Is.SameAs(fixture.FullArt));
             Assert.That(fixture.UpgradeView.TypeIcon.sprite,
                 Is.SameAs(fixture.WaterIcon));
+        }
+
+        [Test]
+        public void LocaleChangeRelocalizesOpenDetailWithoutChangingStats()
+        {
+            Fixture fixture = CreateFixture(
+                Profile(MareaId, 40, 3, 777L),
+                new[] { MareaDefinition() });
+            fixture.UpgradeRoot.SetActive(true);
+            Assert.That(fixture.UpgradeController.TryPresent(MareaId),
+                Is.True);
+            long hp = fixture.UpgradeController.CurrentModel.MaxHp;
+            long attack = fixture.UpgradeController.CurrentModel.Attack;
+
+            fixture.LocalizationService.SetLocale("ko");
+
+            Assert.That(fixture.UpgradeController.CurrentModel.DisplayName,
+                Is.EqualTo("마레아 블루팽"));
+            Assert.That(fixture.UpgradeView.CharacterNameText.text,
+                Is.EqualTo("마레아 블루팽"));
+            Assert.That(fixture.UpgradeController.CurrentModel.MaxHp,
+                Is.EqualTo(hp));
+            Assert.That(fixture.UpgradeController.CurrentModel.Attack,
+                Is.EqualTo(attack));
+            Assert.That(fixture.UpgradeController.CurrentModel.BattleRecords,
+                Is.EqualTo(777L));
+        }
+
+        [Test]
+        public void UpgradeLookupButtonsSwitchModesAndReturnToSameCharacter()
+        {
+            Fixture fixture = CreateFixture(
+                Profile(MareaId, 40, 3, 777L),
+                new[] { MareaDefinition() });
+            Assert.That(fixture.UpgradeController.TryPresent(MareaId),
+                Is.True);
+            fixture.SelectRoot.SetActive(false);
+            fixture.UpgradeRoot.SetActive(true);
+
+            fixture.UpgradeView.AwakeningLookupButton.onClick.Invoke();
+
+            Assert.That(fixture.SelectRoot.activeSelf, Is.False);
+            Assert.That(fixture.UpgradeRoot.activeSelf, Is.False);
+            Assert.That(fixture.LookupRoot.activeSelf, Is.True);
+            Assert.That(fixture.LookupController.CurrentCharacterId,
+                Is.EqualTo(MareaId));
+            Assert.That(fixture.LookupController.Mode,
+                Is.EqualTo(CharacterLookupMode.Awakening));
+            Assert.That(fixture.LookupController.SelectedAwakeningStage,
+                Is.EqualTo(1));
+            Assert.That(fixture.LookupController.SelectedSkillType,
+                Is.EqualTo(CharacterLookupSkillType.Match3));
+            Assert.That(fixture.LookupView.AwakeningLookupRoot.activeSelf,
+                Is.True);
+            Assert.That(fixture.LookupView.SkillLookupRoot.activeSelf,
+                Is.False);
+            Assert.That(fixture.LookupView.DescriptionText.text,
+                Does.StartWith("Awakening 1 — Sharpened Edge\n\n"));
+            Assert.That(fixture.LookupView.AwakeningModeButton.interactable,
+                Is.False);
+            Assert.That(fixture.LookupView.SkillsModeButton.interactable,
+                Is.True);
+            Assert.That(fixture.LookupView.AwakeningButtons[0].interactable,
+                Is.False);
+
+            fixture.LookupView.SkillsModeButton.onClick.Invoke();
+
+            Assert.That(fixture.LookupController.Mode,
+                Is.EqualTo(CharacterLookupMode.Skills));
+            Assert.That(fixture.LookupView.DescriptionText.text,
+                Does.Contain("90%"));
+            Assert.That(fixture.LookupView.AwakeningLookupRoot.activeSelf,
+                Is.False);
+            Assert.That(fixture.LookupView.SkillLookupRoot.activeSelf,
+                Is.True);
+            Assert.That(fixture.LookupView.AwakeningModeButton.interactable,
+                Is.True);
+            Assert.That(fixture.LookupView.SkillsModeButton.interactable,
+                Is.False);
+            Assert.That(fixture.LookupView.SkillButtons[0].interactable,
+                Is.False);
+
+            fixture.LookupView.AwakeningModeButton.onClick.Invoke();
+
+            Assert.That(fixture.LookupController.Mode,
+                Is.EqualTo(CharacterLookupMode.Awakening));
+            Assert.That(fixture.LookupView.AwakeningLookupRoot.activeSelf,
+                Is.True);
+            Assert.That(fixture.LookupView.SkillLookupRoot.activeSelf,
+                Is.False);
+
+            fixture.LookupView.SkillsModeButton.onClick.Invoke();
+
+            fixture.LookupView.ReturnButton.onClick.Invoke();
+
+            Assert.That(fixture.LookupRoot.activeSelf, Is.False);
+            Assert.That(fixture.UpgradeRoot.activeSelf, Is.True);
+            Assert.That(fixture.SelectRoot.activeSelf, Is.False);
+            Assert.That(fixture.UpgradeController.CurrentModel.CharacterId,
+                Is.EqualTo(MareaId));
+
+            fixture.UpgradeView.SkillsLookupButton.onClick.Invoke();
+
+            Assert.That(fixture.LookupRoot.activeSelf, Is.True);
+            Assert.That(fixture.UpgradeRoot.activeSelf, Is.False);
+            Assert.That(fixture.LookupController.Mode,
+                Is.EqualTo(CharacterLookupMode.Skills));
+        }
+
+        [Test]
+        public void LookupSelectionEventsFireOnceAndStateSurvivesReopen()
+        {
+            Fixture fixture = CreateFixture(
+                Profile(MareaId, 40, 3, 777L),
+                new[] { MareaDefinition() });
+            Assert.That(fixture.UpgradeController.TryPresent(MareaId),
+                Is.True);
+            fixture.SelectRoot.SetActive(false);
+            fixture.UpgradeRoot.SetActive(true);
+            fixture.UpgradeView.AwakeningLookupButton.onClick.Invoke();
+            var awakeningEvents = new List<int>();
+            var skillEvents = new List<CharacterLookupSkillType>();
+            fixture.LookupController.AwakeningStageSelected +=
+                awakeningEvents.Add;
+            fixture.LookupController.SkillTypeSelected += skillEvents.Add;
+
+            for (int index = 0;
+                index < fixture.LookupView.AwakeningButtons.Count;
+                index++)
+            {
+                fixture.LookupView.AwakeningButtons[index].onClick.Invoke();
+            }
+
+            fixture.LookupView.SkillsModeButton.onClick.Invoke();
+            for (int index = 0;
+                index < fixture.LookupView.SkillButtons.Count;
+                index++)
+            {
+                fixture.LookupView.SkillButtons[index].onClick.Invoke();
+            }
+
+            Assert.That(awakeningEvents,
+                Is.EqualTo(new[] { 1, 2, 3, 4, 5, 6 }));
+            Assert.That(skillEvents, Is.EqualTo(new[]
+            {
+                CharacterLookupSkillType.Match3,
+                CharacterLookupSkillType.Match4,
+                CharacterLookupSkillType.Match5,
+                CharacterLookupSkillType.Passive,
+                CharacterLookupSkillType.Active
+            }));
+            Assert.That(fixture.LookupController.SelectedAwakeningStage,
+                Is.EqualTo(6));
+            Assert.That(fixture.LookupController.SelectedSkillType,
+                Is.EqualTo(CharacterLookupSkillType.Active));
+
+            for (int iteration = 0; iteration < 3; iteration++)
+            {
+                fixture.LookupView.ReturnButton.onClick.Invoke();
+                fixture.UpgradeView.AwakeningLookupButton.onClick.Invoke();
+            }
+
+            int eventCountBeforeClick = awakeningEvents.Count;
+            fixture.LookupView.AwakeningButtons[3].onClick.Invoke();
+            Assert.That(awakeningEvents.Count,
+                Is.EqualTo(eventCountBeforeClick + 1));
+            Assert.That(fixture.LookupController.SelectedAwakeningStage,
+                Is.EqualTo(4));
+            Assert.That(fixture.LookupController.SelectedSkillType,
+                Is.EqualTo(CharacterLookupSkillType.Active));
+            Assert.That(fixture.LookupController.CurrentCharacterId,
+                Is.EqualTo(MareaId));
+        }
+
+        [Test]
+        public void LookupLocaleRefreshPreservesProfileAndSelection()
+        {
+            Fixture fixture = CreateFixture(
+                Profile(MareaId, 40, 3, 777L),
+                new[] { MareaDefinition() });
+            Assert.That(fixture.UpgradeController.TryPresent(MareaId),
+                Is.True);
+            fixture.SelectRoot.SetActive(false);
+            fixture.UpgradeRoot.SetActive(true);
+            fixture.UpgradeView.AwakeningLookupButton.onClick.Invoke();
+            fixture.LookupView.AwakeningButtons[4].onClick.Invoke();
+            fixture.Repository.Calls.Clear();
+            ProfileSaveData before =
+                fixture.SaveService.GetCurrentProfileSnapshot();
+            string englishDescription =
+                fixture.LookupView.DescriptionText.text;
+            int presentationCount = 0;
+            fixture.LookupController.PresentationChanged += _ =>
+                presentationCount++;
+
+            fixture.LocalizationService.SetLocale("ko");
+
+            ProfileSaveData after =
+                fixture.SaveService.GetCurrentProfileSnapshot();
+            Assert.That(presentationCount, Is.EqualTo(1));
+            Assert.That(fixture.LookupController.CurrentCharacterId,
+                Is.EqualTo(MareaId));
+            Assert.That(fixture.LookupController.SelectedAwakeningStage,
+                Is.EqualTo(5));
+            Assert.That(fixture.LookupController.SelectedSkillType,
+                Is.EqualTo(CharacterLookupSkillType.Match3));
+            Assert.That(fixture.LookupView.DescriptionText.text,
+                Does.Contain("\n\nKO "));
+            Assert.That(fixture.LookupView.DescriptionText.text,
+                Does.StartWith("Awakening 5 — Storm Devour\n\n"));
+            Assert.That(fixture.LookupView.DescriptionText.text,
+                Is.Not.EqualTo(englishDescription));
+            Assert.That(after.Characters[0].Level,
+                Is.EqualTo(before.Characters[0].Level));
+            Assert.That(after.Characters[0].Awakening,
+                Is.EqualTo(before.Characters[0].Awakening));
+            Assert.That(after.Currencies.BattleRecords,
+                Is.EqualTo(before.Currencies.BattleRecords));
+            Assert.That(fixture.Repository.Count("WriteTemp"), Is.Zero);
+        }
+
+        [Test]
+        public void LookupDescriptionsFollowSelectionAndLatestSavedAwakening()
+        {
+            Fixture fixture = CreateFixture(
+                Profile(MareaId, 40, 0, 777L),
+                new[] { MareaDefinition() });
+            Assert.That(fixture.UpgradeController.TryPresent(MareaId),
+                Is.True);
+            fixture.SelectRoot.SetActive(false);
+            fixture.UpgradeRoot.SetActive(true);
+
+            fixture.UpgradeView.SkillsLookupButton.onClick.Invoke();
+
+            Assert.That(fixture.LookupView.DescriptionText.text,
+                Does.Contain("90%"));
+            var descriptions = new HashSet<string>();
+            for (int index = 0;
+                index < fixture.LookupView.SkillButtons.Count;
+                index++)
+            {
+                fixture.LookupView.SkillButtons[index].onClick.Invoke();
+                descriptions.Add(fixture.LookupView.DescriptionText.text);
+            }
+
+            Assert.That(descriptions, Has.Count.EqualTo(5));
+
+            fixture.LookupView.AwakeningModeButton.onClick.Invoke();
+            string[] awakeningNames =
+            {
+                "Sharpened Edge",
+                "Tough Mariner",
+                "Blood Banquet",
+                "Razor Cuts",
+                "Storm Devour",
+                "Lingering Surge"
+            };
+            for (int index = 0;
+                index < fixture.LookupView.AwakeningButtons.Count;
+                index++)
+            {
+                fixture.LookupView.AwakeningButtons[index].onClick.Invoke();
+                Assert.That(fixture.LookupView.DescriptionText.text,
+                    Does.StartWith(
+                        $"Awakening {index + 1} — "
+                            + $"{awakeningNames[index]}\n\n"));
+            }
+
+            fixture.LookupView.SkillsModeButton.onClick.Invoke();
+            fixture.LookupView.SkillButtons[0].onClick.Invoke();
+            fixture.LookupView.ReturnButton.onClick.Invoke();
+            SaveTransactionResult transaction = fixture.SaveService
+                .ExecuteTransaction(profile =>
+                    profile.Characters[0].Awakening = 6);
+            Assert.That(transaction.IsSuccess, Is.True);
+
+            fixture.UpgradeView.SkillsLookupButton.onClick.Invoke();
+
+            Assert.That(fixture.LookupController.SelectedSkillType,
+                Is.EqualTo(CharacterLookupSkillType.Match3));
+            Assert.That(fixture.LookupView.DescriptionText.text,
+                Does.Contain("100%"));
+            Assert.That(fixture.LookupView.DescriptionText.text,
+                Does.Contain("Lingering Surge"));
         }
 
         [TestCase(1, 120L)]
@@ -327,12 +613,10 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 Is.EqualTo(scrollPosition));
             Assert.That(grid.ItemCount, Is.EqualTo(35));
             Assert.That(grid.BoundItemCount, Is.GreaterThan(0));
-            CharacterRosterCellView reboundCell = grid.PoolCells.Single(
-                item => item.IsBound
-                    && item.CharacterId == selectedCharacterId);
             Assert.That(
-                reboundCell.LevelText.text,
-                Is.EqualTo((startingDetailLevel + 1).ToString()));
+                fixture.RosterController.FullRoster.Single(
+                    item => item.CharacterId == selectedCharacterId).Level,
+                Is.EqualTo(startingDetailLevel + 1));
             Assert.That(
                 fixture.RosterController.SelectedCharacterId,
                 Is.EqualTo(selectedCharacterId));
@@ -666,11 +950,36 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 includePresentation ? definitions : Array.Empty<CharacterDefinition>(),
                 fullArt);
             ElementIconSet icons = Icons(waterIcon);
+            TextAsset localizationAsset =
+                AssetDatabase.LoadAssetAtPath<TextAsset>(
+                    "Assets/Data/Localization/characters.tsv");
+            Assert.That(localizationAsset, Is.Not.Null);
+            string localizationTsv = localizationAsset.text.Replace(
+                "marea\tMarea Bluefang\t",
+                "marea\tMarea Bluefang\t마레아 블루팽");
+            localizationTsv = localizationTsv.Replace(
+                "marea.awakening.5.description\tDevour's coefficient per "
+                    + "consumed Water Element changes from "
+                    + "{per_water_before}% to {per_water_after}% ATK.\t",
+                "marea.awakening.5.description\tDevour's coefficient per "
+                    + "consumed Water Element changes from "
+                    + "{per_water_before}% to {per_water_after}% ATK.\t"
+                    + "KO {per_water_before}% to {per_water_after}%");
+            LocalizationService localizationService =
+                new LocalizationService(new[]
+                {
+                    LocalizationTableParser.Parse(
+                        "characters.tsv",
+                        localizationTsv)
+                });
 
             GameObject container = Object("GameContent");
             GameObject selectRoot = Object("CharacterSelect", container.transform);
             GameObject upgradeRoot = Object(
                 "CharacterUpgrade",
+                container.transform);
+            GameObject lookupRoot = Object(
+                "CharacterLookup",
                 container.transform);
             CharacterRosterScreenView rosterView = RosterView(selectRoot);
             var rosterController = selectRoot.AddComponent<
@@ -682,13 +991,28 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
             var upgradeController = container.AddComponent<
                 CharacterUpgradeScreenController>();
             upgradeController.Configure(upgradeView, catalog, icons);
-            upgradeController.Initialize(saveService, database);
+            upgradeController.Initialize(
+                saveService,
+                database,
+                initializedLocalizationService: localizationService);
+            CharacterLookupScreenView lookupView = LookupView(lookupRoot);
+            var lookupController = container.AddComponent<
+                CharacterLookupScreenController>();
+            lookupController.Configure(lookupView);
+            lookupController.Initialize(
+                localizationService,
+                saveService,
+                CharacterLookupDescriptionResolverFactory.CreateDefault(
+                    database,
+                    localizationService));
             var coordinator = container.AddComponent<CharacterScreenCoordinator>();
             coordinator.Configure(
                 selectRoot,
                 upgradeRoot,
                 rosterController,
-                upgradeController);
+                upgradeController,
+                lookupRoot,
+                lookupController);
 
             return new Fixture(
                 selectRoot,
@@ -700,7 +1024,11 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 saveService,
                 repository,
                 fullArt,
-                waterIcon);
+                waterIcon,
+                localizationService,
+                lookupRoot,
+                lookupController,
+                lookupView);
         }
 
         private CharacterRosterScreenView RosterView(GameObject root)
@@ -778,7 +1106,44 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 ImageObject("CostIcon", root.transform),
                 Text("Cost", root.transform),
                 ButtonObject("LevelUp", root.transform),
-                ButtonObject("Return", root.transform));
+                ButtonObject("Return", root.transform),
+                ButtonObject("AwakeningLookup", root.transform),
+                ButtonObject("SkillsLookup", root.transform));
+            return view;
+        }
+
+        private CharacterLookupScreenView LookupView(GameObject root)
+        {
+            GameObject awakeningRoot = Object(
+                "AwakeningLookUp",
+                root.transform);
+            GameObject skillRoot = Object("SkillLookUp", root.transform);
+            var awakeningButtons = new Button[6];
+            for (int index = 0; index < awakeningButtons.Length; index++)
+            {
+                awakeningButtons[index] = ButtonObject(
+                    $"Awakening{index + 1}",
+                    awakeningRoot.transform);
+            }
+
+            var skillButtons = new Button[5];
+            for (int index = 0; index < skillButtons.Length; index++)
+            {
+                skillButtons[index] = ButtonObject(
+                    $"Skill{index}",
+                    skillRoot.transform);
+            }
+
+            var view = root.AddComponent<CharacterLookupScreenView>();
+            view.Configure(
+                ButtonObject("Return", root.transform),
+                ButtonObject("AwakeningMode", root.transform),
+                ButtonObject("SkillsMode", root.transform),
+                Text("Description", root.transform),
+                awakeningRoot,
+                skillRoot,
+                awakeningButtons,
+                skillButtons);
             return view;
         }
 
@@ -792,6 +1157,9 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
             SetField(definition, typeof(CharacterDefinition), "level1Attack", 180);
             SetField(definition, typeof(CharacterDefinition), "level100Hp", 3400);
             SetField(definition, typeof(CharacterDefinition), "level100Attack", 1050);
+            MareaBluefangTestConfig.Assign(
+                definition,
+                MareaBluefangTestConfig.Canonical);
             return definition;
         }
 
@@ -1018,7 +1386,11 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 SaveService saveService,
                 FakeSaveRepository repository,
                 Sprite fullArt,
-                Sprite waterIcon)
+                Sprite waterIcon,
+                LocalizationService localizationService,
+                GameObject lookupRoot,
+                CharacterLookupScreenController lookupController,
+                CharacterLookupScreenView lookupView)
             {
                 SelectRoot = selectRoot;
                 UpgradeRoot = upgradeRoot;
@@ -1030,6 +1402,10 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 Repository = repository;
                 FullArt = fullArt;
                 WaterIcon = waterIcon;
+                LocalizationService = localizationService;
+                LookupRoot = lookupRoot;
+                LookupController = lookupController;
+                LookupView = lookupView;
             }
 
             public GameObject SelectRoot { get; }
@@ -1042,6 +1418,10 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
             public FakeSaveRepository Repository { get; }
             public Sprite FullArt { get; }
             public Sprite WaterIcon { get; }
+            public LocalizationService LocalizationService { get; }
+            public GameObject LookupRoot { get; }
+            public CharacterLookupScreenController LookupController { get; }
+            public CharacterLookupScreenView LookupView { get; }
         }
     }
 }

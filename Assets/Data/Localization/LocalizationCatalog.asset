@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 541613aad9f64de8bcdcb7b3f1dafe23, type: 3}
+  m_Name: LocalizationCatalog
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Localization.LocalizationCatalog
+  defaultLocale: en
+  fallbackLocale: en
+  tables:
+  - {fileID: 4900000, guid: 500e04e392994b1788462df19866ceb5, type: 3}

@@ -5,6 +5,7 @@ using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Logging;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Localization;
 using ValorChronicle.Party.Presentation;
 using ValorChronicle.Save.DTO;
 using ValorChronicle.Save.Services;
@@ -19,15 +20,19 @@ namespace ValorChronicle.Characters.Presentation
         private SaveService saveService;
         private DefinitionDatabase definitionDatabase;
         private CharacterBuildResolver buildResolver;
+        private LocalizationService localizationService;
         private CharacterLevelUpPersistenceService persistenceService;
         private CharacterLevelUpPreviewSession previewSession;
         private CharacterDefinition previewDefinition;
         private bool subscribed;
+        private bool localizationSubscribed;
         private bool initialized;
         private bool operationInProgress;
 
         public event Action ReturnRequested;
         public event Action AuthoritativeProfileRefreshRequested;
+        public event Action<string> AwakeningLookupRequested;
+        public event Action<string> SkillsLookupRequested;
 
         public CharacterUpgradePresentationModel CurrentModel { get; private set; }
         public CharacterLevelUpPreviewSession PreviewSession => previewSession;
@@ -47,11 +52,13 @@ namespace ValorChronicle.Characters.Presentation
 
             GameBootstrapper bootstrap = GameBootstrapper.Instance;
             if (bootstrap?.SaveService == null
-                || bootstrap.DefinitionDatabase == null)
+                || bootstrap.DefinitionDatabase == null
+                || bootstrap.LocalizationService == null)
             {
                 GameLogger.Error(
                     "[CharacterUpgradeScreenController] Initialized "
-                        + "SaveService and DefinitionDatabase are required.",
+                        + "SaveService, DefinitionDatabase, and "
+                        + "LocalizationService are required.",
                     this);
                 view?.Clear();
                 return;
@@ -59,7 +66,11 @@ namespace ValorChronicle.Characters.Presentation
 
             try
             {
-                Initialize(bootstrap.SaveService, bootstrap.DefinitionDatabase);
+                Initialize(
+                    bootstrap.SaveService,
+                    bootstrap.DefinitionDatabase,
+                    initializedLocalizationService:
+                        bootstrap.LocalizationService);
             }
             catch (Exception exception)
             {
@@ -74,6 +85,7 @@ namespace ValorChronicle.Characters.Presentation
         private void OnEnable()
         {
             Subscribe();
+            RelocalizeCurrentModel();
         }
 
         private void OnDisable()
@@ -107,7 +119,8 @@ namespace ValorChronicle.Characters.Presentation
             DefinitionDatabase initializedDefinitionDatabase,
             CharacterBuildResolver initializedBuildResolver = null,
             CharacterLevelUpPersistenceService initializedPersistenceService =
-                null)
+                null,
+            LocalizationService initializedLocalizationService = null)
         {
             saveService = initializedSaveService
                 ?? throw new ArgumentNullException(
@@ -120,6 +133,11 @@ namespace ValorChronicle.Characters.Presentation
                 throw new InvalidOperationException(
                     "DefinitionDatabase must be initialized.");
             }
+
+            localizationService = initializedLocalizationService
+                ?? GameBootstrapper.Instance?.LocalizationService
+                ?? throw new ArgumentNullException(
+                    nameof(initializedLocalizationService));
 
             if (view == null
                 || presentationCatalog == null
@@ -139,6 +157,10 @@ namespace ValorChronicle.Characters.Presentation
             persistenceService = initializedPersistenceService
                 ?? new CharacterLevelUpPersistenceService(saveService);
             initialized = true;
+            if (isActiveAndEnabled)
+            {
+                SubscribeLocalization();
+            }
         }
 
         public bool TryPresent(string characterId)
@@ -261,9 +283,7 @@ namespace ValorChronicle.Characters.Presentation
                 : CharacterLevelUpCostCalculator.GetNextLevelCost(level);
             return new CharacterUpgradePresentationModel(
                 definition.Id,
-                string.IsNullOrEmpty(definition.DisplayNameKey)
-                    ? definition.Id
-                    : definition.DisplayNameKey,
+                ResolveDisplayName(definition),
                 presentation?.PreviewSprite,
                 elementIconSet.GetIcon(definition.Element),
                 level,
@@ -288,8 +308,12 @@ namespace ValorChronicle.Characters.Presentation
             view.LevelUpRepeatRequested += HandleLevelUpRepeatRequested;
             view.LevelUpCommitRequested += HandleLevelUpCommitRequested;
             view.LevelUpCancelRequested += HandleLevelUpCancelRequested;
+            view.AwakeningLookupRequested +=
+                HandleAwakeningLookupRequested;
+            view.SkillsLookupRequested += HandleSkillsLookupRequested;
             view.Disabled += HandleViewDisabled;
             subscribed = true;
+            SubscribeLocalization();
         }
 
         private void Unsubscribe()
@@ -304,8 +328,65 @@ namespace ValorChronicle.Characters.Presentation
             view.LevelUpRepeatRequested -= HandleLevelUpRepeatRequested;
             view.LevelUpCommitRequested -= HandleLevelUpCommitRequested;
             view.LevelUpCancelRequested -= HandleLevelUpCancelRequested;
+            view.AwakeningLookupRequested -=
+                HandleAwakeningLookupRequested;
+            view.SkillsLookupRequested -= HandleSkillsLookupRequested;
             view.Disabled -= HandleViewDisabled;
             subscribed = false;
+            UnsubscribeLocalization();
+        }
+
+        private string ResolveDisplayName(CharacterDefinition definition)
+        {
+            return string.IsNullOrEmpty(definition.DisplayNameKey)
+                ? definition.Id
+                : localizationService.GetText(definition.DisplayNameKey);
+        }
+
+        private void SubscribeLocalization()
+        {
+            if (localizationSubscribed || localizationService == null)
+            {
+                return;
+            }
+
+            localizationService.LocaleChanged += HandleLocaleChanged;
+            localizationSubscribed = true;
+        }
+
+        private void UnsubscribeLocalization()
+        {
+            if (!localizationSubscribed)
+            {
+                return;
+            }
+
+            localizationService.LocaleChanged -= HandleLocaleChanged;
+            localizationSubscribed = false;
+        }
+
+        private void HandleLocaleChanged(string _)
+        {
+            RelocalizeCurrentModel();
+        }
+
+        private void RelocalizeCurrentModel()
+        {
+            if (!initialized
+                || CurrentModel == null
+                || !definitionDatabase.TryGetCharacter(
+                    CurrentModel.CharacterId,
+                    out CharacterDefinition definition))
+            {
+                return;
+            }
+
+            CurrentModel = CurrentModel.WithDisplayName(
+                ResolveDisplayName(definition));
+            if (view != null && view.isActiveAndEnabled)
+            {
+                view.Render(CurrentModel);
+            }
         }
 
         private void HandleReturnRequested()
@@ -313,6 +394,26 @@ namespace ValorChronicle.Characters.Presentation
             if (!operationInProgress && previewSession == null)
             {
                 ReturnRequested?.Invoke();
+            }
+        }
+
+        private void HandleAwakeningLookupRequested()
+        {
+            if (!operationInProgress
+                && previewSession == null
+                && CurrentModel != null)
+            {
+                AwakeningLookupRequested?.Invoke(CurrentModel.CharacterId);
+            }
+        }
+
+        private void HandleSkillsLookupRequested()
+        {
+            if (!operationInProgress
+                && previewSession == null
+                && CurrentModel != null)
+            {
+                SkillsLookupRequested?.Invoke(CurrentModel.CharacterId);
             }
         }
 

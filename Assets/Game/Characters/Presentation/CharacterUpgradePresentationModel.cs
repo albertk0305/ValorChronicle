@@ -44,5 +44,23 @@ namespace ValorChronicle.Characters.Presentation
         public long NextLevelCost { get; }
         public bool ShowLevelUpCost { get; }
         public bool CanLevelUp { get; }
+
+        public CharacterUpgradePresentationModel WithDisplayName(
+            string displayName)
+        {
+            return new CharacterUpgradePresentationModel(
+                CharacterId,
+                displayName,
+                FullArtSprite,
+                ElementIcon,
+                Level,
+                Awakening,
+                MaxHp,
+                Attack,
+                BattleRecords,
+                NextLevelCost,
+                ShowLevelUpCost,
+                CanLevelUp);
+        }
     }
 }

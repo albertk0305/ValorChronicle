@@ -5,6 +5,7 @@ using ValorChronicle.Core.Random;
 using ValorChronicle.Core.Scene;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Validation;
+using ValorChronicle.Localization;
 using ValorChronicle.Save.Services;
 
 namespace ValorChronicle.Core.Bootstrap
@@ -13,11 +14,14 @@ namespace ValorChronicle.Core.Bootstrap
     {
         [SerializeField]
         private DefinitionDatabase definitionDatabase;
+        [SerializeField]
+        private LocalizationCatalog localizationCatalog;
 
         public static GameBootstrapper Instance { get; private set; }
 
         public SceneService SceneService { get; private set; }
         public DefinitionDatabase DefinitionDatabase => definitionDatabase;
+        public LocalizationService LocalizationService { get; private set; }
         public IRandomSource RandomSource { get; private set; }
         /// <summary>Gets the initialized save service for persistent game-domain operations.</summary>
         public SaveService SaveService { get; private set; }
@@ -63,6 +67,13 @@ namespace ValorChronicle.Core.Bootstrap
                             "DefinitionDatabase is not assigned.");
                     }
 
+                    if (localizationCatalog == null)
+                    {
+                        throw new System.InvalidOperationException(
+                            "LocalizationCatalog is not assigned.");
+                    }
+
+                    LocalizationService = localizationCatalog.CreateService();
                     definitionDatabase.Initialize();
                 },
                 validateContent: () =>

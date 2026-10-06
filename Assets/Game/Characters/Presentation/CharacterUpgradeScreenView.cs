@@ -20,6 +20,8 @@ namespace ValorChronicle.Characters.Presentation
         private TMP_Text levelUpCostText;
         private Button levelUpButton;
         private Button returnButton;
+        private Button awakeningLookupButton;
+        private Button skillsLookupButton;
         private CharacterLevelUpPressHoldInput levelUpPressHoldInput;
         private bool listenersBound;
         private bool busy;
@@ -30,6 +32,8 @@ namespace ValorChronicle.Characters.Presentation
         public event Action LevelUpRepeatRequested;
         public event Action LevelUpCommitRequested;
         public event Action LevelUpCancelRequested;
+        public event Action AwakeningLookupRequested;
+        public event Action SkillsLookupRequested;
         public event Action Disabled;
 
         public CharacterUpgradePresentationModel CurrentModel { get; private set; }
@@ -45,6 +49,8 @@ namespace ValorChronicle.Characters.Presentation
         public TMP_Text LevelUpCostText => levelUpCostText;
         public Button LevelUpButton => levelUpButton;
         public Button ReturnButton => returnButton;
+        public Button AwakeningLookupButton => awakeningLookupButton;
+        public Button SkillsLookupButton => skillsLookupButton;
         public CharacterLevelUpPressHoldInput LevelUpPressHoldInput =>
             levelUpPressHoldInput;
         public bool IsBusy => busy;
@@ -68,7 +74,9 @@ namespace ValorChronicle.Characters.Presentation
             Image configuredLevelUpCostIcon,
             TMP_Text configuredLevelUpCostText,
             Button configuredLevelUpButton,
-            Button configuredReturnButton)
+            Button configuredReturnButton,
+            Button configuredAwakeningLookupButton,
+            Button configuredSkillsLookupButton)
         {
             UnbindListeners();
             characterNameText = configuredCharacterNameText
@@ -103,6 +111,12 @@ namespace ValorChronicle.Characters.Presentation
             returnButton = configuredReturnButton
                 ?? throw new ArgumentNullException(
                     nameof(configuredReturnButton));
+            awakeningLookupButton = configuredAwakeningLookupButton
+                ?? throw new ArgumentNullException(
+                    nameof(configuredAwakeningLookupButton));
+            skillsLookupButton = configuredSkillsLookupButton
+                ?? throw new ArgumentNullException(
+                    nameof(configuredSkillsLookupButton));
             levelUpPressHoldInput = levelUpButton.GetComponent<
                 CharacterLevelUpPressHoldInput>();
             if (levelUpPressHoldInput == null)
@@ -196,6 +210,10 @@ namespace ValorChronicle.Characters.Presentation
             }
 
             returnButton.onClick.AddListener(HandleReturnRequested);
+            awakeningLookupButton.onClick.AddListener(
+                HandleAwakeningLookupRequested);
+            skillsLookupButton.onClick.AddListener(
+                HandleSkillsLookupRequested);
             levelUpPressHoldInput.PressStarted += HandleLevelUpPressStarted;
             levelUpPressHoldInput.RepeatRequested +=
                 HandleLevelUpRepeatRequested;
@@ -214,6 +232,10 @@ namespace ValorChronicle.Characters.Presentation
             }
 
             returnButton.onClick.RemoveListener(HandleReturnRequested);
+            awakeningLookupButton.onClick.RemoveListener(
+                HandleAwakeningLookupRequested);
+            skillsLookupButton.onClick.RemoveListener(
+                HandleSkillsLookupRequested);
             levelUpPressHoldInput.PressStarted -= HandleLevelUpPressStarted;
             levelUpPressHoldInput.RepeatRequested -=
                 HandleLevelUpRepeatRequested;
@@ -252,6 +274,22 @@ namespace ValorChronicle.Characters.Presentation
             LevelUpCancelRequested?.Invoke();
         }
 
+        private void HandleAwakeningLookupRequested()
+        {
+            if (!busy && !previewActive && CurrentModel != null)
+            {
+                AwakeningLookupRequested?.Invoke();
+            }
+        }
+
+        private void HandleSkillsLookupRequested()
+        {
+            if (!busy && !previewActive && CurrentModel != null)
+            {
+                SkillsLookupRequested?.Invoke();
+            }
+        }
+
         private bool CanStartLevelUpPress()
         {
             return !busy
@@ -270,6 +308,19 @@ namespace ValorChronicle.Characters.Presentation
             if (returnButton != null)
             {
                 returnButton.interactable = !busy && !previewActive;
+            }
+
+            bool lookupEnabled = !busy
+                && !previewActive
+                && CurrentModel != null;
+            if (awakeningLookupButton != null)
+            {
+                awakeningLookupButton.interactable = lookupEnabled;
+            }
+
+            if (skillsLookupButton != null)
+            {
+                skillsLookupButton.interactable = lookupEnabled;
             }
         }
 
