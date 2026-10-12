@@ -22,6 +22,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.State
             Assert.That(state.Element, Is.EqualTo(ElementType.Fire));
             Assert.That(state.MaxHp, Is.EqualTo(1500L));
             Assert.That(state.Attack, Is.EqualTo(275.5d));
+            Assert.That(state.PermanentAttackIncreaseRate, Is.Zero);
         }
 
         [TestCase(null)]
@@ -59,18 +60,42 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.State
                 CreateCharacter(attack: attack));
         }
 
+        [TestCase(-0.01d)]
+        [TestCase(double.NaN)]
+        [TestCase(double.PositiveInfinity)]
+        [TestCase(double.NegativeInfinity)]
+        public void Constructor_RejectsInvalidPermanentAttackIncreaseRate(
+            double rate)
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                CreateCharacter(permanentAttackIncreaseRate: rate));
+        }
+
+        [Test]
+        public void Constructor_CapturesPermanentAttackIncreaseRate()
+        {
+            CharacterBattleState state = CreateCharacter(
+                permanentAttackIncreaseRate: 0.10d);
+
+            Assert.That(state.Attack, Is.EqualTo(10d));
+            Assert.That(state.PermanentAttackIncreaseRate,
+                Is.EqualTo(0.10d));
+        }
+
         private static CharacterBattleState CreateCharacter(
             string characterId = "hero",
             int partySlotIndex = 0,
             long maxHp = 100,
-            double attack = 10d)
+            double attack = 10d,
+            double permanentAttackIncreaseRate = 0d)
         {
             return new CharacterBattleState(
                 characterId,
                 partySlotIndex,
                 ElementType.Fire,
                 maxHp,
-                attack);
+                attack,
+                permanentAttackIncreaseRate);
         }
     }
 }

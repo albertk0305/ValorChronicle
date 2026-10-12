@@ -14,6 +14,8 @@ using ValorChronicle.Data.Definitions;
 using ValorChronicle.Localization;
 using ValorChronicle.Party.Presentation;
 using ValorChronicle.Party.Roster;
+using ValorChronicle.Relics;
+using ValorChronicle.Relics.Persistence;
 using ValorChronicle.Save.DTO;
 using ValorChronicle.Save.Services;
 
@@ -71,6 +73,171 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 Is.EqualTo(expectedAttack.ToString()));
         }
 
+        [Test]
+        public void TryPresent_RefreshesHpAfterBarkEquipAndClear()
+        {
+            CharacterDefinition marea = MareaDefinition();
+            RelicDefinition bark = RelicDefinition(
+                "relic_world_tree_bark",
+                RelicEffectType.MaxHpIncrease);
+            ProfileSaveData profile = Profile(MareaId, 1, 0, 0L);
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "bark_instance",
+                RelicDefinitionId = bark.Id,
+                Awakening = 5
+            });
+            Fixture fixture = CreateFixture(
+                profile,
+                new[] { marea },
+                relicDefinitions: new[] { bark });
+            var persistence = new RelicEquipPersistenceService(
+                fixture.SaveService,
+                new RelicEquipEditor());
+
+            Assert.That(fixture.UpgradeController.TryPresent(MareaId), Is.True);
+            Assert.That(fixture.UpgradeController.CurrentModel.MaxHp,
+                Is.EqualTo(900));
+
+            var equipSession = new RelicEquipEditSession(
+                new RelicEquipEditor(),
+                fixture.SaveService.GetCurrentProfileSnapshot(),
+                MareaId,
+                0);
+            Assert.That(
+                equipSession.TrySetPreview("bark_instance").CanSelect,
+                Is.True);
+            Assert.That(
+                persistence.Execute(equipSession.CreateEquipCommand()).IsSuccess,
+                Is.True);
+            Assert.That(fixture.UpgradeController.TryPresent(MareaId), Is.True);
+            Assert.That(fixture.UpgradeController.CurrentModel.MaxHp,
+                Is.EqualTo(990));
+            Assert.That(fixture.UpgradeController.CurrentModel.Attack,
+                Is.EqualTo(180));
+
+            var clearSession = new RelicEquipEditSession(
+                new RelicEquipEditor(),
+                fixture.SaveService.GetCurrentProfileSnapshot(),
+                MareaId,
+                0);
+            Assert.That(
+                persistence.Execute(clearSession.CreateClearCommand()).IsSuccess,
+                Is.True);
+            Assert.That(fixture.UpgradeController.TryPresent(MareaId), Is.True);
+            Assert.That(fixture.UpgradeController.CurrentModel.MaxHp,
+                Is.EqualTo(900));
+        }
+
+        [TestCase(0, 189L)]
+        [TestCase(5, 198L)]
+        public void TryPresent_RefreshesEffectiveAttackAfterSwordEquipAndClear(
+            int relicAwakening,
+            long expectedEquippedAttack)
+        {
+            CharacterDefinition marea = MareaDefinition();
+            RelicDefinition sword = RelicDefinition(
+                "relic_victors_broken_sword",
+                RelicEffectType.AttackIncrease);
+            ProfileSaveData profile = Profile(MareaId, 1, 0, 0L);
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "sword_instance",
+                RelicDefinitionId = sword.Id,
+                Awakening = relicAwakening
+            });
+            Fixture fixture = CreateFixture(
+                profile,
+                new[] { marea },
+                relicDefinitions: new[] { sword });
+            var persistence = new RelicEquipPersistenceService(
+                fixture.SaveService,
+                new RelicEquipEditor());
+
+            Assert.That(fixture.UpgradeController.TryPresent(MareaId), Is.True);
+            Assert.That(fixture.UpgradeController.CurrentModel.Attack,
+                Is.EqualTo(180));
+
+            var equipSession = new RelicEquipEditSession(
+                new RelicEquipEditor(),
+                fixture.SaveService.GetCurrentProfileSnapshot(),
+                MareaId,
+                0);
+            Assert.That(
+                equipSession.TrySetPreview("sword_instance").CanSelect,
+                Is.True);
+            Assert.That(
+                persistence.Execute(equipSession.CreateEquipCommand()).IsSuccess,
+                Is.True);
+            Assert.That(fixture.UpgradeController.TryPresent(MareaId), Is.True);
+            Assert.That(fixture.UpgradeController.CurrentModel.Attack,
+                Is.EqualTo(expectedEquippedAttack));
+            Assert.That(fixture.UpgradeController.CurrentModel.MaxHp,
+                Is.EqualTo(900));
+
+            var clearSession = new RelicEquipEditSession(
+                new RelicEquipEditor(),
+                fixture.SaveService.GetCurrentProfileSnapshot(),
+                MareaId,
+                0);
+            Assert.That(
+                persistence.Execute(clearSession.CreateClearCommand()).IsSuccess,
+                Is.True);
+            Assert.That(fixture.UpgradeController.TryPresent(MareaId), Is.True);
+            Assert.That(fixture.UpgradeController.CurrentModel.Attack,
+                Is.EqualTo(180));
+        }
+
+        [Test]
+        public void TryPresent_SumsAttackRelicRatesThenRoundsOnce()
+        {
+            const string characterId = "character_attack_rounding";
+            CharacterDefinition character = Definition(
+                characterId,
+                "marea",
+                ElementType.Water);
+            SetField(
+                character,
+                typeof(CharacterDefinition),
+                "level1Attack",
+                101);
+            SetField(
+                character,
+                typeof(CharacterDefinition),
+                "level100Attack",
+                101);
+            RelicDefinition first = RelicDefinition(
+                "attack_first",
+                RelicEffectType.AttackIncrease);
+            RelicDefinition second = RelicDefinition(
+                "attack_second",
+                RelicEffectType.AttackIncrease);
+            ProfileSaveData profile = Profile(characterId, 1, 0, 0L);
+            profile.Characters[0].EquippedRelicInstanceIds[0] = "first";
+            profile.Characters[0].EquippedRelicInstanceIds[1] = "second";
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "first",
+                RelicDefinitionId = first.Id,
+                Awakening = 0
+            });
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "second",
+                RelicDefinitionId = second.Id,
+                Awakening = 5
+            });
+            Fixture fixture = CreateFixture(
+                profile,
+                new[] { character },
+                relicDefinitions: new[] { first, second });
+
+            Assert.That(fixture.UpgradeController.TryPresent(characterId),
+                Is.True);
+            Assert.That(fixture.UpgradeController.CurrentModel.Attack,
+                Is.EqualTo(116));
+        }
+
         [TestCase(40, 6)]
         [TestCase(100, 2)]
         public void CharacterUpgradeAndPartyRoster_ResolveSameSavedStats(
@@ -78,19 +245,43 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
             int awakening)
         {
             CharacterDefinition marea = MareaDefinition();
+            RelicDefinition bark = RelicDefinition(
+                "relic_world_tree_bark",
+                RelicEffectType.MaxHpIncrease);
+            RelicDefinition sword = RelicDefinition(
+                "relic_victors_broken_sword",
+                RelicEffectType.AttackIncrease);
             ProfileSaveData profile = Profile(
                 MareaId,
                 level,
                 awakening,
                 long.MaxValue);
-            Fixture fixture = CreateFixture(profile, new[] { marea });
+            profile.Characters[0].EquippedRelicInstanceIds[0] = "bark";
+            profile.Characters[0].EquippedRelicInstanceIds[1] = "sword";
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "bark",
+                RelicDefinitionId = bark.Id,
+                Awakening = 5
+            });
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "sword",
+                RelicDefinitionId = sword.Id,
+                Awakening = 0
+            });
+            RelicDefinition[] relics = { bark, sword };
+            Fixture fixture = CreateFixture(
+                profile,
+                new[] { marea },
+                relicDefinitions: relics);
             var partyRosterBuilder = new PartyCharacterRosterBuilder(
-                Database(new[] { marea }));
+                Database(new[] { marea }, relics));
 
             Assert.That(fixture.UpgradeController.TryPresent(MareaId),
                 Is.True);
             CharacterRosterEntry partyEntry = partyRosterBuilder.Build(
-                profile.Characters).Single();
+                profile).Single();
 
             Assert.That(partyEntry.MaxHp,
                 Is.EqualTo(fixture.UpgradeController.CurrentModel.MaxHp));
@@ -938,9 +1129,12 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
         private Fixture CreateFixture(
             ProfileSaveData profile,
             CharacterDefinition[] definitions,
-            bool includePresentation = true)
+            bool includePresentation = true,
+            RelicDefinition[] relicDefinitions = null)
         {
-            DefinitionDatabase database = Database(definitions);
+            DefinitionDatabase database = Database(
+                definitions,
+                relicDefinitions ?? Array.Empty<RelicDefinition>());
             SaveService saveService = SaveServiceFor(
                 profile,
                 out FakeSaveRepository repository);
@@ -958,10 +1152,12 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 "marea\tMarea Bluefang\t",
                 "marea\tMarea Bluefang\t마레아 블루팽");
             localizationTsv = localizationTsv.Replace(
-                "marea.awakening.5.description\tDevour's coefficient per "
+                "marea.awakening.5.description\tTime of Devouring's "
+                    + "coefficient per "
                     + "consumed Water Element changes from "
                     + "{per_water_before}% to {per_water_after}% ATK.\t",
-                "marea.awakening.5.description\tDevour's coefficient per "
+                "marea.awakening.5.description\tTime of Devouring's "
+                    + "coefficient per "
                     + "consumed Water Element changes from "
                     + "{per_water_before}% to {per_water_after}% ATK.\t"
                     + "KO {per_water_before}% to {per_water_after}%");
@@ -1185,13 +1381,39 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
             return definition;
         }
 
-        private DefinitionDatabase Database(CharacterDefinition[] definitions)
+        private DefinitionDatabase Database(
+            CharacterDefinition[] definitions,
+            RelicDefinition[] relicDefinitions = null)
         {
             var database = ScriptableObject.CreateInstance<DefinitionDatabase>();
             createdObjects.Add(database);
             SetArray(database, "characters", definitions);
+            SetArray(
+                database,
+                "relics",
+                relicDefinitions ?? Array.Empty<RelicDefinition>());
             database.Initialize();
             return database;
+        }
+
+        private RelicDefinition RelicDefinition(
+            string id,
+            RelicEffectType effectType)
+        {
+            var definition = ScriptableObject.CreateInstance<RelicDefinition>();
+            createdObjects.Add(definition);
+            SetField(definition, typeof(GameDefinition), "id", id);
+            SetField(
+                definition,
+                typeof(RelicDefinition),
+                "effectType",
+                effectType);
+            SetField(
+                definition,
+                typeof(RelicDefinition),
+                "effectRates",
+                new[] { 0.05d, 0.06d, 0.07d, 0.08d, 0.09d, 0.10d });
+            return definition;
         }
 
         private CharacterPresentationCatalog Catalog(

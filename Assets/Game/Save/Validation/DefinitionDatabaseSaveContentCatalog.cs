@@ -56,7 +56,9 @@ namespace ValorChronicle.Save.Validation
 
         /// <inheritdoc />
         public SaveContentLookupResult LookupGacha(string gachaId) =>
-            SaveContentLookupResult.Unavailable;
+            database.TryGetGacha(gachaId, out _)
+                ? SaveContentLookupResult.Exists
+                : SaveContentLookupResult.Missing;
 
         /// <inheritdoc />
         public SaveContentLookupResult LookupRewardGrade(string bossId, string difficultyId, string gradeId) =>

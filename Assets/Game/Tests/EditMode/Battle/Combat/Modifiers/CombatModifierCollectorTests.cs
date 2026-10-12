@@ -109,6 +109,40 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Modifiers
         }
 
         [Test]
+        public void CollectAllyDamage_AddsPermanentAndRuntimeAttackRates()
+        {
+            var attacker = new CharacterBattleState(
+                "hero",
+                0,
+                ElementType.Water,
+                1000,
+                1000d,
+                permanentAttackIncreaseRate: 0.05d);
+            var party = new PartyBattleState(new[] { attacker });
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Fire,
+                5000,
+                500d);
+            attacker.Effects.ApplyEffect(Effect(
+                1,
+                "runtime_attack",
+                EffectModifierType.AttackIncrease,
+                0.20d));
+
+            AllyDamageModifierSnapshot result =
+                CombatModifierCollector.CollectAllyDamage(
+                    attacker,
+                    party,
+                    boss,
+                    ElementType.Water);
+
+            Assert.That(
+                result.AttackIncreaseRateSum,
+                Is.EqualTo(0.25d).Within(0.000000001d));
+        }
+
+        [Test]
         public void CollectAllyDamage_UsesOnlyMatchingElementEffects()
         {
             CreateStates(

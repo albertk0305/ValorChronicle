@@ -13,6 +13,7 @@ using ValorChronicle.Core.Scene;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Party.Presentation;
 using ValorChronicle.Party.Roster;
+using ValorChronicle.Relics.Presentation;
 using ValorChronicle.UI.Navigation;
 using Object = UnityEngine.Object;
 
@@ -121,6 +122,49 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 Assert.That(upgrade.Find("ReturnButton"), Is.Not.Null);
                 Assert.That(upgrade.Find("AwakeningButton"), Is.Not.Null);
                 Assert.That(upgrade.Find("SkillsButton"), Is.Not.Null);
+                Transform relicSlots = upgrade.Find("Artifacts");
+                Assert.That(relicSlots, Is.Not.Null);
+                foreach (string slotName in new[]
+                {
+                    "Artifact",
+                    "Artifact (1)",
+                    "Artifact (2)",
+                    "Artifact (3)"
+                })
+                {
+                    Transform slot = relicSlots.Find(slotName);
+                    Assert.That(slot, Is.Not.Null, slotName);
+                    Assert.That(slot.Find("ArtifactButton"), Is.Not.Null);
+                    Assert.That(
+                        slot.Find("ActivateWhenNoArtifact"),
+                        Is.Not.Null);
+                    Assert.That(slot.Find("Border"), Is.Not.Null);
+                    Assert.That(
+                        slot.Find("ArtifactAwakenText"),
+                        Is.Not.Null);
+                }
+
+                Transform relicSelection = installers[0].transform.parent
+                    .Find("Artifacts");
+                Assert.That(relicSelection, Is.Not.Null);
+                Assert.That(relicSelection.Find("EquipButton"), Is.Not.Null);
+                Assert.That(relicSelection.Find("RemoveButton"), Is.Not.Null);
+                Assert.That(
+                    relicSelection.Find(
+                        "ArtifactPreview/Artifact/ArtifactButton"),
+                    Is.Not.Null);
+                Assert.That(
+                    relicSelection.Find(
+                        "ArtifactPreview/Text/ArtifactText"),
+                    Is.Not.Null);
+                Assert.That(
+                    relicSelection.Find(
+                        "ArtifactPreview/ArtifactSelect/ArtifactSlots"),
+                    Is.Not.Null);
+                Assert.That(
+                    relicSelection.Find(
+                        "ArtifactPreview/ArtifactSelect/ScrollPanel"),
+                    Is.Not.Null);
                 Transform lookup = installers[0].transform.parent.Find(
                     "CharacterLookup");
                 Assert.That(lookup, Is.Not.Null);
@@ -226,6 +270,55 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                     Has.Length.EqualTo(1));
                 Assert.That(parent.GetComponents<CharacterScreenCoordinator>(),
                     Has.Length.EqualTo(1));
+                Assert.That(
+                    parent.GetComponents<CharacterRelicScreenController>(),
+                    Has.Length.EqualTo(1));
+                Assert.That(
+                    parent.Find("CharacterUpgrade/Artifacts")
+                        .GetComponents<CharacterRelicSlotsView>(),
+                    Has.Length.EqualTo(1));
+                Assert.That(
+                    parent.Find("CharacterUpgrade/Artifacts")
+                        .GetComponentsInChildren<CharacterRelicSlotView>(true),
+                    Has.Length.EqualTo(4));
+                Assert.That(
+                    parent.Find("Artifacts")
+                        .GetComponents<RelicSelectionScreenView>(),
+                    Has.Length.EqualTo(1));
+                Transform relicViewport = parent.Find(
+                    "Artifacts/ArtifactPreview/ArtifactSelect/ScrollPanel");
+                Assert.That(relicViewport, Is.Not.Null);
+                Assert.That(relicViewport.GetComponents<ScrollRect>(),
+                    Has.Length.EqualTo(1));
+                Assert.That(relicViewport.GetComponents<RectMask2D>(),
+                    Has.Length.EqualTo(1));
+                Assert.That(
+                    relicViewport.GetComponents<VirtualizedRelicGridView>(),
+                    Has.Length.EqualTo(1));
+                Transform relicContent = relicViewport.Find(
+                    "ArtifactSlots");
+                Assert.That(relicContent, Is.Not.Null);
+                Assert.That(
+                    relicContent.GetComponentsInChildren<
+                        RelicInventoryCellView>(true),
+                    Has.Length.EqualTo(30));
+                Transform[] authoredRelicCells = relicContent
+                    .Cast<Transform>()
+                    .Where(child => child.name.StartsWith(
+                        "ArtifactSlot",
+                        StringComparison.Ordinal))
+                    .ToArray();
+                Assert.That(authoredRelicCells, Has.Length.EqualTo(25));
+                foreach (Transform relicCell in authoredRelicCells)
+                {
+                    Assert.That(
+                        relicCell.Find("ArtifactButton")
+                            .GetComponents<Button>(),
+                        Has.Length.EqualTo(1));
+                    Assert.That(
+                        relicCell.GetComponents<RelicInventoryCellView>(),
+                        Has.Length.EqualTo(1));
+                }
                 Transform lookup = parent.Find("CharacterLookup");
                 Assert.That(
                     lookup.GetComponents<CharacterLookupScreenView>(),

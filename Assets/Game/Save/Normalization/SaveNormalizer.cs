@@ -64,7 +64,26 @@ namespace ValorChronicle.Save.Normalization
             {
                 CharacterSaveData character = characters[i] ?? new CharacterSaveData();
                 character.CharacterId ??= SaveRules.EmptyId;
+                character.EquippedRelicInstanceIds ??=
+                    SaveRules.CreateEmptyRelicInstanceIdSlots();
+                NormalizeStrings(character.EquippedRelicInstanceIds);
+                NormalizeRelicSlots(character.EquippedRelicInstanceIds);
                 characters[i] = character;
+            }
+        }
+
+        private static void NormalizeRelicSlots(List<string> slots)
+        {
+            if (slots.Count > SaveRules.RelicSlotCountPerCharacter)
+            {
+                slots.RemoveRange(
+                    SaveRules.RelicSlotCountPerCharacter,
+                    slots.Count - SaveRules.RelicSlotCountPerCharacter);
+            }
+
+            while (slots.Count < SaveRules.RelicSlotCountPerCharacter)
+            {
+                slots.Add(SaveRules.EmptyId);
             }
         }
 
@@ -85,7 +104,9 @@ namespace ValorChronicle.Save.Normalization
 
                 relic.InstanceId ??= SaveRules.EmptyId;
                 relic.RelicDefinitionId ??= SaveRules.EmptyId;
-                relic.EquippedCharacterId ??= SaveRules.EmptyId;
+                relic.EquippedCharacterId = SaveRules.EmptyId;
+                relic.EquippedSlotIndex =
+                    SaveRules.UnequippedRelicSlotIndex;
                 relics[i] = relic;
             }
         }

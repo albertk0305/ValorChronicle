@@ -1,6 +1,7 @@
 using System;
 using ValorChronicle.Characters.Build;
 using ValorChronicle.Characters.Progression;
+using ValorChronicle.Characters.Stats;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Logging;
 using ValorChronicle.Data.Database;
@@ -9,6 +10,7 @@ using ValorChronicle.Localization;
 using ValorChronicle.Party.Presentation;
 using ValorChronicle.Save.DTO;
 using ValorChronicle.Save.Services;
+using ValorChronicle.Relics.Stats;
 
 namespace ValorChronicle.Characters.Presentation
 {
@@ -20,6 +22,9 @@ namespace ValorChronicle.Characters.Presentation
         private SaveService saveService;
         private DefinitionDatabase definitionDatabase;
         private CharacterBuildResolver buildResolver;
+        private RelicStatBonusResolver relicStatBonusResolver;
+        private RelicStatBonusSummary currentRelicStatBonuses =
+            RelicStatBonusSummary.None;
         private LocalizationService localizationService;
         private CharacterLevelUpPersistenceService persistenceService;
         private CharacterLevelUpPreviewSession previewSession;
@@ -154,6 +159,8 @@ namespace ValorChronicle.Characters.Presentation
 
             buildResolver = initializedBuildResolver
                 ?? CharacterBuildResolverFactory.CreateDefault();
+            relicStatBonusResolver = new RelicStatBonusResolver(
+                definitionDatabase);
             persistenceService = initializedPersistenceService
                 ?? new CharacterLevelUpPersistenceService(saveService);
             initialized = true;
@@ -210,7 +217,10 @@ namespace ValorChronicle.Characters.Presentation
                     presentation,
                     savedCharacter.Level,
                     savedCharacter.Awakening,
-                    battleRecords);
+                    battleRecords,
+                    relicStatBonusResolver.Resolve(
+                        profile,
+                        savedCharacter));
                 if (renderView)
                 {
                     view.Render(CurrentModel);
@@ -270,12 +280,21 @@ namespace ValorChronicle.Characters.Presentation
             CharacterPresentationDefinition presentation,
             int level,
             int awakening,
-            long battleRecords)
+            long battleRecords,
+            RelicStatBonusSummary relicStatBonuses)
         {
+            currentRelicStatBonuses = relicStatBonuses
+                ?? RelicStatBonusSummary.None;
             ResolvedCharacterBuild build = buildResolver.Resolve(
                 definition,
                 level,
-                awakening);
+                awakening,
+                currentRelicStatBonuses);
+            long displayedAttack = CharacterStatCalculator.RoundFinalStat(
+                build.Attack
+                    * (1d
+                        + currentRelicStatBonuses
+                            .AttackIncreaseRateSum));
             bool isMaximumLevel =
                 CharacterLevelUpCostCalculator.IsMaximumLevel(level);
             long nextLevelCost = isMaximumLevel
@@ -289,7 +308,7 @@ namespace ValorChronicle.Characters.Presentation
                 level,
                 awakening,
                 build.MaxHp,
-                build.Attack,
+                displayedAttack,
                 battleRecords,
                 nextLevelCost,
                 !isMaximumLevel,
@@ -476,7 +495,8 @@ namespace ValorChronicle.Characters.Presentation
                 presentation,
                 previewSession.PreviewTargetLevel,
                 previewSession.Awakening,
-                previewSession.PreviewRemainingBattleRecords);
+                previewSession.PreviewRemainingBattleRecords,
+                currentRelicStatBonuses);
             view.Render(CurrentModel);
             if (!CurrentModel.CanLevelUp)
             {

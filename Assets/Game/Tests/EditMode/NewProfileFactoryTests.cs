@@ -76,6 +76,24 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(profile.UnlockedContentIds, Is.Empty);
         }
 
+        [Test]
+        public void NewCharacterSaveData_StartsWithFourEmptyRelicSlots()
+        {
+            var character = new CharacterSaveData();
+            var anotherCharacter = new CharacterSaveData();
+
+            Assert.That(
+                character.EquippedRelicInstanceIds,
+                Has.Count.EqualTo(SaveRules.RelicSlotCountPerCharacter));
+            Assert.That(
+                character.EquippedRelicInstanceIds.All(
+                    value => value == SaveRules.EmptyId),
+                Is.True);
+            Assert.That(
+                character.EquippedRelicInstanceIds,
+                Is.Not.SameAs(anotherCharacter.EquippedRelicInstanceIds));
+        }
+
         [TestCase(null)]
         [TestCase("")]
         [TestCase("   ")]

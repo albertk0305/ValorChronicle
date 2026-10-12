@@ -104,9 +104,21 @@ namespace ValorChronicle.Save.Processing
                 return true;
             if (ContainsNull(profile.UnlockedContentIds) || ContainsNull(profile.CompletedTutorialIds)) return true;
             foreach (CharacterSaveData character in profile.Characters)
-                if (character == null || character.CharacterId == null) return true;
+                if (character == null
+                    || character.CharacterId == null
+                    || character.EquippedRelicInstanceIds == null
+                    || character.EquippedRelicInstanceIds.Count
+                        != SaveRules.RelicSlotCountPerCharacter
+                    || ContainsNull(character.EquippedRelicInstanceIds))
+                    return true;
             foreach (RelicInstanceSaveData relic in profile.RelicInstances)
-                if (relic == null || relic.InstanceId == null || relic.RelicDefinitionId == null || relic.EquippedCharacterId == null) return true;
+                if (relic == null
+                    || relic.InstanceId == null
+                    || relic.RelicDefinitionId == null
+                    || relic.EquippedCharacterId != SaveRules.EmptyId
+                    || relic.EquippedSlotIndex
+                        != SaveRules.UnequippedRelicSlotIndex)
+                    return true;
             foreach (GachaStateSaveData state in profile.GachaStates)
                 if (state == null || state.GachaId == null) return true;
             foreach (BossRecordSaveData record in profile.BossRecords)

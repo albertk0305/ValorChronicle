@@ -2,6 +2,7 @@ using System;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Characters.Build;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Relics.Stats;
 
 namespace ValorChronicle.Characters.Stats
 {
@@ -10,7 +11,8 @@ namespace ValorChronicle.Characters.Stats
         public static CharacterBattleState Create(
             CharacterDefinition definition,
             ResolvedCharacterBuild build,
-            int partySlotIndex)
+            int partySlotIndex,
+            RelicStatBonusSummary relicStatBonuses = null)
         {
             if (definition == null)
             {
@@ -38,7 +40,9 @@ namespace ValorChronicle.Characters.Stats
                 partySlotIndex,
                 definition.Element,
                 build.MaxHp,
-                build.Attack);
+                build.Attack,
+                (relicStatBonuses ?? RelicStatBonusSummary.None)
+                    .AttackIncreaseRateSum);
         }
     }
 }

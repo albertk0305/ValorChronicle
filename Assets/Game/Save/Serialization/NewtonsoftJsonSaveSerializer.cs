@@ -13,6 +13,7 @@ namespace ValorChronicle.Save.Serialization
             Formatting = Formatting.Indented,
             MetadataPropertyHandling = MetadataPropertyHandling.Ignore,
             MissingMemberHandling = MissingMemberHandling.Ignore,
+            ObjectCreationHandling = ObjectCreationHandling.Replace,
             TypeNameHandling = TypeNameHandling.None
         };
 

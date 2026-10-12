@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ValorChronicle.Save.DTO;
 
 namespace ValorChronicle.Save.Rules
@@ -54,6 +55,20 @@ namespace ValorChronicle.Save.Rules
             return presetIndex == 0
                 ? DefaultPartyPresetId
                 : $"party_{presetIndex + 1}";
+        }
+
+        /// <summary>Creates the canonical empty relic slots for one character.</summary>
+        public static List<string> CreateEmptyRelicInstanceIdSlots()
+        {
+            var slots = new List<string>(RelicSlotCountPerCharacter);
+            for (int slotIndex = 0;
+                slotIndex < RelicSlotCountPerCharacter;
+                slotIndex++)
+            {
+                slots.Add(EmptyId);
+            }
+
+            return slots;
         }
     }
 }

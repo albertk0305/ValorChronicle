@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using ValorChronicle.Relics.Presentation;
 
 namespace ValorChronicle.Characters.Presentation
 {
@@ -8,15 +9,19 @@ namespace ValorChronicle.Characters.Presentation
         private GameObject rosterRoot;
         private GameObject upgradeRoot;
         private GameObject lookupRoot;
+        private GameObject relicSelectionRoot;
         private CharacterRosterScreenController rosterController;
         private CharacterUpgradeScreenController upgradeController;
         private CharacterLookupScreenController lookupController;
+        private CharacterRelicScreenController relicController;
         private bool subscribed;
 
         public bool IsShowingUpgrade =>
             upgradeRoot != null && upgradeRoot.activeSelf;
         public bool IsShowingLookup =>
             lookupRoot != null && lookupRoot.activeSelf;
+        public bool IsShowingRelics =>
+            relicSelectionRoot != null && relicSelectionRoot.activeSelf;
 
         private void OnEnable()
         {
@@ -72,6 +77,33 @@ namespace ValorChronicle.Characters.Presentation
             ShowRoster();
         }
 
+        public void ConfigureRelics(
+            GameObject configuredRelicSelectionRoot,
+            CharacterRelicScreenController configuredRelicController)
+        {
+            Unsubscribe();
+            relicSelectionRoot = configuredRelicSelectionRoot
+                ?? throw new ArgumentNullException(
+                    nameof(configuredRelicSelectionRoot));
+            relicController = configuredRelicController
+                ?? throw new ArgumentNullException(
+                    nameof(configuredRelicController));
+            if (ReferenceEquals(relicSelectionRoot, rosterRoot)
+                || ReferenceEquals(relicSelectionRoot, upgradeRoot)
+                || ReferenceEquals(relicSelectionRoot, lookupRoot))
+            {
+                throw new ArgumentException(
+                    "Relic selection root must be a separate screen.",
+                    nameof(configuredRelicSelectionRoot));
+            }
+
+            relicSelectionRoot.SetActive(false);
+            if (isActiveAndEnabled)
+            {
+                Subscribe();
+            }
+        }
+
         public void ShowRoster()
         {
             if (rosterRoot == null
@@ -82,6 +114,7 @@ namespace ValorChronicle.Characters.Presentation
             }
 
             lookupRoot.SetActive(false);
+            relicSelectionRoot?.SetActive(false);
             upgradeRoot.SetActive(false);
             rosterRoot.SetActive(true);
         }
@@ -94,8 +127,11 @@ namespace ValorChronicle.Characters.Presentation
                 return;
             }
 
+            relicController?.TryPresent(characterId);
+
             rosterRoot.SetActive(false);
             lookupRoot.SetActive(false);
+            relicSelectionRoot?.SetActive(false);
             upgradeRoot.SetActive(true);
         }
 
@@ -127,6 +163,7 @@ namespace ValorChronicle.Characters.Presentation
 
             rosterRoot.SetActive(false);
             upgradeRoot.SetActive(false);
+            relicSelectionRoot?.SetActive(false);
             lookupRoot.SetActive(true);
         }
 
@@ -134,6 +171,23 @@ namespace ValorChronicle.Characters.Presentation
         {
             rosterRoot.SetActive(false);
             lookupRoot.SetActive(false);
+            relicSelectionRoot?.SetActive(false);
+            upgradeRoot.SetActive(true);
+        }
+
+        private void HandleRelicSelectionOpened()
+        {
+            rosterRoot.SetActive(false);
+            lookupRoot.SetActive(false);
+            upgradeRoot.SetActive(false);
+            relicSelectionRoot.SetActive(true);
+        }
+
+        private void HandleRelicSelectionClosed()
+        {
+            rosterRoot.SetActive(false);
+            lookupRoot.SetActive(false);
+            relicSelectionRoot.SetActive(false);
             upgradeRoot.SetActive(true);
         }
 
@@ -157,6 +211,15 @@ namespace ValorChronicle.Characters.Presentation
             upgradeController.SkillsLookupRequested +=
                 HandleSkillsLookupRequested;
             lookupController.ReturnRequested += HandleLookupReturnRequested;
+            if (relicController != null)
+            {
+                relicController.SelectionOpened +=
+                    HandleRelicSelectionOpened;
+                relicController.SelectionClosed +=
+                    HandleRelicSelectionClosed;
+                relicController.AuthoritativeProfileRefreshRequested +=
+                    HandleAuthoritativeProfileRefreshRequested;
+            }
             subscribed = true;
         }
 
@@ -177,6 +240,15 @@ namespace ValorChronicle.Characters.Presentation
             upgradeController.SkillsLookupRequested -=
                 HandleSkillsLookupRequested;
             lookupController.ReturnRequested -= HandleLookupReturnRequested;
+            if (relicController != null)
+            {
+                relicController.SelectionOpened -=
+                    HandleRelicSelectionOpened;
+                relicController.SelectionClosed -=
+                    HandleRelicSelectionClosed;
+                relicController.AuthoritativeProfileRefreshRequested -=
+                    HandleAuthoritativeProfileRefreshRequested;
+            }
             subscribed = false;
         }
 

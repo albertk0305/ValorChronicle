@@ -57,6 +57,11 @@ namespace ValorChronicle.Localization
 
         public string GetText(string key)
         {
+            return GetText(key, CurrentLocale);
+        }
+
+        public string GetText(string key, string localeId)
+        {
             if (string.IsNullOrWhiteSpace(key))
             {
                 throw new ArgumentException(
@@ -64,12 +69,20 @@ namespace ValorChronicle.Localization
                     nameof(key));
             }
 
+            localeId = RequireLocaleId(localeId, nameof(localeId));
+            if (!supportedLocales.Contains(localeId))
+            {
+                throw new ArgumentException(
+                    $"Unknown locale '{localeId}'.",
+                    nameof(localeId));
+            }
+
             if (!entries.TryGetValue(key, out var translations))
             {
                 return MissingKey(key);
             }
 
-            if (TryGetNonEmpty(translations, CurrentLocale, out string text)
+            if (TryGetNonEmpty(translations, localeId, out string text)
                 || TryGetNonEmpty(
                     translations,
                     FallbackLocale,

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using ValorChronicle.Save.Copying;
 using ValorChronicle.Save.DTO;
+using ValorChronicle.Save.Rules;
 using ValorChronicle.Save.Serialization;
 
 namespace ValorChronicle.Tests.EditMode
@@ -24,6 +25,13 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(copy.Currencies, Is.Not.SameAs(source.Currencies));
             Assert.That(copy.Characters, Is.Not.SameAs(source.Characters));
             Assert.That(copy.Characters[0], Is.Not.SameAs(source.Characters[0]));
+            Assert.That(
+                copy.Characters[0].EquippedRelicInstanceIds,
+                Is.Not.SameAs(
+                    source.Characters[0].EquippedRelicInstanceIds));
+            CollectionAssert.AreEqual(
+                source.Characters[0].EquippedRelicInstanceIds,
+                copy.Characters[0].EquippedRelicInstanceIds);
             Assert.That(copy.RelicInstances, Is.Not.SameAs(source.RelicInstances));
             Assert.That(copy.RelicInstances[0], Is.Not.SameAs(source.RelicInstances[0]));
             Assert.That(copy.Party, Is.Not.SameAs(source.Party));
@@ -101,6 +109,8 @@ namespace ValorChronicle.Tests.EditMode
             copy.ProfileId = "changed";
             copy.Currencies.GachaCurrency = 999;
             copy.Characters[0].Level = 99;
+            copy.Characters[0].EquippedRelicInstanceIds[1] =
+                "changed_relic";
             copy.Party.Presets[0].CharacterSlotIds[0] = "changed_character";
             copy.BossRecords[0].ClaimedFirstRewardGradeIds.Add("grade_s");
             copy.UnlockedContentIds.Clear();
@@ -108,6 +118,9 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(source.ProfileId, Is.EqualTo("profile_source"));
             Assert.That(source.Currencies.GachaCurrency, Is.EqualTo(10));
             Assert.That(source.Characters[0].Level, Is.EqualTo(20));
+            Assert.That(
+                source.Characters[0].EquippedRelicInstanceIds[1],
+                Is.EqualTo("relic_instance_b"));
             Assert.That(source.Party.Presets[0].CharacterSlotIds[0], Is.EqualTo("character_a"));
             CollectionAssert.AreEqual(
                 new[] { "grade_c", "grade_b" },
@@ -144,7 +157,14 @@ namespace ValorChronicle.Tests.EditMode
                         Level = 20,
                         Awakening = 3,
                         IsFavorite = true,
-                        IsNew = false
+                        IsNew = false,
+                        EquippedRelicInstanceIds = new List<string>
+                        {
+                            "relic_instance_a",
+                            "relic_instance_b",
+                            SaveRules.EmptyId,
+                            SaveRules.EmptyId
+                        }
                     }
                 },
                 RelicInstances = new List<RelicInstanceSaveData>

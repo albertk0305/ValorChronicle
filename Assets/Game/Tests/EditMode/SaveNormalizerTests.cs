@@ -72,6 +72,9 @@ namespace ValorChronicle.Tests.EditMode
             ProfileSaveData result = normalizer.NormalizeCopy(source);
 
             Assert.That(result.Characters[0].CharacterId, Is.Empty);
+            Assert.That(
+                result.Characters[0].EquippedRelicInstanceIds,
+                Has.Count.EqualTo(SaveRules.RelicSlotCountPerCharacter));
             Assert.That(result.RelicInstances[0].InstanceId, Is.Empty);
             Assert.That(result.RelicInstances[0].RelicDefinitionId, Is.Empty);
             Assert.That(result.RelicInstances[0].EquippedCharacterId, Is.Empty);
@@ -91,6 +94,114 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(result.BossRecords[0].ClaimedFirstRewardGradeIds, Is.Empty);
             Assert.That(result.UnlockedContentIds[0], Is.Empty);
             Assert.That(result.CompletedTutorialIds[0], Is.Empty);
+        }
+
+        [Test]
+        public void NormalizeCopy_NullRelicSlotsBecomeFourEmptySlots()
+        {
+            var source = CreateMinimalProfile();
+            source.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero",
+                EquippedRelicInstanceIds = null
+            });
+
+            ProfileSaveData result = normalizer.NormalizeCopy(source);
+
+            CollectionAssert.AreEqual(
+                new[] { "", "", "", "" },
+                result.Characters[0].EquippedRelicInstanceIds);
+        }
+
+        [TestCase(0)]
+        [TestCase(2)]
+        [TestCase(4)]
+        [TestCase(6)]
+        public void NormalizeCopy_ProducesExactlyFourOrderedRelicSlots(
+            int originalCount)
+        {
+            var slots = new List<string>();
+            for (int index = 0; index < originalCount; index++)
+            {
+                slots.Add($"relic_{index}");
+            }
+
+            var source = CreateMinimalProfile();
+            source.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero",
+                EquippedRelicInstanceIds = slots
+            });
+
+            ProfileSaveData result = normalizer.NormalizeCopy(source);
+
+            Assert.That(
+                result.Characters[0].EquippedRelicInstanceIds,
+                Has.Count.EqualTo(SaveRules.RelicSlotCountPerCharacter));
+            int preservedCount = System.Math.Min(
+                originalCount,
+                SaveRules.RelicSlotCountPerCharacter);
+            for (int index = 0; index < preservedCount; index++)
+            {
+                Assert.That(
+                    result.Characters[0].EquippedRelicInstanceIds[index],
+                    Is.EqualTo($"relic_{index}"));
+            }
+
+            for (int index = preservedCount;
+                index < SaveRules.RelicSlotCountPerCharacter;
+                index++)
+            {
+                Assert.That(
+                    result.Characters[0].EquippedRelicInstanceIds[index],
+                    Is.EqualTo(SaveRules.EmptyId));
+            }
+        }
+
+        [Test]
+        public void NormalizeCopy_NullRelicSlotBecomesCanonicalEmptyId()
+        {
+            var source = CreateMinimalProfile();
+            source.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero",
+                EquippedRelicInstanceIds = new List<string>
+                {
+                    "relic_a",
+                    null,
+                    "relic_b",
+                    SaveRules.EmptyId
+                }
+            });
+
+            ProfileSaveData result = normalizer.NormalizeCopy(source);
+
+            CollectionAssert.AreEqual(
+                new[] { "relic_a", "", "relic_b", "" },
+                result.Characters[0].EquippedRelicInstanceIds);
+        }
+
+        [Test]
+        public void NormalizeCopy_DoesNotApplyRelicEquipRules()
+        {
+            var source = CreateMinimalProfile();
+            source.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero",
+                EquippedRelicInstanceIds = new List<string>
+                {
+                    "unknown_instance",
+                    "duplicate_instance",
+                    "duplicate_instance",
+                    SaveRules.EmptyId
+                }
+            });
+
+            ProfileSaveData result = normalizer.NormalizeCopy(source);
+
+            CollectionAssert.AreEqual(
+                source.Characters[0].EquippedRelicInstanceIds,
+                result.Characters[0].EquippedRelicInstanceIds);
         }
 
         [Test]
@@ -203,7 +314,12 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(result.Characters[0].Level, Is.EqualTo(-5));
             Assert.That(result.Characters[0].Awakening, Is.EqualTo(99));
             Assert.That(result.RelicInstances[0].Awakening, Is.EqualTo(-6));
-            Assert.That(result.RelicInstances[0].EquippedSlotIndex, Is.EqualTo(77));
+            Assert.That(
+                result.RelicInstances[0].EquippedCharacterId,
+                Is.EqualTo(SaveRules.EmptyId));
+            Assert.That(
+                result.RelicInstances[0].EquippedSlotIndex,
+                Is.EqualTo(SaveRules.UnequippedRelicSlotIndex));
             Assert.That(result.GachaStates[0].PityCount, Is.EqualTo(-7));
             Assert.That(result.GachaStates[0].TotalPullCount, Is.EqualTo(-8));
             Assert.That(result.BossRecords[0].HighScore, Is.EqualTo(-9));

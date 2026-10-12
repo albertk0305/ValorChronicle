@@ -247,6 +247,86 @@ namespace ValorChronicle.Tests.EditMode
             AssertInvalid(result, "not initialized");
         }
 
+        [Test]
+        public void Resolve_CapturesOnlyEachMembersEquippedRelicBonuses()
+        {
+            CharacterDefinition a = Definition("a", ElementType.Fire);
+            CharacterDefinition b = Definition("b", ElementType.Water);
+            RelicDefinition bark = Relic(
+                "relic_world_tree_bark",
+                RelicEffectType.MaxHpIncrease);
+            CharacterSaveData characterA = Character("a", 1, 0);
+            CharacterSaveData characterB = Character("b", 1, 0);
+            characterB.EquippedRelicInstanceIds[2] = "bark_instance";
+            ProfileSaveData profile = Profile(
+                0,
+                Slots("a", "b", "", "", ""),
+                characterA,
+                characterB);
+            profile.RelicInstances = new List<RelicInstanceSaveData>
+            {
+                new RelicInstanceSaveData
+                {
+                    InstanceId = "bark_instance",
+                    RelicDefinitionId = bark.Id,
+                    Awakening = 5,
+                    EquippedCharacterId = "a",
+                    EquippedSlotIndex = 0
+                }
+            };
+
+            BattlePartyResolutionResult result = ResolverWithRelics(
+                new[] { a, b },
+                bark).Resolve(profile);
+
+            Assert.That(result.IsSuccess, Is.True);
+            Assert.That(
+                result.Members[0].RelicStatBonuses.MaxHpIncreaseRateSum,
+                Is.Zero);
+            Assert.That(
+                result.Members[1].RelicStatBonuses.MaxHpIncreaseRateSum,
+                Is.EqualTo(0.10d));
+        }
+
+        [Test]
+        public void Resolve_CapturesSwordRateAsBattleStartSnapshot()
+        {
+            CharacterDefinition characterDefinition = Definition(
+                "a",
+                ElementType.Fire);
+            RelicDefinition sword = Relic(
+                "relic_victors_broken_sword",
+                RelicEffectType.AttackIncrease);
+            CharacterSaveData character = Character("a", 1, 0);
+            character.EquippedRelicInstanceIds[0] = "sword_instance";
+            var instance = new RelicInstanceSaveData
+            {
+                InstanceId = "sword_instance",
+                RelicDefinitionId = sword.Id,
+                Awakening = 5
+            };
+            ProfileSaveData profile = Profile(
+                0,
+                Slots("a", "", "", "", ""),
+                character);
+            profile.RelicInstances = new List<RelicInstanceSaveData>
+            {
+                instance
+            };
+
+            BattlePartyResolutionResult result = ResolverWithRelics(
+                new[] { characterDefinition },
+                sword).Resolve(profile);
+            character.EquippedRelicInstanceIds[0] = string.Empty;
+            instance.Awakening = 0;
+
+            Assert.That(result.IsSuccess, Is.True);
+            Assert.That(
+                result.Members[0].RelicStatBonuses
+                    .AttackIncreaseRateSum,
+                Is.EqualTo(0.10d));
+        }
+
         private BattlePartyResolver Resolver(
             params CharacterDefinition[] definitions)
         {
@@ -256,6 +336,41 @@ namespace ValorChronicle.Tests.EditMode
             SetArray(database, "characters", definitions);
             database.Initialize();
             return new BattlePartyResolver(database);
+        }
+
+        private BattlePartyResolver ResolverWithRelics(
+            CharacterDefinition[] characters,
+            params RelicDefinition[] relics)
+        {
+            var database = ScriptableObject.CreateInstance<
+                DefinitionDatabase>();
+            createdObjects.Add(database);
+            SetArray(database, "characters", characters);
+            SetArray(database, "relics", relics);
+            database.Initialize();
+            return new BattlePartyResolver(database);
+        }
+
+        private RelicDefinition Relic(
+            string id,
+            RelicEffectType effectType)
+        {
+            var definition = ScriptableObject.CreateInstance<RelicDefinition>();
+            createdObjects.Add(definition);
+            var serialized = new SerializedObject(definition);
+            serialized.FindProperty("id").stringValue = id;
+            serialized.FindProperty("effectType").enumValueIndex =
+                (int)effectType;
+            SerializedProperty rates = serialized.FindProperty("effectRates");
+            rates.arraySize = RelicDefinition.AwakeningValueCount;
+            for (int index = 0; index < rates.arraySize; index++)
+            {
+                rates.GetArrayElementAtIndex(index).doubleValue =
+                    0.05d + index * 0.01d;
+            }
+
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return definition;
         }
 
         private CharacterDefinition Definition(

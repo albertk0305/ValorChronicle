@@ -6,6 +6,7 @@ using UnityEngine.UI;
 using ValorChronicle.Core.Logging;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Party.Presentation;
+using ValorChronicle.Relics.Presentation;
 
 namespace ValorChronicle.Characters.Presentation
 {
@@ -28,6 +29,30 @@ namespace ValorChronicle.Characters.Presentation
         }
 
         public CharacterLookupScreenController LookupController
+        {
+            get;
+            private set;
+        }
+
+        public CharacterRelicScreenController RelicController
+        {
+            get;
+            private set;
+        }
+
+        public CharacterRelicSlotsView RelicSlotsView
+        {
+            get;
+            private set;
+        }
+
+        public RelicSelectionScreenView RelicSelectionView
+        {
+            get;
+            private set;
+        }
+
+        public VirtualizedRelicGridView RelicInventoryGrid
         {
             get;
             private set;
@@ -136,6 +161,9 @@ namespace ValorChronicle.Characters.Presentation
                 upgradeView,
                 presentationCatalog,
                 elementIconSet);
+            RectTransform relicSelectionRoot = ConfigureRelicScreen(
+                parent,
+                upgradeRoot);
 
             RectTransform lookupRoot = RequireTransform(
                 parent,
@@ -215,6 +243,187 @@ namespace ValorChronicle.Characters.Presentation
                 UpgradeController,
                 lookupRoot.gameObject,
                 LookupController);
+            Coordinator.ConfigureRelics(
+                relicSelectionRoot.gameObject,
+                RelicController);
+        }
+
+        private RectTransform ConfigureRelicScreen(
+            Transform parent,
+            RectTransform upgradeRoot)
+        {
+            RectTransform slotsRoot = RequireTransform(
+                upgradeRoot,
+                "Artifacts");
+            string[] slotNames =
+            {
+                "Artifact",
+                "Artifact (1)",
+                "Artifact (2)",
+                "Artifact (3)"
+            };
+            var slots = new CharacterRelicSlotView[slotNames.Length];
+            for (int index = 0; index < slotNames.Length; index++)
+            {
+                RectTransform slotRoot = RequireTransform(
+                    slotsRoot,
+                    slotNames[index]);
+                Transform artifactButton = RequireTransform(
+                    slotRoot,
+                    "ArtifactButton");
+                CharacterRelicSlotView slot =
+                    GetOrAdd<CharacterRelicSlotView>(
+                        slotRoot.gameObject);
+                slot.Configure(
+                    index,
+                    RequireComponent<Button>(artifactButton),
+                    RequireComponent<Image>(artifactButton),
+                    RequireTransform(
+                        slotRoot,
+                        "ActivateWhenNoArtifact").gameObject,
+                    RequireTransform(slotRoot, "Border").gameObject,
+                    RequireComponent<TMP_Text>(RequireTransform(
+                        slotRoot,
+                        "ArtifactAwakenText")));
+                slots[index] = slot;
+            }
+
+            RelicSlotsView = GetOrAdd<CharacterRelicSlotsView>(
+                slotsRoot.gameObject);
+            RelicSlotsView.Configure(slots);
+
+            RectTransform selectionRoot = RequireTransform(
+                parent,
+                "Artifacts");
+            RectTransform previewRoot = RequireTransform(
+                selectionRoot,
+                "ArtifactPreview/Artifact");
+            Transform previewButton = RequireTransform(
+                previewRoot,
+                "ArtifactButton");
+            RelicSelectionView = GetOrAdd<RelicSelectionScreenView>(
+                selectionRoot.gameObject);
+            RelicSelectionView.Configure(
+                RequireComponent<Image>(previewButton),
+                RequireTransform(
+                    previewRoot,
+                    "ActivateWhenNoArtifact").gameObject,
+                RequireTransform(previewRoot, "Border").gameObject,
+                RequireComponent<TMP_Text>(RequireTransform(
+                    previewRoot,
+                    "ArtifactAwakenText")),
+                RequireComponent<TMP_Text>(RequireTransform(
+                    selectionRoot,
+                    "ArtifactPreview/Text/ArtifactText")),
+                RequireComponent<Button>(RequireTransform(
+                    selectionRoot,
+                    "EquipButton")),
+                RequireComponent<Button>(RequireTransform(
+                    selectionRoot,
+                    "RemoveButton")));
+
+            RelicInventoryGrid = ConfigureRelicInventoryGrid(
+                selectionRoot);
+
+            RelicController = GetOrAdd<CharacterRelicScreenController>(
+                parent.gameObject);
+            RelicController.Configure(
+                RelicSlotsView,
+                RelicSelectionView,
+                RelicInventoryGrid,
+                UpgradeController);
+            return selectionRoot;
+        }
+
+        private VirtualizedRelicGridView ConfigureRelicInventoryGrid(
+            RectTransform selectionRoot)
+        {
+            RectTransform selectRoot = RequireTransform(
+                selectionRoot,
+                "ArtifactPreview/ArtifactSelect");
+            RectTransform viewport = RequireTransform(
+                selectRoot,
+                "ScrollPanel");
+            Transform contentTransform = selectRoot.Find("ArtifactSlots")
+                ?? viewport.Find("ArtifactSlots");
+            RectTransform content = contentTransform as RectTransform
+                ?? throw new InvalidOperationException(
+                    "Required Character scene object is missing: "
+                        + "ArtifactSlots.");
+
+            var cells = new List<RelicInventoryCellView>(
+                content.childCount);
+            for (int index = 0; index < content.childCount; index++)
+            {
+                Transform child = content.GetChild(index);
+                if (child.name.StartsWith(
+                    "ArtifactSlot",
+                    StringComparison.Ordinal))
+                {
+                    cells.Add(ConfigureRelicInventoryCell(child));
+                }
+            }
+
+            if (cells.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "ArtifactSlots has no reusable cells.");
+            }
+
+            if (content.parent != viewport)
+            {
+                content.SetParent(viewport, false);
+            }
+
+            RequireComponent<Image>(viewport).raycastTarget = true;
+            GetOrAdd<RectMask2D>(viewport.gameObject);
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.anchoredPosition = Vector2.zero;
+            content.sizeDelta = new Vector2(0f, content.sizeDelta.y);
+            content.SetAsLastSibling();
+
+            ScrollRect scrollRect = GetOrAdd<ScrollRect>(
+                viewport.gameObject);
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.viewport = viewport;
+            scrollRect.content = content;
+
+            VirtualizedRelicGridView grid =
+                GetOrAdd<VirtualizedRelicGridView>(viewport.gameObject);
+            grid.Configure(
+                scrollRect,
+                viewport,
+                content,
+                cells.ToArray(),
+                new Vector2(185f, 185f),
+                new Vector2(25f, 25f),
+                configuredTopPadding: 15f,
+                configuredBottomPadding: 15f,
+                configuredBufferRows: 0);
+            return grid;
+        }
+
+        private RelicInventoryCellView ConfigureRelicInventoryCell(
+            Transform cellRoot)
+        {
+            Transform artifactButton = RequireTransform(
+                cellRoot,
+                "ArtifactButton");
+            Image icon = RequireComponent<Image>(artifactButton);
+            Button button = GetOrAdd<Button>(artifactButton.gameObject);
+            var cell = GetOrAdd<RelicInventoryCellView>(
+                cellRoot.gameObject);
+            cell.Configure(
+                button,
+                icon,
+                RequireTransform(cellRoot, "Border").gameObject,
+                RequireComponent<TMP_Text>(RequireTransform(
+                    cellRoot,
+                    "ArtifactAwakenText")));
+            return cell;
         }
 
         private CharacterRosterScreenView BuildView()

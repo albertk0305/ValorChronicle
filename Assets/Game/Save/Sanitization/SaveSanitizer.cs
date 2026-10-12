@@ -55,6 +55,9 @@ namespace ValorChronicle.Save.Sanitization
             SanitizeCurrencies(result.Currencies);
             SanitizeCharacters(result.Characters);
             SanitizeRelics(result.RelicInstances);
+            SanitizeCharacterRelicEquips(
+                result.Characters,
+                result.RelicInstances);
             SanitizeParty(result.Party);
             SanitizeGacha(result.GachaStates);
             SanitizeBosses(result.BossRecords);
@@ -86,16 +89,6 @@ namespace ValorChronicle.Save.Sanitization
                         if (!string.IsNullOrEmpty(id) && (!owned.Contains(id) || catalog.LookupCharacter(id) == SaveContentLookupResult.Missing))
                             preset.CharacterSlotIds[i] = SaveRules.EmptyId;
                     }
-                }
-            }
-
-            if (result.RelicInstances != null)
-            {
-                foreach (RelicInstanceSaveData relic in result.RelicInstances)
-                {
-                    if (relic == null || string.IsNullOrEmpty(relic.EquippedCharacterId)) continue;
-                    if (!owned.Contains(relic.EquippedCharacterId) || catalog.LookupCharacter(relic.EquippedCharacterId) == SaveContentLookupResult.Missing)
-                        Unequip(relic);
                 }
             }
 
@@ -132,24 +125,106 @@ namespace ValorChronicle.Save.Sanitization
         private static void SanitizeRelics(IList<RelicInstanceSaveData> relics)
         {
             if (relics == null) return;
-            var slots = new HashSet<string>(StringComparer.Ordinal);
-            var definitions = new HashSet<string>(StringComparer.Ordinal);
             foreach (RelicInstanceSaveData relic in relics)
             {
                 if (relic == null) continue;
                 relic.Awakening = Clamp(relic.Awakening, SaveRules.RelicMinAwakening, SaveRules.RelicMaxAwakening);
-                bool hasCharacter = !string.IsNullOrEmpty(relic.EquippedCharacterId);
-                bool validSlot = relic.EquippedSlotIndex >= SaveRules.EquippedRelicSlotMinIndex && relic.EquippedSlotIndex <= SaveRules.EquippedRelicSlotMaxIndex;
-                bool validUnequipped = !hasCharacter && relic.EquippedSlotIndex == SaveRules.UnequippedRelicSlotIndex;
-                if (!validUnequipped && (!hasCharacter || !validSlot))
+            }
+        }
+
+        private static void SanitizeCharacterRelicEquips(
+            IList<CharacterSaveData> characters,
+            IList<RelicInstanceSaveData> relics)
+        {
+            if (characters == null)
+            {
+                return;
+            }
+
+            var relicsByInstanceId = new Dictionary<
+                string,
+                RelicInstanceSaveData>(StringComparer.Ordinal);
+            if (relics != null)
+            {
+                for (int relicIndex = 0;
+                    relicIndex < relics.Count;
+                    relicIndex++)
                 {
-                    Unequip(relic);
+                    RelicInstanceSaveData relic = relics[relicIndex];
+                    if (relic != null
+                        && !string.IsNullOrWhiteSpace(relic.InstanceId)
+                        && !relicsByInstanceId.ContainsKey(relic.InstanceId))
+                    {
+                        relicsByInstanceId.Add(relic.InstanceId, relic);
+                    }
+                }
+            }
+
+            var equippedInstanceIds = new HashSet<string>(
+                StringComparer.Ordinal);
+            for (int characterIndex = 0;
+                characterIndex < characters.Count;
+                characterIndex++)
+            {
+                CharacterSaveData character = characters[characterIndex];
+                if (character == null)
+                {
                     continue;
                 }
-                if (!hasCharacter) continue;
-                string slotKey = $"{relic.EquippedCharacterId}\u001f{relic.EquippedSlotIndex}";
-                string definitionKey = $"{relic.EquippedCharacterId}\u001f{relic.RelicDefinitionId}";
-                if (!slots.Add(slotKey) || !definitions.Add(definitionKey)) Unequip(relic);
+
+                character.EquippedRelicInstanceIds ??=
+                    SaveRules.CreateEmptyRelicInstanceIdSlots();
+                List<string> slots =
+                    character.EquippedRelicInstanceIds;
+                if (slots.Count > SaveRules.RelicSlotCountPerCharacter)
+                {
+                    slots.RemoveRange(
+                        SaveRules.RelicSlotCountPerCharacter,
+                        slots.Count - SaveRules.RelicSlotCountPerCharacter);
+                }
+
+                while (slots.Count < SaveRules.RelicSlotCountPerCharacter)
+                {
+                    slots.Add(SaveRules.EmptyId);
+                }
+
+                var equippedDefinitionIds = new HashSet<string>(
+                    StringComparer.Ordinal);
+                for (int slotIndex = 0;
+                    slotIndex < slots.Count;
+                    slotIndex++)
+                {
+                    string instanceId = slots[slotIndex];
+                    if (instanceId == null)
+                    {
+                        slots[slotIndex] = SaveRules.EmptyId;
+                        continue;
+                    }
+
+                    if (instanceId == SaveRules.EmptyId)
+                    {
+                        continue;
+                    }
+
+                    if (!relicsByInstanceId.TryGetValue(
+                            instanceId,
+                            out RelicInstanceSaveData relic)
+                        || equippedInstanceIds.Contains(instanceId))
+                    {
+                        slots[slotIndex] = SaveRules.EmptyId;
+                        continue;
+                    }
+
+                    string definitionId = relic.RelicDefinitionId
+                        ?? SaveRules.EmptyId;
+                    if (!equippedDefinitionIds.Add(definitionId))
+                    {
+                        slots[slotIndex] = SaveRules.EmptyId;
+                        continue;
+                    }
+
+                    equippedInstanceIds.Add(instanceId);
+                }
             }
         }
 
@@ -244,10 +319,5 @@ namespace ValorChronicle.Save.Sanitization
 
         private static int Clamp(int value, int minimum, int maximum) => Math.Min(maximum, Math.Max(minimum, value));
 
-        private static void Unequip(RelicInstanceSaveData relic)
-        {
-            relic.EquippedCharacterId = SaveRules.EmptyId;
-            relic.EquippedSlotIndex = SaveRules.UnequippedRelicSlotIndex;
-        }
     }
 }

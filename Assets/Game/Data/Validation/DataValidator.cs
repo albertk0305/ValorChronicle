@@ -36,6 +36,16 @@ namespace ValorChronicle.Data.Validation
             ValidateEffects(database.Effects, globalIds, report);
             ValidateResources(database.Resources, globalIds, report);
             ValidateRelics(database.Relics, globalIds, report);
+            ValidateGachas(
+                database.Gachas,
+                database.Characters,
+                database.Relics,
+                globalIds,
+                report);
+            ValidateRelicPresentations(
+                database.RelicPresentations,
+                database.Relics,
+                report);
             ValidateBossPresentations(
                 database.BossPresentations,
                 database.Bosses,
@@ -450,6 +460,408 @@ namespace ValorChronicle.Data.Validation
 
                 ValidateCommon(definition, nameof(RelicDefinition), typeIds, globalIds, report);
                 WarnIfDisplayNameKeyMissing(definition.DisplayNameKey, definition, report);
+                WarnIfDescriptionKeyMissing(
+                    definition.DescriptionKey,
+                    definition,
+                    report);
+
+                if (!Enum.IsDefined(
+                        typeof(RelicEffectType),
+                        definition.EffectType)
+                    || definition.EffectType == RelicEffectType.None)
+                {
+                    AddError(
+                        report,
+                        definition,
+                        $"Effect type is invalid: "
+                            + $"{definition.EffectType}");
+                }
+
+                IReadOnlyList<double> effectRates =
+                    definition.EffectRates;
+                if (effectRates.Count
+                    != RelicDefinition.AwakeningValueCount)
+                {
+                    AddError(
+                        report,
+                        definition,
+                        $"Awakening effect rate count must be exactly "
+                            + $"{RelicDefinition.AwakeningValueCount}");
+                    continue;
+                }
+
+                for (int awakening = 0;
+                    awakening < effectRates.Count;
+                    awakening++)
+                {
+                    double rate = effectRates[awakening];
+                    if (double.IsNaN(rate)
+                        || double.IsInfinity(rate)
+                        || rate < 0d)
+                    {
+                        AddError(
+                            report,
+                            definition,
+                            $"Awakening {awakening} effect rate must be "
+                                + "finite and non-negative");
+                    }
+                }
+            }
+        }
+
+        private static void ValidateGachas(
+            IReadOnlyList<GachaDefinition> gachas,
+            IReadOnlyList<CharacterDefinition> characters,
+            IReadOnlyList<RelicDefinition> relics,
+            IDictionary<string, string> globalIds,
+            ValidationReport report)
+        {
+            var typeIds = new HashSet<string>(StringComparer.Ordinal);
+            HashSet<string> characterIds = CollectDefinitionIds(characters);
+            HashSet<string> relicIds = CollectDefinitionIds(relics);
+
+            for (int index = 0; index < gachas.Count; index++)
+            {
+                GachaDefinition definition = gachas[index];
+                if (definition == null)
+                {
+                    AddNullDefinition(
+                        report,
+                        nameof(GachaDefinition),
+                        index);
+                    continue;
+                }
+
+                ValidateCommon(
+                    definition,
+                    nameof(GachaDefinition),
+                    typeIds,
+                    globalIds,
+                    report);
+                ValidateGachaRules(definition, report);
+
+                bool hasCharacterReward = false;
+                bool hasRelicReward = false;
+                long totalWeight = 0L;
+                var rewardKeys = new HashSet<string>(StringComparer.Ordinal);
+                IReadOnlyList<GachaRewardEntry> rewards =
+                    definition.RewardEntries;
+                if (rewards.Count == 0)
+                {
+                    AddError(report, definition, "Reward list is empty");
+                }
+
+                for (int rewardIndex = 0;
+                    rewardIndex < rewards.Count;
+                    rewardIndex++)
+                {
+                    GachaRewardEntry reward = rewards[rewardIndex];
+                    if (reward == null)
+                    {
+                        AddError(
+                            report,
+                            definition,
+                            $"Reward entry at index {rewardIndex} is null");
+                        continue;
+                    }
+
+                    if (!Enum.IsDefined(
+                            typeof(GachaRewardKind),
+                            reward.RewardKind))
+                    {
+                        AddError(
+                            report,
+                            definition,
+                            $"Reward kind is invalid at index "
+                                + $"{rewardIndex}: {reward.RewardKind}");
+                    }
+                    else if (reward.RewardKind
+                        == GachaRewardKind.RandomCharacter)
+                    {
+                        hasCharacterReward = true;
+                    }
+                    else if (reward.RewardKind
+                        == GachaRewardKind.RandomRelic)
+                    {
+                        hasRelicReward = true;
+                    }
+
+                    if (reward.Quantity <= 0L)
+                    {
+                        AddError(
+                            report,
+                            definition,
+                            $"Reward quantity must be greater than zero at "
+                                + $"index {rewardIndex}");
+                    }
+
+                    if (reward.Weight <= 0)
+                    {
+                        AddError(
+                            report,
+                            definition,
+                            $"Reward weight must be greater than zero at "
+                                + $"index {rewardIndex}");
+                    }
+
+                    totalWeight += reward.Weight;
+                    string rewardKey =
+                        $"{(int)reward.RewardKind}\u001f{reward.Quantity}";
+                    if (!rewardKeys.Add(rewardKey))
+                    {
+                        AddError(
+                            report,
+                            definition,
+                            $"Duplicate reward kind and quantity: "
+                                + $"{reward.RewardKind}/{reward.Quantity}");
+                    }
+                }
+
+                if (totalWeight != GachaDefinition.RequiredTotalWeight)
+                {
+                    AddError(
+                        report,
+                        definition,
+                        $"Reward weight total must be "
+                            + $"{GachaDefinition.RequiredTotalWeight}, but "
+                            + $"was {totalWeight}");
+                }
+
+                ValidateGachaPool(
+                    definition,
+                    "character",
+                    definition.CharacterPoolIds,
+                    characterIds,
+                    report);
+                ValidateGachaPool(
+                    definition,
+                    "relic",
+                    definition.RelicPoolIds,
+                    relicIds,
+                    report);
+
+                if (hasCharacterReward
+                    && definition.CharacterPoolIds.Count == 0)
+                {
+                    AddError(
+                        report,
+                        definition,
+                        "Character reward requires a non-empty character pool");
+                }
+
+                if (hasRelicReward && definition.RelicPoolIds.Count == 0)
+                {
+                    AddError(
+                        report,
+                        definition,
+                        "Relic reward requires a non-empty relic pool");
+                }
+
+                if (definition.GachaKind == GachaKind.Character
+                    && definition.CharacterPoolIds.Count == 0)
+                {
+                    AddError(
+                        report,
+                        definition,
+                        "Character pity requires a non-empty character pool");
+                }
+                else if (definition.GachaKind == GachaKind.Relic
+                    && definition.RelicPoolIds.Count == 0)
+                {
+                    AddError(
+                        report,
+                        definition,
+                        "Relic pity requires a non-empty relic pool");
+                }
+            }
+        }
+
+        private static void ValidateGachaRules(
+            GachaDefinition definition,
+            ValidationReport report)
+        {
+            if (!Enum.IsDefined(typeof(GachaKind), definition.GachaKind))
+            {
+                AddError(
+                    report,
+                    definition,
+                    $"Gacha kind is invalid: {definition.GachaKind}");
+            }
+
+            if (definition.SinglePullCost <= 0L)
+            {
+                AddError(
+                    report,
+                    definition,
+                    "Single-pull cost must be greater than zero");
+            }
+
+            if (definition.TenPullCost <= 0L)
+            {
+                AddError(
+                    report,
+                    definition,
+                    "Ten-pull cost must be greater than zero");
+            }
+            else if (definition.SinglePullCost > 0L
+                && (definition.SinglePullCost > long.MaxValue / 10L
+                    || definition.TenPullCost
+                        != definition.SinglePullCost * 10L))
+            {
+                AddError(
+                    report,
+                    definition,
+                    "Ten-pull cost must equal ten single pulls");
+            }
+
+            if (definition.PityPullCount <= 0)
+            {
+                AddError(
+                    report,
+                    definition,
+                    "Pity pull count must be greater than zero");
+            }
+        }
+
+        private static void ValidateGachaPool(
+            GachaDefinition definition,
+            string poolName,
+            IReadOnlyList<string> poolIds,
+            ISet<string> registeredIds,
+            ValidationReport report)
+        {
+            var uniqueIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < poolIds.Count; index++)
+            {
+                string id = poolIds[index];
+                if (string.IsNullOrWhiteSpace(id)
+                    || !registeredIds.Contains(id))
+                {
+                    AddError(
+                        report,
+                        definition,
+                        $"Gacha {poolName} pool references missing ID: "
+                            + $"{(string.IsNullOrWhiteSpace(id) ? "<empty>" : id)}");
+                    continue;
+                }
+
+                if (!uniqueIds.Add(id))
+                {
+                    AddError(
+                        report,
+                        definition,
+                        $"Duplicate Gacha {poolName} pool ID: {id}");
+                }
+            }
+        }
+
+        private static HashSet<string> CollectDefinitionIds<TDefinition>(
+            IReadOnlyList<TDefinition> definitions)
+            where TDefinition : GameDefinition
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < definitions.Count; index++)
+            {
+                string id = definitions[index]?.Id;
+                if (!string.IsNullOrEmpty(id))
+                {
+                    ids.Add(id);
+                }
+            }
+
+            return ids;
+        }
+
+        private static void ValidateRelicPresentations(
+            IReadOnlyList<RelicPresentationDefinition> presentations,
+            IReadOnlyList<RelicDefinition> relics,
+            ValidationReport report)
+        {
+            var relicIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < relics.Count; index++)
+            {
+                RelicDefinition relic = relics[index];
+                if (relic != null && !string.IsNullOrEmpty(relic.Id))
+                {
+                    relicIds.Add(relic.Id);
+                }
+            }
+
+            var presentedRelicIds = new HashSet<string>(
+                StringComparer.Ordinal);
+            for (int index = 0; index < presentations.Count; index++)
+            {
+                RelicPresentationDefinition presentation =
+                    presentations[index];
+                if (presentation == null)
+                {
+                    report.Add(
+                        ValidationSeverity.Error,
+                        $"[DataValidator] Null "
+                            + $"{nameof(RelicPresentationDefinition)} at "
+                            + $"index {index}.");
+                    continue;
+                }
+
+                string relicId = presentation.RelicId;
+                if (!ContentIdValidator.TryValidate(
+                        relicId,
+                        out string relicIdError))
+                {
+                    string displayedId = string.IsNullOrEmpty(relicId)
+                        ? "<empty>"
+                        : relicId;
+                    report.Add(
+                        ValidationSeverity.Error,
+                        "[DataValidator] Invalid RelicPresentation relic "
+                            + $"ID {displayedId}. {relicIdError}",
+                        relicId,
+                        presentation);
+                }
+                else
+                {
+                    if (!relicIds.Contains(relicId))
+                    {
+                        report.Add(
+                            ValidationSeverity.Error,
+                            "[DataValidator] Missing relic reference: "
+                                + relicId,
+                            relicId,
+                            presentation);
+                    }
+
+                    if (!presentedRelicIds.Add(relicId))
+                    {
+                        report.Add(
+                            ValidationSeverity.Error,
+                            "[DataValidator] Duplicate relic presentation "
+                                + $"for Relic ID: {relicId}",
+                            relicId,
+                            presentation);
+                    }
+                }
+
+                if (presentation.Icon == null)
+                {
+                    report.Add(
+                        ValidationSeverity.Error,
+                        "[DataValidator] Relic presentation icon is "
+                            + $"missing: {relicId}",
+                        relicId,
+                        presentation);
+                }
+            }
+
+            foreach (string relicId in relicIds)
+            {
+                if (!presentedRelicIds.Contains(relicId))
+                {
+                    report.Add(
+                        ValidationSeverity.Error,
+                        "[DataValidator] Relic presentation is missing: "
+                            + relicId,
+                        relicId);
+                }
             }
         }
 

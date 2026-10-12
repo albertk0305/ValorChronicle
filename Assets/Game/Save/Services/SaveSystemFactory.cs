@@ -44,7 +44,8 @@ namespace ValorChronicle.Save.Services
                     cloner,
                     new ISaveMigrationStep[]
                     {
-                        new V1ToV2PartyMigration()
+                        new V1ToV2PartyMigration(),
+                        new V2ToV3RelicEquipMigration()
                     }),
                 validationProcessor,
                 new DefinitionDatabaseSaveContentCatalog(definitionDatabase),

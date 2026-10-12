@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using ValorChronicle.Editor.SaveDebug;
+using ValorChronicle.Relics.Acquisition;
 using ValorChronicle.Save.DTO;
 using ValorChronicle.Save.Services;
+using ValorChronicle.Save.Validation;
 
 namespace ValorChronicle.Tests.EditMode
 {
@@ -14,6 +16,139 @@ namespace ValorChronicle.Tests.EditMode
         private FakeSaveRepository repository;
         private SaveService saveService;
         private SaveDebugProfileService debugService;
+        private int relicGrantCallCount;
+
+        [TestCase(
+            SaveDebugProfileService.VictorsBrokenSwordRelicId,
+            "sword_debug_1")]
+        [TestCase(
+            SaveDebugProfileService.WorldTreeBarkRelicId,
+            "bark_debug_1")]
+        public void RelicGrantButtonAction_ForwardsRequestedIdExactlyOnce(
+            string relicDefinitionId,
+            string instanceId)
+        {
+            Initialize(
+                instanceIdProvider: new RelicAcquisitionProfileUpdaterTests
+                    .SequentialIdProvider(instanceId));
+            int writesBefore = repository.Count(nameof(repository.WriteTemp));
+
+            SaveDebugOperationResult result =
+                debugService.GrantRelic(relicDefinitionId);
+
+            Assert.That(result.IsSuccess, Is.True, result.Message);
+            Assert.That(relicGrantCallCount, Is.EqualTo(1));
+            Assert.That(
+                repository.Count(nameof(repository.WriteTemp)),
+                Is.EqualTo(writesBefore + 1));
+            Assert.That(Current().RelicInstances, Has.Count.EqualTo(1));
+            Assert.That(
+                Current().RelicInstances[0].RelicDefinitionId,
+                Is.EqualTo(relicDefinitionId));
+        }
+
+        [Test]
+        public void GrantRelic_SuccessExposesProductionResultAndPersistsWithoutEquipping()
+        {
+            ProfileSaveData profile = CreateProfile();
+            profile.Characters.Add(CreateMarea(1, 0));
+            Initialize(
+                profile,
+                instanceIdProvider: new RelicAcquisitionProfileUpdaterTests
+                    .SequentialIdProvider("sword_debug_1"));
+
+            SaveDebugOperationResult result = debugService.GrantRelic(
+                SaveDebugProfileService.VictorsBrokenSwordRelicId);
+
+            Assert.That(result.IsSuccess, Is.True, result.Message);
+            Assert.That(
+                result.RelicAcquisitionStatus,
+                Is.EqualTo(RelicAcquisitionPersistenceStatus.Success));
+            Assert.That(
+                result.RelicAcquisitionResult.Kind,
+                Is.EqualTo(RelicAcquisitionKind.NewInstanceCreated));
+            Assert.That(result.Message, Does.Contain("InstanceId=sword_debug_1"));
+            Assert.That(result.Message, Does.Contain("Awakening=0"));
+            Assert.That(
+                Current().Characters[0].EquippedRelicInstanceIds,
+                Is.All.EqualTo(string.Empty));
+
+            SaveService reloaded = SaveServiceTestFactory.Create(repository);
+            SaveLoadResult load = reloaded.LoadOrCreate("unused");
+            Assert.That(load.CanUseProfile, Is.True, load.Message);
+            Assert.That(
+                reloaded.GetCurrentProfileSnapshot().RelicInstances,
+                Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void GrantRelic_RepeatedActionUsesProductionDuplicateRules()
+        {
+            Initialize(
+                instanceIdProvider: new RelicAcquisitionProfileUpdaterTests
+                    .SequentialIdProvider(
+                        "sword_debug_1",
+                        "sword_debug_2"));
+
+            SaveDebugOperationResult result = null;
+            for (int acquisition = 0; acquisition < 7; acquisition++)
+            {
+                result = debugService.GrantRelic(
+                    SaveDebugProfileService.VictorsBrokenSwordRelicId);
+                Assert.That(result.IsSuccess, Is.True, result.Message);
+                if (acquisition == 1)
+                {
+                    Assert.That(
+                        result.RelicAcquisitionResult.Kind,
+                        Is.EqualTo(RelicAcquisitionKind.AwakeningIncreased));
+                    Assert.That(
+                        result.Message,
+                        Does.Contain("Awakening=0 -> 1"));
+                }
+            }
+
+            Assert.That(relicGrantCallCount, Is.EqualTo(7));
+            Assert.That(
+                result.RelicAcquisitionResult.Kind,
+                Is.EqualTo(
+                    RelicAcquisitionKind.NewInstanceCreatedAfterMaxAwakening));
+            Assert.That(
+                result.Message,
+                Does.Contain("NewInstanceCreatedAfterMaxAwakening"));
+            Assert.That(Current().RelicInstances, Has.Count.EqualTo(2));
+            Assert.That(Current().RelicInstances[0].Awakening, Is.EqualTo(5));
+            Assert.That(Current().RelicInstances[1].Awakening, Is.Zero);
+        }
+
+        [Test]
+        public void GrantRelic_FailureIsNotReportedAsSuccess()
+        {
+            Initialize(
+                relicCatalog: new FakeSaveContentCatalog
+                {
+                    RelicResult = SaveContentLookupResult.Missing
+                },
+                instanceIdProvider: new RelicAcquisitionProfileUpdaterTests
+                    .SequentialIdProvider("unused"));
+            int writesBefore = repository.Count(nameof(repository.WriteTemp));
+
+            SaveDebugOperationResult result = debugService.GrantRelic(
+                SaveDebugProfileService.WorldTreeBarkRelicId);
+
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(
+                result.Status,
+                Is.EqualTo(SaveDebugOperationStatus.PersistenceFailed));
+            Assert.That(
+                result.RelicAcquisitionStatus,
+                Is.EqualTo(
+                    RelicAcquisitionPersistenceStatus.DefinitionNotFound));
+            Assert.That(result.Message, Does.Contain("DefinitionNotFound"));
+            Assert.That(Current().RelicInstances, Is.Empty);
+            Assert.That(
+                repository.Count(nameof(repository.WriteTemp)),
+                Is.EqualTo(writesBefore));
+        }
 
         [TestCase(SaveDebugCurrency.GachaCurrency, 101L)]
         [TestCase(SaveDebugCurrency.BattleRecords, 202L)]
@@ -309,7 +444,10 @@ namespace ValorChronicle.Tests.EditMode
             Initialize(profile);
         }
 
-        private void Initialize(ProfileSaveData profile = null)
+        private void Initialize(
+            ProfileSaveData profile = null,
+            FakeSaveContentCatalog relicCatalog = null,
+            IRelicInstanceIdProvider instanceIdProvider = null)
         {
             repository = new FakeSaveRepository
             {
@@ -320,9 +458,21 @@ namespace ValorChronicle.Tests.EditMode
                 new FixedUnixTimeProvider(100, 101, 102, 103));
             SaveLoadResult load = saveService.LoadOrCreate("unused");
             Assert.That(load.IsSuccess, Is.True, load.Message);
+            var acquisitionService = new RelicAcquisitionService(
+                saveService,
+                relicCatalog ?? new FakeSaveContentCatalog(),
+                instanceIdProvider
+                    ?? new RelicAcquisitionProfileUpdaterTests
+                        .SequentialIdProvider("debug_relic_1"));
+            relicGrantCallCount = 0;
             debugService = new SaveDebugProfileService(
                 saveService,
-                new[] { MareaId });
+                new[] { MareaId },
+                relicDefinitionId =>
+                {
+                    relicGrantCallCount++;
+                    return acquisitionService.GrantRelic(relicDefinitionId);
+                });
         }
 
         private ProfileSaveData Current()

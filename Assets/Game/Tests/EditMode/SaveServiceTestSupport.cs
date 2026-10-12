@@ -168,7 +168,8 @@ namespace ValorChronicle.Tests.EditMode
                     cloner,
                     new ISaveMigrationStep[]
                     {
-                        new V1ToV2PartyMigration()
+                        new V1ToV2PartyMigration(),
+                        new V2ToV3RelicEquipMigration()
                     }),
                 new SaveValidationProcessor(),
                 new FakeSaveContentCatalog(),

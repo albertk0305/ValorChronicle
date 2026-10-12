@@ -11,7 +11,7 @@ namespace ValorChronicle.Tests.EditMode
         public void Constants_MatchConfirmedSaveRules()
         {
             Assert.That(SaveRules.CurrentSaveVersion, Is.EqualTo(SaveSchema.CurrentVersion));
-            Assert.That(SaveSchema.CurrentVersion, Is.EqualTo(2));
+            Assert.That(SaveSchema.CurrentVersion, Is.EqualTo(3));
             Assert.That(SaveRules.PartyPresetCount, Is.EqualTo(5));
             Assert.That(SaveRules.PartySlotCount, Is.EqualTo(5));
             Assert.That(SaveRules.CharacterMinLevel, Is.EqualTo(1));

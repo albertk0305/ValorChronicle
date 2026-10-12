@@ -24,7 +24,8 @@ namespace ValorChronicle.Tests.EditMode
                 cloner,
                 new ISaveMigrationStep[]
                 {
-                    new V1ToV2PartyMigration()
+                    new V1ToV2PartyMigration(),
+                    new V2ToV3RelicEquipMigration()
                 });
         }
 
@@ -40,7 +41,7 @@ namespace ValorChronicle.Tests.EditMode
             SaveMigrationResult result = runner.Migrate(source);
 
             Assert.That(result.IsSuccess, Is.True);
-            Assert.That(result.Data.SaveVersion, Is.EqualTo(2));
+            Assert.That(result.Data.SaveVersion, Is.EqualTo(3));
             Assert.That(
                 result.Data.Party.Presets,
                 Has.Count.EqualTo(SaveRules.PartyPresetCount));

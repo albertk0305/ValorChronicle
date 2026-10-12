@@ -175,7 +175,7 @@ namespace ValorChronicle.Party.Presentation
             SelectedElement = null;
             SortMode = CharacterRosterSortMode.Level;
             view.SetInteractionEnabled(true);
-            fullRoster = rosterBuilder.Build(authoritativeProfile.Characters);
+            fullRoster = rosterBuilder.Build(authoritativeProfile);
             entriesById.Clear();
             for (int index = 0; index < fullRoster.Count; index++)
             {

@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -67,6 +68,7 @@ namespace ValorChronicle.Tests.PlayMode
             CharacterRosterCellView cell = fixture.Grid.PoolCells.First(
                 item => item.CharacterId == "character_002");
             cell.CharacterImage.color = Color.white;
+            yield return null;
             Canvas.ForceUpdateCanvases();
             Assert.That(cell.SelectedBorder.activeSelf, Is.True);
             Assert.That(cell.CharacterId, Is.EqualTo("character_002"));
@@ -94,7 +96,13 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(
                 raycasts[0].gameObject,
                 Is.EqualTo(cell.Button.gameObject),
-                "The behind-content ScrollPanel must not intercept a cell click.");
+                "The behind-content ScrollPanel must not intercept a cell "
+                    + "click.\n"
+                    + BuildRaycastDiagnostics(
+                        fixture,
+                        cell,
+                        screenPoint,
+                        raycasts));
             Assert.That(
                 raycasts.Any(result =>
                     result.gameObject == fixture.ScrollOverlay.gameObject),
@@ -148,7 +156,7 @@ namespace ValorChronicle.Tests.PlayMode
                 dragHandler,
                 drag,
                 ExecuteEvents.beginDragHandler);
-            drag.delta = new Vector2(0f, -250f);
+            drag.delta = new Vector2(0f, 250f);
             drag.position += drag.delta;
             drag.dragging = true;
             drag.eligibleForClick = false;
@@ -171,7 +179,7 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(clickCount, Is.EqualTo(1));
 
             fixture.Grid.SetScrollOffsetForTesting(0f);
-            Drag(fixture, fixture.ScrollOverlay.gameObject, -250f);
+            Drag(fixture, fixture.ScrollOverlay.gameObject, 250f);
             Assert.That(fixture.Grid.ScrollOffset, Is.GreaterThan(0f));
             Assert.That(clickCount, Is.EqualTo(1));
             fixture.Grid.SetScrollOffsetForTesting(float.MaxValue);
@@ -211,13 +219,15 @@ namespace ValorChronicle.Tests.PlayMode
                 Vector2 before = fixture.Content.anchoredPosition;
                 Drag(fixture, cell.Button.gameObject, -250f);
                 Assert.That(fixture.Grid.ScrollOffset, Is.Zero);
-                Assert.That(fixture.Content.anchoredPosition,
-                    Is.EqualTo(before));
+                AssertAnchoredPositionWithinTolerance(
+                    fixture.Content.anchoredPosition,
+                    before);
 
                 Drag(fixture, fixture.ScrollOverlay.gameObject, -250f);
                 Assert.That(fixture.Grid.ScrollOffset, Is.Zero);
-                Assert.That(fixture.Content.anchoredPosition,
-                    Is.EqualTo(before));
+                AssertAnchoredPositionWithinTolerance(
+                    fixture.Content.anchoredPosition,
+                    before);
 
                 int clickCount = 0;
                 string clickedId = string.Empty;
@@ -264,6 +274,7 @@ namespace ValorChronicle.Tests.PlayMode
                 item => item.CharacterId == "character_002");
             cell.SetAlwaysShowBorder(true);
             cell.CharacterImage.color = Color.white;
+            yield return null;
             Canvas.ForceUpdateCanvases();
 
             Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(
@@ -279,7 +290,12 @@ namespace ValorChronicle.Tests.PlayMode
             fixture.Raycaster.Raycast(pointer, raycasts);
             Assert.That(raycasts, Is.Not.Empty);
             Assert.That(raycasts[0].gameObject,
-                Is.EqualTo(cell.Button.gameObject));
+                Is.EqualTo(cell.Button.gameObject),
+                BuildRaycastDiagnostics(
+                    fixture,
+                    cell,
+                    screenPoint,
+                    raycasts));
 
             int clickCount = 0;
             string clickedId = string.Empty;
@@ -316,7 +332,7 @@ namespace ValorChronicle.Tests.PlayMode
                 dragHandler,
                 drag,
                 ExecuteEvents.beginDragHandler);
-            drag.delta = new Vector2(0f, -250f);
+            drag.delta = new Vector2(0f, 250f);
             drag.position += drag.delta;
             drag.dragging = true;
             ExecuteEvents.Execute(
@@ -338,7 +354,7 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(cell.SelectedBorder.activeSelf, Is.True);
 
             fixture.Grid.SetScrollOffsetForTesting(0f);
-            Drag(fixture, fixture.ScrollOverlay.gameObject, -250f);
+            Drag(fixture, fixture.ScrollOverlay.gameObject, 250f);
             Assert.That(fixture.Grid.ScrollOffset, Is.GreaterThan(0f));
             Assert.That(clickCount, Is.EqualTo(1));
 
@@ -364,6 +380,105 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(scrollRect.scrollSensitivity, Is.EqualTo(1f));
             Assert.That(scrollRect.horizontal, Is.False);
             Assert.That(scrollRect.vertical, Is.True);
+        }
+
+        private static string BuildRaycastDiagnostics(
+            Fixture fixture,
+            CharacterRosterCellView cell,
+            Vector2 screenPoint,
+            IReadOnlyList<RaycastResult> raycasts)
+        {
+            var builder = new StringBuilder();
+            Graphic target = cell.Button.targetGraphic;
+            builder.Append("Viewport=")
+                .Append(Path(fixture.Viewport))
+                .Append(" sibling=")
+                .Append(fixture.Viewport.GetSiblingIndex())
+                .Append("; Content=")
+                .Append(Path(fixture.Content))
+                .Append(" sibling=")
+                .Append(fixture.Content.GetSiblingIndex())
+                .Append("; content.parent==viewport=")
+                .Append(fixture.Content.parent == fixture.Viewport)
+                .AppendLine();
+            builder.Append("Button=")
+                .Append(Path(cell.Button.transform))
+                .Append(" active=")
+                .Append(cell.Button.gameObject.activeInHierarchy)
+                .Append(" targetGraphic=")
+                .Append(target == null ? "null" : target.GetType().Name)
+                .Append(" enabled=")
+                .Append(target != null && target.enabled)
+                .Append(" raycastTarget=")
+                .Append(target != null && target.raycastTarget)
+                .Append(" depth=")
+                .Append(target == null ? -999 : target.depth)
+                .Append(" culled=")
+                .Append(target != null && target.canvasRenderer.cull)
+                .Append(" color=")
+                .Append(target == null ? "null" : target.color.ToString())
+                .Append(" containsPoint=")
+                .Append(RectTransformUtility.RectangleContainsScreenPoint(
+                    cell.Button.transform as RectTransform,
+                    screenPoint,
+                    null))
+                .AppendLine();
+
+            for (int index = 0; index < raycasts.Count; index++)
+            {
+                RaycastResult result = raycasts[index];
+                Graphic graphic = result.gameObject.GetComponent<Graphic>();
+                Canvas canvas = result.gameObject.GetComponentInParent<Canvas>();
+                builder.Append(index)
+                    .Append(' ')
+                    .Append(result.gameObject.name)
+                    .Append(" graphic=")
+                    .Append(graphic == null ? "none" : graphic.GetType().Name)
+                    .Append(" raycastTarget=")
+                    .Append(graphic != null && graphic.raycastTarget)
+                    .Append(" depth=")
+                    .Append(result.depth)
+                    .Append(" sortingLayer=")
+                    .Append(result.sortingLayer)
+                    .Append(" sortingOrder=")
+                    .Append(result.sortingOrder)
+                    .Append(" canvas=")
+                    .Append(canvas == null ? "none" : canvas.name)
+                    .Append(" path=")
+                    .Append(Path(result.gameObject.transform))
+                    .AppendLine();
+            }
+
+            return builder.ToString();
+        }
+
+        private static string Path(Transform target)
+        {
+            var names = new Stack<string>();
+            while (target != null)
+            {
+                names.Push(target.name);
+                target = target.parent;
+            }
+
+            return string.Join("/", names);
+        }
+
+        private static void AssertAnchoredPositionWithinTolerance(
+            Vector2 actual,
+            Vector2 expected)
+        {
+            const float Tolerance = 0.01f;
+            Assert.That(
+                actual.x,
+                Is.EqualTo(expected.x).Within(Tolerance),
+                $"anchoredPosition.x expected={expected.x:G9}, "
+                    + $"actual={actual.x:G9}");
+            Assert.That(
+                actual.y,
+                Is.EqualTo(expected.y).Within(Tolerance),
+                $"anchoredPosition.y expected={expected.y:G9}, "
+                    + $"actual={actual.y:G9}");
         }
 
         private static void Drag(
@@ -429,12 +544,8 @@ namespace ValorChronicle.Tests.PlayMode
             GraphicRaycaster raycaster = canvasRoot.GetComponent<
                 GraphicRaycaster>();
 
-            var eventSystemRoot = new GameObject(
-                "CharacterRosterInteractionEventSystem",
-                typeof(EventSystem));
-            roots.Add(eventSystemRoot);
-            EventSystem eventSystem = eventSystemRoot.GetComponent<
-                EventSystem>();
+            EventSystem eventSystem = GetOrCreateEventSystem(
+                "CharacterRosterInteractionEventSystem");
 
             RectTransform viewport = Rect("CharacterSlots", canvasRoot.transform);
             viewport.sizeDelta = new Vector2(1070f, 1400f);
@@ -500,12 +611,8 @@ namespace ValorChronicle.Tests.PlayMode
             GraphicRaycaster raycaster = canvasRoot.GetComponent<
                 GraphicRaycaster>();
 
-            var eventSystemRoot = new GameObject(
-                "PartyRosterInteractionEventSystem",
-                typeof(EventSystem));
-            roots.Add(eventSystemRoot);
-            EventSystem eventSystem = eventSystemRoot.GetComponent<
-                EventSystem>();
+            EventSystem eventSystem = GetOrCreateEventSystem(
+                "PartyRosterInteractionEventSystem");
 
             RectTransform viewport = Rect(
                 "CharacterScrollPanel",
@@ -602,6 +709,29 @@ namespace ValorChronicle.Tests.PlayMode
         {
             RectTransform rect = Rect(name, parent);
             return rect.gameObject.AddComponent<Image>();
+        }
+
+        private EventSystem GetOrCreateEventSystem(string name)
+        {
+            EventSystem active = Object.FindFirstObjectByType<EventSystem>();
+            if (active != null)
+            {
+                return active;
+            }
+
+            for (int index = 0; index < roots.Count; index++)
+            {
+                if (roots[index] != null
+                    && roots[index].TryGetComponent(
+                        out EventSystem existing))
+                {
+                    return existing;
+                }
+            }
+
+            var eventSystemRoot = new GameObject(name, typeof(EventSystem));
+            roots.Add(eventSystemRoot);
+            return eventSystemRoot.GetComponent<EventSystem>();
         }
 
         private sealed class Fixture

@@ -24,7 +24,7 @@ namespace ValorChronicle.Tests.EditMode
             string json = serializer.Serialize(source);
             ProfileSaveData result = serializer.Deserialize(json);
 
-            Assert.That(result.SaveVersion, Is.EqualTo(1));
+            Assert.That(result.SaveVersion, Is.EqualTo(3));
             Assert.That(result.ProfileId, Is.EqualTo("profile_round_trip"));
             Assert.That(result.CreatedAtUtcUnixSeconds, Is.EqualTo(100));
             Assert.That(result.LastSavedAtUtcUnixSeconds, Is.EqualTo(200));
@@ -39,13 +39,18 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(result.Characters[0].Awakening, Is.EqualTo(2));
             Assert.That(result.Characters[0].IsFavorite, Is.True);
             Assert.That(result.Characters[0].IsNew, Is.False);
+            CollectionAssert.AreEqual(
+                new[] { "relic_instance_1", "", "relic_instance_2", "" },
+                result.Characters[0].EquippedRelicInstanceIds);
 
             Assert.That(result.RelicInstances, Has.Count.EqualTo(1));
             Assert.That(result.RelicInstances[0].InstanceId, Is.EqualTo("relic_instance_1"));
             Assert.That(result.RelicInstances[0].RelicDefinitionId, Is.EqualTo("relic_test"));
             Assert.That(result.RelicInstances[0].Awakening, Is.EqualTo(3));
-            Assert.That(result.RelicInstances[0].EquippedCharacterId, Is.EqualTo("character_test"));
-            Assert.That(result.RelicInstances[0].EquippedSlotIndex, Is.EqualTo(1));
+            Assert.That(result.RelicInstances[0].EquippedCharacterId, Is.Empty);
+            Assert.That(
+                result.RelicInstances[0].EquippedSlotIndex,
+                Is.EqualTo(-1));
             Assert.That(result.RelicInstances[0].IsLocked, Is.True);
             Assert.That(result.RelicInstances[0].IsNew, Is.False);
 
@@ -117,6 +122,58 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
+        public void Deserialize_V3RelicSlotsReplaceDtoDefaults()
+        {
+            const string json = "{\"SaveVersion\":3,\"Characters\":[{"
+                + "\"CharacterId\":\"character_test\","
+                + "\"EquippedRelicInstanceIds\":["
+                + "\"relic_instance\",\"\",\"\",\"\"]}]}";
+
+            ProfileSaveData result = serializer.Deserialize(json);
+
+            Assert.That(
+                result.Characters[0].EquippedRelicInstanceIds,
+                Is.EqualTo(new[]
+                {
+                    "relic_instance", "", "", ""
+                }));
+        }
+
+        [Test]
+        public void Deserialize_V2CharacterWithoutRelicSlotsIsSupported()
+        {
+            const string json = "{\"SaveVersion\":2,\"Characters\":[{"
+                + "\"CharacterId\":\"character_test\"}]}";
+
+            ProfileSaveData result = serializer.Deserialize(json);
+
+            Assert.That(
+                result.Characters[0].EquippedRelicInstanceIds,
+                Has.Count.EqualTo(4));
+        }
+
+        [Test]
+        public void RoundTrip_PreservesV2LegacyRelicEquipForMigration()
+        {
+            ProfileSaveData source = CreatePopulatedProfile();
+            source.SaveVersion = 2;
+            source.RelicInstances[0].EquippedCharacterId =
+                "character_test";
+            source.RelicInstances[0].EquippedSlotIndex = 1;
+
+            ProfileSaveData result = serializer.Deserialize(
+                serializer.Serialize(source));
+
+            Assert.That(result.SaveVersion, Is.EqualTo(2));
+            Assert.That(
+                result.RelicInstances[0].EquippedCharacterId,
+                Is.EqualTo("character_test"));
+            Assert.That(
+                result.RelicInstances[0].EquippedSlotIndex,
+                Is.EqualTo(1));
+        }
+
+        [Test]
         public void Serialize_RejectsNullData()
         {
             Assert.Throws<ArgumentNullException>(() => serializer.Serialize(null));
@@ -160,7 +217,7 @@ namespace ValorChronicle.Tests.EditMode
         {
             return new ProfileSaveData
             {
-                SaveVersion = 1,
+                SaveVersion = 3,
                 ProfileId = "profile_round_trip",
                 CreatedAtUtcUnixSeconds = 100,
                 LastSavedAtUtcUnixSeconds = 200,
@@ -179,7 +236,14 @@ namespace ValorChronicle.Tests.EditMode
                         Level = 12,
                         Awakening = 2,
                         IsFavorite = true,
-                        IsNew = false
+                        IsNew = false,
+                        EquippedRelicInstanceIds = new List<string>
+                        {
+                            "relic_instance_1",
+                            "",
+                            "relic_instance_2",
+                            ""
+                        }
                     }
                 },
                 RelicInstances = new List<RelicInstanceSaveData>
@@ -189,8 +253,8 @@ namespace ValorChronicle.Tests.EditMode
                         InstanceId = "relic_instance_1",
                         RelicDefinitionId = "relic_test",
                         Awakening = 3,
-                        EquippedCharacterId = "character_test",
-                        EquippedSlotIndex = 1,
+                        EquippedCharacterId = "",
+                        EquippedSlotIndex = -1,
                         IsLocked = true,
                         IsNew = false
                     }

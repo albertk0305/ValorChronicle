@@ -14,7 +14,8 @@ namespace ValorChronicle.Battle.Combat.State
             int partySlotIndex,
             ElementType element,
             long maxHp,
-            double attack)
+            double attack,
+            double permanentAttackIncreaseRate = 0d)
         {
             if (string.IsNullOrWhiteSpace(characterId))
             {
@@ -53,11 +54,23 @@ namespace ValorChronicle.Battle.Combat.State
                     "Attack must be finite and non-negative.");
             }
 
+            if (double.IsNaN(permanentAttackIncreaseRate)
+                || double.IsInfinity(permanentAttackIncreaseRate)
+                || permanentAttackIncreaseRate < 0d)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(permanentAttackIncreaseRate),
+                    permanentAttackIncreaseRate,
+                    "Permanent attack increase rate must be finite and "
+                        + "non-negative.");
+            }
+
             CharacterId = characterId;
             PartySlotIndex = partySlotIndex;
             Element = element;
             MaxHp = maxHp;
             Attack = attack;
+            PermanentAttackIncreaseRate = permanentAttackIncreaseRate;
             Effects = new EffectCollection();
         }
 
@@ -66,6 +79,7 @@ namespace ValorChronicle.Battle.Combat.State
         public ElementType Element { get; }
         public long MaxHp { get; }
         public double Attack { get; }
+        public double PermanentAttackIncreaseRate { get; }
         public EffectCollection Effects { get; }
 
         private static void ValidateElement(ElementType element)

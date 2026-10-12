@@ -87,9 +87,11 @@ namespace ValorChronicle.Tests.EditMode
 
                 view.CellViews[0].Button.onClick.Invoke();
 
-                CharacterStatValues stats = CharacterStatCalculator.Calculate(
-                    database.Characters[0],
-                    50);
+                ResolvedCharacterBuild stats =
+                    CharacterBuildResolverFactory.CreateDefault().Resolve(
+                        database.Characters[0],
+                        50,
+                        3);
                 Assert.That(party.CurrentEditSession.PreviewCharacterId,
                     Is.EqualTo("character_marea_bluefang"));
                 Assert.That(view.ConfirmButton.interactable, Is.True);
@@ -199,6 +201,95 @@ namespace ValorChronicle.Tests.EditMode
                 Assert.That(view.ConfirmButton.interactable, Is.True);
                 Assert.That(view.CharacterGrid.ScrollOffset,
                     Is.EqualTo(failedOperationScrollOffset).Within(0.01f));
+            }
+            finally
+            {
+                Restore(previousSetup);
+            }
+        }
+
+        [Test]
+        public void Open_UsesLatestEquippedRelicsForPartyPreviewStats()
+        {
+            SceneSetup[] previousSetup =
+                EditorSceneManager.GetSceneManagerSetup();
+
+            try
+            {
+                EditorSceneManager.OpenScene(
+                    PartyScenePath,
+                    OpenSceneMode.Single);
+                DefinitionDatabase database = AssetDatabase.LoadAssetAtPath<
+                    DefinitionDatabase>(
+                        "Assets/Data/Database/DefinitionDatabase.asset");
+                database.Initialize();
+
+                ProfileSaveData profile = SaveTestDataBuilder.Valid();
+                var character = new CharacterSaveData
+                {
+                    CharacterId = "character_marea_bluefang",
+                    Level = 1,
+                    Awakening = 0
+                };
+                character.EquippedRelicInstanceIds[0] = "bark";
+                character.EquippedRelicInstanceIds[1] = "sword";
+                profile.Characters.Add(character);
+                profile.RelicInstances.Add(new RelicInstanceSaveData
+                {
+                    InstanceId = "bark",
+                    RelicDefinitionId = "relic_world_tree_bark",
+                    Awakening = 5
+                });
+                profile.RelicInstances.Add(new RelicInstanceSaveData
+                {
+                    InstanceId = "sword",
+                    RelicDefinitionId = "relic_victors_broken_sword",
+                    Awakening = 0
+                });
+                var repository = new FakeSaveRepository
+                {
+                    MainText = SaveTestDataBuilder.Json(profile)
+                };
+                SaveService saveService =
+                    SaveServiceTestFactory.Create(repository);
+                Assert.That(
+                    saveService.LoadOrCreate("ignored").CanUseProfile,
+                    Is.True);
+
+                PartyScreenController party =
+                    Object.FindFirstObjectByType<PartyScreenController>(
+                        FindObjectsInactive.Include);
+                CharacterSelectController controller =
+                    Object.FindFirstObjectByType<CharacterSelectController>(
+                        FindObjectsInactive.Include);
+                CharacterSelectView view =
+                    Object.FindFirstObjectByType<CharacterSelectView>(
+                        FindObjectsInactive.Include);
+                ActivateCharacterSelectLifecycle(controller, view);
+                party.Initialize(saveService);
+
+                party.OpenCharacterSelect(0, 0);
+                view.CellViews[0].Button.onClick.Invoke();
+
+                Assert.That(view.HpText.text, Is.EqualTo("990"));
+                Assert.That(view.AttackText.text, Is.EqualTo("189"));
+
+                party.CloseCharacterSelectWithoutSaving();
+                SaveTransactionResult clear = saveService.ExecuteTransaction(
+                    current =>
+                    {
+                        current.Characters[0]
+                            .EquippedRelicInstanceIds[0] = string.Empty;
+                        current.Characters[0]
+                            .EquippedRelicInstanceIds[1] = string.Empty;
+                    });
+                Assert.That(clear.IsSuccess, Is.True, clear.Message);
+
+                party.OpenCharacterSelect(0, 0);
+                view.CellViews[0].Button.onClick.Invoke();
+
+                Assert.That(view.HpText.text, Is.EqualTo("900"));
+                Assert.That(view.AttackText.text, Is.EqualTo("180"));
             }
             finally
             {

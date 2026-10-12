@@ -34,12 +34,13 @@ namespace ValorChronicle.Save.Copying
 
         private static bool Equals(CharacterSaveData x, CharacterSaveData y) =>
             ReferenceEquals(x, y) || x != null && y != null && x.CharacterId == y.CharacterId &&
-            x.Level == y.Level && x.Awakening == y.Awakening && x.IsFavorite == y.IsFavorite && x.IsNew == y.IsNew;
+            x.Level == y.Level && x.Awakening == y.Awakening && x.IsFavorite == y.IsFavorite &&
+            x.IsNew == y.IsNew &&
+            SequenceEqual(x.EquippedRelicInstanceIds, y.EquippedRelicInstanceIds);
 
         private static bool Equals(RelicInstanceSaveData x, RelicInstanceSaveData y) =>
             ReferenceEquals(x, y) || x != null && y != null && x.InstanceId == y.InstanceId &&
             x.RelicDefinitionId == y.RelicDefinitionId && x.Awakening == y.Awakening &&
-            x.EquippedCharacterId == y.EquippedCharacterId && x.EquippedSlotIndex == y.EquippedSlotIndex &&
             x.IsLocked == y.IsLocked && x.IsNew == y.IsNew;
 
         private static bool Equals(PartySaveData x, PartySaveData y) =>

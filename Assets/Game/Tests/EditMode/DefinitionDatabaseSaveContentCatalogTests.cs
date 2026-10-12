@@ -52,6 +52,23 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
+        public void GachaLookup_DistinguishesExistingAndMissingIds()
+        {
+            DefinitionDatabaseSaveContentCatalog catalog = CreateCatalog(
+                gachas: new[]
+                {
+                    CreateDefinition<GachaDefinition>("gacha_test")
+                });
+
+            Assert.That(
+                catalog.LookupGacha("gacha_test"),
+                Is.EqualTo(SaveContentLookupResult.Exists));
+            Assert.That(
+                catalog.LookupGacha("gacha_missing"),
+                Is.EqualTo(SaveContentLookupResult.Missing));
+        }
+
+        [Test]
         public void BossDifficultyLookup_DistinguishesExistingAndMissingIds()
         {
             BossDefinition boss = CreateDefinition<BossDefinition>(
@@ -83,11 +100,10 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
-        public void UnsupportedProductionDefinitions_ReturnUnavailable()
+        public void UnsupportedRewardGradeDefinition_ReturnsUnavailable()
         {
             DefinitionDatabaseSaveContentCatalog catalog = CreateCatalog();
 
-            Assert.That(catalog.LookupGacha("gacha"), Is.EqualTo(SaveContentLookupResult.Unavailable));
             Assert.That(catalog.LookupRewardGrade("boss", "difficulty", "grade"), Is.EqualTo(SaveContentLookupResult.Unavailable));
         }
 
@@ -104,7 +120,8 @@ namespace ValorChronicle.Tests.EditMode
         private DefinitionDatabaseSaveContentCatalog CreateCatalog(
             CharacterDefinition[] characters = null,
             BossDefinition[] bosses = null,
-            RelicDefinition[] relics = null)
+            RelicDefinition[] relics = null,
+            GachaDefinition[] gachas = null)
         {
             DefinitionDatabase database = ScriptableObject.CreateInstance<DefinitionDatabase>();
             createdObjects.Add(database);
@@ -112,6 +129,7 @@ namespace ValorChronicle.Tests.EditMode
             SetObjects(serialized.FindProperty("characters"), characters);
             SetObjects(serialized.FindProperty("bosses"), bosses);
             SetObjects(serialized.FindProperty("relics"), relics);
+            SetObjects(serialized.FindProperty("gachas"), gachas);
             serialized.ApplyModifiedPropertiesWithoutUndo();
             database.Initialize();
             return new DefinitionDatabaseSaveContentCatalog(database);

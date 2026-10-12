@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using NUnit.Framework;
 using ValorChronicle.Save.DTO;
+using ValorChronicle.Save.Rules;
 using ValorChronicle.Save.Serialization;
 using ValorChronicle.Save.Services;
 
@@ -93,14 +94,49 @@ namespace ValorChronicle.Tests.EditMode
                 result.Status,
                 Is.EqualTo(SaveLoadStatus.LoadedAndRepairedMain));
             Assert.That(result.MigrationResult.SourceVersion, Is.EqualTo(1));
-            Assert.That(result.MigrationResult.TargetVersion, Is.EqualTo(2));
-            Assert.That(result.ProfileSnapshot.SaveVersion, Is.EqualTo(2));
+            Assert.That(result.MigrationResult.TargetVersion, Is.EqualTo(3));
+            Assert.That(result.ProfileSnapshot.SaveVersion, Is.EqualTo(3));
             Assert.That(result.ProfileSnapshot.Party.Presets, Has.Count.EqualTo(5));
 
             ProfileSaveData persisted = new NewtonsoftJsonSaveSerializer()
                 .Deserialize(repository.MainText);
-            Assert.That(persisted.SaveVersion, Is.EqualTo(2));
+            Assert.That(persisted.SaveVersion, Is.EqualTo(3));
             Assert.That(persisted.Party.Presets, Has.Count.EqualTo(5));
+        }
+
+        [Test]
+        public void LoadOrCreate_V2MainWithoutRelics_MigratesAndPersistsV3()
+        {
+            ProfileSaveData v2 = SaveTestDataBuilder.Valid("v2_main");
+            v2.SaveVersion = 2;
+            v2.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero_a",
+                Level = 1
+            });
+            var repository = new FakeSaveRepository
+            {
+                MainText = SerializeV2WithoutUsableRelicSlots(v2)
+            };
+
+            SaveLoadResult result = SaveServiceTestFactory.Create(
+                repository,
+                new FixedUnixTimeProvider(200)).LoadOrCreate("ignored");
+
+            Assert.That(
+                result.Status,
+                Is.EqualTo(SaveLoadStatus.LoadedAndRepairedMain));
+            Assert.That(result.CanWriteProfile, Is.True);
+            Assert.That(result.ProfileSnapshot.SaveVersion, Is.EqualTo(3));
+            Assert.That(
+                result.ProfileSnapshot.Characters[0]
+                    .EquippedRelicInstanceIds,
+                Is.EqualTo(new[] { "", "", "", "" }));
+            Assert.That(repository.TempExists, Is.False);
+            Assert.That(
+                new NewtonsoftJsonSaveSerializer()
+                    .Deserialize(repository.MainText).SaveVersion,
+                Is.EqualTo(3));
         }
 
         [Test]
@@ -254,6 +290,72 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(result.CanWriteProfile, Is.False);
             Assert.That(service.CanWriteCurrentProfile, Is.False);
             Assert.That(transaction.Status, Is.EqualTo(SaveTransactionStatus.ReadOnlyProfile));
+        }
+
+        [Test]
+        public void LoadOrCreate_CorruptMainAndV2Backup_MigratesRepairsAndReloads()
+        {
+            ProfileSaveData v2 = SaveTestDataBuilder.Valid(
+                "backup_v2",
+                25);
+            v2.SaveVersion = 2;
+            v2.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero_a",
+                Level = 1
+            });
+            v2.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "legacy_sword",
+                RelicDefinitionId = "relic_sword",
+                Awakening = 0,
+                EquippedCharacterId = "hero_a",
+                EquippedSlotIndex = 2
+            });
+            string backup = SerializeV2WithoutUsableRelicSlots(v2);
+            var repository = new FakeSaveRepository
+            {
+                MainText = SaveTestDataBuilder.CorruptJson(),
+                BackupText = backup
+            };
+
+            SaveService first = SaveServiceTestFactory.Create(repository);
+            SaveLoadResult recovered = first.LoadOrCreate("ignored");
+
+            Assert.That(
+                recovered.Status,
+                Is.EqualTo(SaveLoadStatus.RecoveredFromBackup));
+            Assert.That(recovered.CanWriteProfile, Is.True);
+            Assert.That(recovered.ProfileSnapshot.SaveVersion, Is.EqualTo(3));
+            Assert.That(
+                recovered.ProfileSnapshot.Characters[0]
+                    .EquippedRelicInstanceIds,
+                Is.EqualTo(new[]
+                {
+                    "", "", "legacy_sword", ""
+                }));
+            Assert.That(
+                recovered.ProfileSnapshot.RelicInstances[0]
+                    .EquippedCharacterId,
+                Is.EqualTo(SaveRules.EmptyId));
+            Assert.That(
+                recovered.ProfileSnapshot.RelicInstances[0]
+                    .EquippedSlotIndex,
+                Is.EqualTo(SaveRules.UnequippedRelicSlotIndex));
+            Assert.That(repository.BackupText, Is.EqualTo(backup));
+            Assert.That(repository.TempExists, Is.False);
+
+            SaveService second = SaveServiceTestFactory.Create(repository);
+            SaveLoadResult reloaded = second.LoadOrCreate("ignored");
+
+            Assert.That(
+                reloaded.Status,
+                Is.EqualTo(SaveLoadStatus.LoadedMain));
+            Assert.That(reloaded.CanWriteProfile, Is.True);
+            Assert.That(
+                reloaded.ProfileSnapshot.Characters[0]
+                    .EquippedRelicInstanceIds[2],
+                Is.EqualTo("legacy_sword"));
         }
 
         [Test]
@@ -547,6 +649,17 @@ namespace ValorChronicle.Tests.EditMode
             SaveLoadResult load = service.LoadOrCreate("ignored");
             Assert.That(load.CanUseProfile, Is.True, load.Message);
             return service;
+        }
+
+        private static string SerializeV2WithoutUsableRelicSlots(
+            ProfileSaveData profile)
+        {
+            foreach (CharacterSaveData character in profile.Characters)
+            {
+                character.EquippedRelicInstanceIds = null;
+            }
+
+            return new NewtonsoftJsonSaveSerializer().Serialize(profile);
         }
 
         private static void AssertUnchanged(ProfileSaveData expected, ProfileSaveData actual)

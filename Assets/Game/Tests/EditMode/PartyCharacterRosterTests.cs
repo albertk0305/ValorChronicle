@@ -122,6 +122,89 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(entry.Attack, Is.EqualTo(expected.Attack));
         }
 
+        [TestCase(RelicEffectType.MaxHpIncrease, 0, 1050L, 100L)]
+        [TestCase(RelicEffectType.MaxHpIncrease, 5, 1100L, 100L)]
+        [TestCase(RelicEffectType.AttackIncrease, 0, 1000L, 105L)]
+        [TestCase(RelicEffectType.AttackIncrease, 5, 1000L, 110L)]
+        public void Builder_ProfilePathAppliesEquippedRelicToDisplayedStats(
+            RelicEffectType effectType,
+            int relicAwakening,
+            long expectedHp,
+            long expectedAttack)
+        {
+            CharacterDefinition character = Definition(
+                "character_relic_stats",
+                ElementType.Fire,
+                level1Hp: 1000,
+                level1Attack: 100,
+                level100Hp: 1000,
+                level100Attack: 100);
+            RelicDefinition relic = Relic(
+                effectType == RelicEffectType.MaxHpIncrease
+                    ? "relic_bark"
+                    : "relic_sword",
+                effectType);
+            var builder = new PartyCharacterRosterBuilder(
+                DatabaseWithRelics(character, relic));
+            ProfileSaveData profile = SaveTestDataBuilder.Valid();
+            var savedCharacter = new CharacterSaveData
+            {
+                CharacterId = character.Id,
+                Level = 1,
+                Awakening = 0
+            };
+            savedCharacter.EquippedRelicInstanceIds[0] = "relic_instance";
+            profile.Characters.Add(savedCharacter);
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "relic_instance",
+                RelicDefinitionId = relic.Id,
+                Awakening = relicAwakening
+            });
+
+            CharacterRosterEntry entry = builder.Build(profile).Single();
+
+            Assert.That(entry.MaxHp, Is.EqualTo(expectedHp));
+            Assert.That(entry.Attack, Is.EqualTo(expectedAttack));
+        }
+
+        [Test]
+        public void Builder_ProfilePathWithoutEquippedRelicRestoresBaseStats()
+        {
+            CharacterDefinition character = Definition(
+                "character_relic_clear",
+                ElementType.Fire,
+                level1Hp: 1000,
+                level1Attack: 100,
+                level100Hp: 1000,
+                level100Attack: 100);
+            RelicDefinition bark = Relic(
+                "relic_bark",
+                RelicEffectType.MaxHpIncrease);
+            var builder = new PartyCharacterRosterBuilder(
+                DatabaseWithRelics(character, bark));
+            ProfileSaveData profile = SaveTestDataBuilder.Valid();
+            profile.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = character.Id,
+                Level = 1,
+                Awakening = 0
+            });
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "relic_instance",
+                RelicDefinitionId = bark.Id,
+                Awakening = 5,
+                EquippedCharacterId = character.Id,
+                EquippedSlotIndex = 0
+            });
+
+            CharacterRosterEntry entry = builder.Build(profile).Single();
+
+            Assert.That(entry.MaxHp, Is.EqualTo(1000));
+            Assert.That(entry.Attack, Is.EqualTo(100));
+        }
+
         [Test]
         public void Builder_DoesNotTruncateRosterAtThirtyOne()
         {
@@ -290,6 +373,45 @@ namespace ValorChronicle.Tests.EditMode
             SetArray(database, "characters", definitions);
             database.Initialize();
             return database;
+        }
+
+        private DefinitionDatabase DatabaseWithRelics(
+            CharacterDefinition definition,
+            params RelicDefinition[] relics)
+        {
+            var database = ScriptableObject.CreateInstance<
+                DefinitionDatabase>();
+            createdObjects.Add(database);
+            SetArray(database, "characters", new[] { definition });
+            SetArray(database, "relics", relics);
+            database.Initialize();
+            return database;
+        }
+
+        private RelicDefinition Relic(
+            string id,
+            RelicEffectType effectType)
+        {
+            var definition = ScriptableObject.CreateInstance<
+                RelicDefinition>();
+            createdObjects.Add(definition);
+            var serialized = new SerializedObject(definition);
+            serialized.FindProperty("id").stringValue = id;
+            serialized.FindProperty("effectType").enumValueIndex =
+                (int)effectType;
+            SerializedProperty rates = serialized.FindProperty(
+                "effectRates");
+            rates.arraySize = RelicDefinition.AwakeningValueCount;
+            for (int index = 0;
+                index < RelicDefinition.AwakeningValueCount;
+                index++)
+            {
+                rates.GetArrayElementAtIndex(index).doubleValue =
+                    0.05d + (index * 0.01d);
+            }
+
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return definition;
         }
 
         private CharacterPresentationDefinition Presentation(string id)

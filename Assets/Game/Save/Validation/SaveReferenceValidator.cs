@@ -18,7 +18,11 @@ namespace ValorChronicle.Save.Validation
             var ownedCharacters = GetOwnedCharacters(profile.Characters);
 
             ValidateOwnedCharacters(profile.Characters, catalog, report, unavailable);
-            ValidateRelics(profile.RelicInstances, ownedCharacters, catalog, report, unavailable);
+            ValidateRelics(
+                profile.RelicInstances,
+                catalog,
+                report,
+                unavailable);
             ValidateParty(profile.Party, ownedCharacters, catalog, report, unavailable);
             ValidateGacha(profile.GachaStates, catalog, report, unavailable);
             ValidateBosses(profile.BossRecords, catalog, report, unavailable);
@@ -45,7 +49,11 @@ namespace ValorChronicle.Save.Validation
             }
         }
 
-        private static void ValidateRelics(IList<RelicInstanceSaveData> relics, ISet<string> owned, ISaveContentCatalog catalog, SaveValidationReport report, ISet<string> unavailable)
+        private static void ValidateRelics(
+            IList<RelicInstanceSaveData> relics,
+            ISaveContentCatalog catalog,
+            SaveValidationReport report,
+            ISet<string> unavailable)
         {
             if (relics == null) return;
             for (int i = 0; i < relics.Count; i++)
@@ -54,10 +62,6 @@ namespace ValorChronicle.Save.Validation
                 if (relic == null) continue;
                 if (!string.IsNullOrWhiteSpace(relic.RelicDefinitionId))
                     Check(catalog.LookupRelic(relic.RelicDefinitionId), "Relic", SaveValidationCode.RelicDefinitionNotFound, SaveValidationSeverity.FatalError, $"RelicInstances[{i}].RelicDefinitionId", false, report, unavailable);
-                if (string.IsNullOrEmpty(relic.EquippedCharacterId)) continue;
-                if (!owned.Contains(relic.EquippedCharacterId))
-                    Add(report, SaveValidationCode.RelicEquippedToUnownedCharacter, SaveValidationSeverity.RecoverableError, $"RelicInstances[{i}].EquippedCharacterId", true);
-                Check(catalog.LookupCharacter(relic.EquippedCharacterId), "Character", SaveValidationCode.RelicEquippedToUnknownCharacter, SaveValidationSeverity.RecoverableError, $"RelicInstances[{i}].EquippedCharacterId", true, report, unavailable);
             }
         }
 

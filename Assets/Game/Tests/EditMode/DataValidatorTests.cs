@@ -578,6 +578,79 @@ namespace ValorChronicle.Tests.EditMode
                 Is.True);
         }
 
+        [Test]
+        public void Validate_RelicAwakeningRateCountMustBeExactlySix()
+        {
+            RelicDefinition relic = CreateValidRelic("relic_test");
+            SetDoubleArray(
+                relic,
+                "effectRates",
+                0.05d,
+                0.06d,
+                0.07d,
+                0.08d,
+                0.09d);
+            RelicPresentationDefinition presentation =
+                CreateRelicPresentation(relic.Id, CreateSprite());
+
+            ValidationReport report = DataValidator.Validate(
+                CreateDatabase(
+                    relics: new[] { relic },
+                    relicPresentations: new[] { presentation }));
+
+            Assert.That(report.HasErrors, Is.True);
+            Assert.That(report.Issues.Any(issue =>
+                issue.Message.Contains(
+                    "Awakening effect rate count must be exactly 6")),
+                Is.True);
+        }
+
+        [Test]
+        public void Validate_RelicAwakeningRatesCannotBeNegative()
+        {
+            RelicDefinition relic = CreateValidRelic("relic_test");
+            SetDoubleArray(
+                relic,
+                "effectRates",
+                0.05d,
+                -0.01d,
+                0.07d,
+                0.08d,
+                0.09d,
+                0.10d);
+            RelicPresentationDefinition presentation =
+                CreateRelicPresentation(relic.Id, CreateSprite());
+
+            ValidationReport report = DataValidator.Validate(
+                CreateDatabase(
+                    relics: new[] { relic },
+                    relicPresentations: new[] { presentation }));
+
+            Assert.That(report.HasErrors, Is.True);
+            Assert.That(report.Issues.Any(issue =>
+                issue.Message.Contains(
+                    "effect rate must be finite and non-negative")),
+                Is.True);
+        }
+
+        [Test]
+        public void Validate_RelicEffectTypeMustBeSupported()
+        {
+            RelicDefinition relic = CreateValidRelic("relic_test");
+            SetInt(relic, "effectType", 999);
+            RelicPresentationDefinition presentation =
+                CreateRelicPresentation(relic.Id, CreateSprite());
+
+            ValidationReport report = DataValidator.Validate(
+                CreateDatabase(
+                    relics: new[] { relic },
+                    relicPresentations: new[] { presentation }));
+
+            Assert.That(report.HasErrors, Is.True);
+            Assert.That(report.Issues.Any(issue =>
+                issue.Message.Contains("Effect type is invalid")), Is.True);
+        }
+
         private CharacterDefinition CreateValidCharacter(string id)
         {
             CharacterDefinition definition = CreateDefinition<CharacterDefinition>(id);
@@ -604,6 +677,44 @@ namespace ValorChronicle.Tests.EditMode
             SetString(definition, "displayNameKey", "skill.test.name");
             SetString(definition, "descriptionKey", "skill.test.description");
             SetInt(definition, "skillKind", (int)kind);
+            return definition;
+        }
+
+        private RelicDefinition CreateValidRelic(string id)
+        {
+            RelicDefinition definition =
+                CreateDefinition<RelicDefinition>(id);
+            SetString(definition, "displayNameKey", "relic.test.name");
+            SetString(
+                definition,
+                "descriptionKey",
+                "relic.test.description");
+            SetInt(
+                definition,
+                "effectType",
+                (int)RelicEffectType.AttackIncrease);
+            SetDoubleArray(
+                definition,
+                "effectRates",
+                0.05d,
+                0.06d,
+                0.07d,
+                0.08d,
+                0.09d,
+                0.10d);
+            return definition;
+        }
+
+        private RelicPresentationDefinition CreateRelicPresentation(
+            string relicId,
+            Sprite icon)
+        {
+            RelicPresentationDefinition definition =
+                ScriptableObject.CreateInstance<
+                    RelicPresentationDefinition>();
+            createdObjects.Add(definition);
+            SetPrivateField(definition, "relicId", relicId);
+            SetPrivateField(definition, "icon", icon);
             return definition;
         }
 
@@ -662,7 +773,8 @@ namespace ValorChronicle.Tests.EditMode
             RelicDefinition[] relics = null,
             EffectDefinition[] effects = null,
             ResourceDefinition[] resources = null,
-            BossPresentationDefinition[] bossPresentations = null)
+            BossPresentationDefinition[] bossPresentations = null,
+            RelicPresentationDefinition[] relicPresentations = null)
         {
             DefinitionDatabase database = ScriptableObject.CreateInstance<DefinitionDatabase>();
             createdObjects.Add(database);
@@ -696,6 +808,9 @@ namespace ValorChronicle.Tests.EditMode
             SetObjectArray(serializedObject.FindProperty("effects"), effects);
             SetObjectArray(serializedObject.FindProperty("resources"), resources);
             SetObjectArray(serializedObject.FindProperty("relics"), relics);
+            SetObjectArray(
+                serializedObject.FindProperty("relicPresentations"),
+                relicPresentations);
             SetObjectArray(
                 serializedObject.FindProperty("bossPresentations"),
                 bossPresentations);
@@ -732,6 +847,25 @@ namespace ValorChronicle.Tests.EditMode
             for (int i = 0; i < values.Length; i++)
             {
                 property.GetArrayElementAtIndex(i).stringValue = values[i];
+            }
+
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void SetDoubleArray(
+            Object target,
+            string propertyName,
+            params double[] values)
+        {
+            var serializedObject = new SerializedObject(target);
+            SerializedProperty property =
+                serializedObject.FindProperty(propertyName);
+            property.arraySize = values.Length;
+
+            for (int index = 0; index < values.Length; index++)
+            {
+                property.GetArrayElementAtIndex(index).doubleValue =
+                    values[index];
             }
 
             serializedObject.ApplyModifiedPropertiesWithoutUndo();

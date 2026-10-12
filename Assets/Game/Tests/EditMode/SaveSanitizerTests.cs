@@ -50,15 +50,45 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
-        public void SanitizeStructure_PreservesFirstRelicsAndCreatesDeterministicPresetIds()
+        public void SanitizeStructure_PreservesFirstRelicEquipsAndPresetIds()
         {
             ProfileSaveData profile = SaveValidationTestSupport.CreateValidProfile();
             profile.Party.Presets[0].PresetId = "";
             profile.Party.Presets[1].PresetId = "party_recovered_1";
             profile.Party.Presets[2].PresetId = "party_recovered_1";
-            profile.RelicInstances.Add(new RelicInstanceSaveData { InstanceId = "one", RelicDefinitionId = "sword", EquippedCharacterId = "hero", EquippedSlotIndex = 0 });
-            profile.RelicInstances.Add(new RelicInstanceSaveData { InstanceId = "two", RelicDefinitionId = "shield", EquippedCharacterId = "hero", EquippedSlotIndex = 0 });
-            profile.RelicInstances.Add(new RelicInstanceSaveData { InstanceId = "three", RelicDefinitionId = "sword", EquippedCharacterId = "hero", EquippedSlotIndex = 1 });
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "one",
+                RelicDefinitionId = "sword"
+            });
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "two",
+                RelicDefinitionId = "sword"
+            });
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "three",
+                RelicDefinitionId = "sword"
+            });
+            profile.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero_a",
+                Level = 1,
+                EquippedRelicInstanceIds = new List<string>
+                {
+                    "one", "three", "missing", ""
+                }
+            });
+            profile.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero_b",
+                Level = 1,
+                EquippedRelicInstanceIds = new List<string>
+                {
+                    "", "two", "one", ""
+                }
+            });
 
             SaveSanitizationResult first = sanitizer.SanitizeStructure(profile);
             SaveSanitizationResult second = sanitizer.SanitizeStructure(first.Profile);
@@ -73,9 +103,13 @@ namespace ValorChronicle.Tests.EditMode
                     "party_4",
                     "party_5"
                 }));
-            Assert.That(first.Profile.RelicInstances[0].EquippedCharacterId, Is.EqualTo("hero"));
-            Assert.That(first.Profile.RelicInstances[1].EquippedCharacterId, Is.Empty);
-            Assert.That(first.Profile.RelicInstances[2].EquippedCharacterId, Is.Empty);
+            Assert.That(
+                first.Profile.Characters[0].EquippedRelicInstanceIds,
+                Is.EqualTo(new[] { "one", "", "", "" }));
+            Assert.That(
+                first.Profile.Characters[1].EquippedRelicInstanceIds,
+                Is.EqualTo(new[] { "", "two", "", "" }));
+            Assert.That(first.Profile.RelicInstances, Has.Count.EqualTo(3));
             Assert.That(new NewtonsoftJsonSaveSerializer().Serialize(second.Profile), Is.EqualTo(new NewtonsoftJsonSaveSerializer().Serialize(first.Profile)));
             Assert.That(second.WasModified, Is.False);
         }
@@ -102,17 +136,12 @@ namespace ValorChronicle.Tests.EditMode
         {
             ProfileSaveData profile = SaveReferenceValidatorTests.CreateReferencedProfile();
             profile.Party.Presets[0].CharacterSlotIds[1] = "ghost";
-            profile.RelicInstances[0].EquippedCharacterId = "ghost";
             var catalog = new FakeSaveContentCatalog { CharacterLookup = id => id == "ghost" ? SaveContentLookupResult.Missing : SaveContentLookupResult.Exists };
 
             SaveSanitizationResult result = sanitizer.SanitizeReferences(profile, catalog);
 
             Assert.That(result.Profile.Party.Presets[0].CharacterSlotIds[1], Is.Empty);
-            Assert.That(result.Profile.RelicInstances[0].EquippedCharacterId, Is.Empty);
-            Assert.That(result.Profile.RelicInstances[0].EquippedSlotIndex, Is.EqualTo(SaveRules.UnequippedRelicSlotIndex));
             Assert.That(result.Report.Issues.Where(issue => issue.CanAutoCorrect).All(issue => issue.WasAutoCorrected), Is.True);
         }
-
-        private static List<string> EmptySlots() => new List<string> { "", "", "", "", "" };
     }
 }

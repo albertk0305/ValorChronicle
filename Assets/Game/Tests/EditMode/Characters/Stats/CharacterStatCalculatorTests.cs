@@ -5,6 +5,7 @@ using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Characters.Build;
 using ValorChronicle.Characters.Stats;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Relics.Stats;
 
 namespace ValorChronicle.Tests.EditMode.Characters.Stats
 {
@@ -87,7 +88,8 @@ namespace ValorChronicle.Tests.EditMode.Characters.Stats
             CharacterBattleState state = CharacterBattleStateFactory.Create(
                 definition,
                 build,
-                3);
+                3,
+                new RelicStatBonusSummary(0d, 0.10d));
 
             Assert.That(state.CharacterId,
                 Is.EqualTo("character_marea_bluefang"));
@@ -95,6 +97,8 @@ namespace ValorChronicle.Tests.EditMode.Characters.Stats
             Assert.That(state.Element, Is.EqualTo(ElementType.Water));
             Assert.That(state.MaxHp, Is.EqualTo(1979));
             Assert.That(state.Attack, Is.EqualTo(549d));
+            Assert.That(state.PermanentAttackIncreaseRate,
+                Is.EqualTo(0.10d));
             Assert.That(definition.Level1Hp, Is.EqualTo(900));
             Assert.That(definition.Level1Attack, Is.EqualTo(180));
             Assert.That(definition.Level100Hp, Is.EqualTo(3400));

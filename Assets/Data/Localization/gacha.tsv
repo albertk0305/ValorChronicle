@@ -1,0 +1,21 @@
+key	en	ko
+gacha.banner.character_standard.name	Standard Character Summon	일반 캐릭터 소환
+gacha.banner.relic_standard.name	Standard Relic Summon	일반 유물 소환
+gacha.info.rewards_heading	Reward probabilities	보상 확률
+gacha.info.reward_line	{reward} x{quantity}: {percentage}%	{reward} x{quantity}: {percentage}%
+gacha.info.costs	Cost: 1 pull {single} Gold / 10 pulls {ten} Gold	비용: 1회 {single} 골드 / 10회 {ten} 골드
+gacha.info.pity_count	Pity: {count} pulls	천장: {count}회
+gacha.info.pity_condition	If {reward} is not obtained before pull {count}, it replaces that pull's normal reward.	{count}회 전까지 {reward}을(를) 얻지 못하면 해당 회차의 일반 보상을 대체합니다.
+gacha.info.pity_reset	Obtaining {reward} normally resets the pity count.	일반 추첨에서 {reward}을(를) 얻으면 천장 횟수가 초기화됩니다.
+gacha.info.ten_pull_notice	Ten pulls use ten normal pulls and have no additional guaranteed reward.	10회 소환은 일반 소환을 10번 처리하며 별도의 확정 보상이 없습니다.
+gacha.reward.random_character	Random Character	무작위 캐릭터
+gacha.reward.random_relic	Random Relic	무작위 유물
+gacha.reward.hero_tokens	Hero Tokens	영웅 증표
+gacha.reward.relic_tokens	Relic Tokens	유물 조각
+gacha.reward.battle_records	Battle Records	전투 기록
+gacha.error.initialization_failed	Gacha is unavailable because required result resources could not be prepared.	필수 결과 리소스를 준비하지 못해 가챠를 이용할 수 없습니다.
+gacha.error.insufficient_currency	There is not enough Gold for this summon.	소환에 필요한 골드가 부족합니다.
+gacha.error.transaction_failed	The summon could not be completed. No automatic retry was performed.	소환을 완료하지 못했습니다. 자동으로 다시 시도하지 않았습니다.
+gacha.error.persisted_result_mismatch	The save may have been updated, but the summon result could not be confirmed. Please do not retry immediately.	저장은 반영되었을 수 있지만 소환 결과를 확인하지 못했습니다. 즉시 다시 시도하지 마세요.
+gacha.error.result_display_failed	The summon was saved, but its result screen could not be displayed.	소환은 저장되었지만 결과 화면을 표시하지 못했습니다.
+gacha.error.unexpected_failure	An unexpected error prevented the summon from completing. No automatic retry was performed.	예기치 않은 오류로 소환을 완료하지 못했습니다. 자동으로 다시 시도하지 않았습니다.

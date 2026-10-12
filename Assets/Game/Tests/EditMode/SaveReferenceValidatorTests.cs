@@ -38,15 +38,12 @@ namespace ValorChronicle.Tests.EditMode
         {
             ProfileSaveData profile = CreateReferencedProfile();
             profile.Party.Presets[0].CharacterSlotIds[1] = "ghost";
-            profile.RelicInstances[0].EquippedCharacterId = "ghost";
             var catalog = new FakeSaveContentCatalog { CharacterLookup = id => id == "ghost" ? SaveContentLookupResult.Missing : SaveContentLookupResult.Exists };
 
             SaveValidationReport report = new SaveReferenceValidator().Validate(profile, catalog);
 
             AssertRecoverable(report, SaveValidationCode.PartyCharacterNotOwned);
             AssertRecoverable(report, SaveValidationCode.PartyCharacterNotFound);
-            AssertRecoverable(report, SaveValidationCode.RelicEquippedToUnownedCharacter);
-            AssertRecoverable(report, SaveValidationCode.RelicEquippedToUnknownCharacter);
         }
 
         [Test]
@@ -77,9 +74,21 @@ namespace ValorChronicle.Tests.EditMode
         internal static ProfileSaveData CreateReferencedProfile()
         {
             ProfileSaveData profile = SaveValidationTestSupport.CreateValidProfile();
-            profile.Characters.Add(new CharacterSaveData { CharacterId = "hero", Level = 1 });
+            profile.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero",
+                Level = 1,
+                EquippedRelicInstanceIds = new List<string>
+                {
+                    "relic_1", "", "", ""
+                }
+            });
             profile.Party.Presets[0].CharacterSlotIds[0] = "hero";
-            profile.RelicInstances.Add(new RelicInstanceSaveData { InstanceId = "relic_1", RelicDefinitionId = "sword", EquippedCharacterId = "hero", EquippedSlotIndex = 0 });
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "relic_1",
+                RelicDefinitionId = "sword"
+            });
             profile.GachaStates.Add(new GachaStateSaveData { GachaId = "standard" });
             profile.BossRecords.Add(new BossRecordSaveData { BossId = "boss", DifficultyId = "normal", HasAttempted = true, ClaimedFirstRewardGradeIds = new List<string> { "bronze" } });
             return profile;

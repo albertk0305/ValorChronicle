@@ -50,20 +50,113 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
-        public void Validate_DetectsRelicIdentityEquipAndDeterministicCollisions()
+        public void Validate_DetectsRelicIdentityAndCharacterEquipIssues()
         {
             ProfileSaveData profile = SaveValidationTestSupport.CreateValidProfile();
-            profile.RelicInstances.Add(new RelicInstanceSaveData { InstanceId = "r", RelicDefinitionId = "sword", Awakening = 6, EquippedCharacterId = "hero", EquippedSlotIndex = 0 });
-            profile.RelicInstances.Add(new RelicInstanceSaveData { InstanceId = "r", RelicDefinitionId = "sword", EquippedCharacterId = "hero", EquippedSlotIndex = 0 });
-            profile.RelicInstances.Add(new RelicInstanceSaveData { InstanceId = "r3", RelicDefinitionId = "shield", EquippedCharacterId = "", EquippedSlotIndex = 2 });
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "r1",
+                RelicDefinitionId = "sword",
+                Awakening = 6
+            });
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "r2",
+                RelicDefinitionId = "sword"
+            });
+            profile.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero_a",
+                Level = 1,
+                EquippedRelicInstanceIds = new List<string>
+                {
+                    "r1", "r2", null, "missing"
+                }
+            });
+            profile.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero_b",
+                Level = 1,
+                EquippedRelicInstanceIds = new List<string>
+                {
+                    "", "r1", "", ""
+                }
+            });
 
             SaveValidationReport report = validator.Validate(profile);
 
-            Assert.That(report.Contains(SaveValidationCode.DuplicateRelicInstanceId), Is.True);
             Assert.That(report.Contains(SaveValidationCode.RelicAwakeningOutOfRange), Is.True);
-            Assert.That(report.Find(SaveValidationCode.RelicSlotCollision, "RelicInstances[1].EquippedSlotIndex"), Is.Not.Empty);
             Assert.That(report.Contains(SaveValidationCode.DuplicateRelicDefinitionEquipped), Is.True);
-            Assert.That(report.Contains(SaveValidationCode.InvalidRelicEquipPair), Is.True);
+            Assert.That(report.Contains(SaveValidationCode.NullEquippedRelicInstanceId), Is.True);
+            Assert.That(report.Contains(SaveValidationCode.EquippedRelicInstanceNotFound), Is.True);
+            Assert.That(report.Contains(SaveValidationCode.DuplicateRelicInstanceEquipped), Is.True);
+        }
+
+        [Test]
+        public void Validate_DetectsInvalidCharacterRelicSlotCount()
+        {
+            ProfileSaveData profile =
+                SaveValidationTestSupport.CreateValidProfile();
+            profile.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero",
+                Level = 1,
+                EquippedRelicInstanceIds = new List<string> { "", "" }
+            });
+
+            SaveValidationReport report = validator.Validate(profile);
+
+            Assert.That(
+                report.Find(
+                    SaveValidationCode.InvalidCharacterRelicSlotCount,
+                    "Characters[0].EquippedRelicInstanceIds"),
+                Is.Not.Empty);
+        }
+
+        [Test]
+        public void Validate_AllowsSameDefinitionOnDifferentCharacters()
+        {
+            ProfileSaveData profile =
+                SaveValidationTestSupport.CreateValidProfile();
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "sword_a",
+                RelicDefinitionId = "sword"
+            });
+            profile.RelicInstances.Add(new RelicInstanceSaveData
+            {
+                InstanceId = "sword_b",
+                RelicDefinitionId = "sword"
+            });
+            profile.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero_a",
+                Level = 1,
+                EquippedRelicInstanceIds = new List<string>
+                {
+                    "sword_a", "", "", ""
+                }
+            });
+            profile.Characters.Add(new CharacterSaveData
+            {
+                CharacterId = "hero_b",
+                Level = 1,
+                EquippedRelicInstanceIds = new List<string>
+                {
+                    "sword_b", "", "", ""
+                }
+            });
+
+            SaveValidationReport report = validator.Validate(profile);
+
+            Assert.That(
+                report.Contains(
+                    SaveValidationCode.DuplicateRelicDefinitionEquipped),
+                Is.False);
+            Assert.That(
+                report.Contains(
+                    SaveValidationCode.DuplicateRelicInstanceEquipped),
+                Is.False);
         }
 
         [Test]

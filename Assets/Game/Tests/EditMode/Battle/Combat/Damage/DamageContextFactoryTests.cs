@@ -200,6 +200,63 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Damage
             Assert.That(result.FinalDamage, Is.EqualTo(4066L));
         }
 
+        [TestCase(AttackType.Match)]
+        [TestCase(AttackType.Active)]
+        [TestCase(AttackType.Additional)]
+        [TestCase(AttackType.Chase)]
+        public void PermanentAttackRateAddsWithRuntimeBuffForEveryAttackType(
+            AttackType attackType)
+        {
+            CreateStates(
+                1000d,
+                out CharacterBattleState attacker,
+                out PartyBattleState party,
+                out BossBattleState boss,
+                permanentAttackIncreaseRate: 0.05d);
+            attacker.Effects.ApplyEffect(Effect(
+                1,
+                "runtime_attack",
+                EffectModifierType.AttackIncrease,
+                0.20d));
+            var factory = new DamageContextFactory(
+                new SequenceRandomSource());
+
+            DamageContext context = factory.Build(Request(
+                attacker,
+                party,
+                boss,
+                attackType,
+                canCritical: false));
+            DamageResult result = DamageCalculator.Calculate(context);
+
+            Assert.That(context.BaseAttack, Is.EqualTo(1000d));
+            Assert.That(
+                context.AttackIncreaseRateSum,
+                Is.EqualTo(0.25d).Within(0.000000001d));
+            Assert.That(result.FinalAttack, Is.EqualTo(1250d));
+            Assert.That(result.FinalDamage, Is.EqualTo(1250L));
+        }
+
+        [TestCase(AttackType.Match)]
+        [TestCase(AttackType.Active)]
+        public void PermanentAttackRateScalesAttackDamageByAwakening(
+            AttackType attackType)
+        {
+            long withoutSword = CalculateSimpleDamage(
+                attackType,
+                permanentAttackIncreaseRate: 0d);
+            long swordAwakeningZero = CalculateSimpleDamage(
+                attackType,
+                permanentAttackIncreaseRate: 0.05d);
+            long swordAwakeningFive = CalculateSimpleDamage(
+                attackType,
+                permanentAttackIncreaseRate: 0.10d);
+
+            Assert.That(withoutSword, Is.EqualTo(1000L));
+            Assert.That(swordAwakeningZero, Is.EqualTo(1050L));
+            Assert.That(swordAwakeningFive, Is.EqualTo(1100L));
+        }
+
         [Test]
         public void ActionLocalZeroPreservesExistingDamageResult()
         {
@@ -337,6 +394,27 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Damage
                     actionLocalDealtDamageIncreaseRate);
         }
 
+        private static long CalculateSimpleDamage(
+            AttackType attackType,
+            double permanentAttackIncreaseRate)
+        {
+            CreateStates(
+                1000d,
+                out CharacterBattleState attacker,
+                out PartyBattleState party,
+                out BossBattleState boss,
+                permanentAttackIncreaseRate);
+            var factory = new DamageContextFactory(
+                new SequenceRandomSource());
+            DamageContext context = factory.Build(Request(
+                attacker,
+                party,
+                boss,
+                attackType,
+                canCritical: false));
+            return DamageCalculator.Calculate(context).FinalDamage;
+        }
+
         private static EffectInstance Effect(
             long id,
             string effectId,
@@ -393,14 +471,16 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Damage
             double attack,
             out CharacterBattleState attacker,
             out PartyBattleState party,
-            out BossBattleState boss)
+            out BossBattleState boss,
+            double permanentAttackIncreaseRate = 0d)
         {
             attacker = new CharacterBattleState(
                 "attacker",
                 0,
                 ElementType.Water,
                 100,
-                attack);
+                attack,
+                permanentAttackIncreaseRate);
             party = new PartyBattleState(new[] { attacker });
             boss = new BossBattleState(
                 "boss",

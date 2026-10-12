@@ -62,7 +62,9 @@ namespace ValorChronicle.Save.Copying
                     Level = source.Level,
                     Awakening = source.Awakening,
                     IsFavorite = source.IsFavorite,
-                    IsNew = source.IsNew
+                    IsNew = source.IsNew,
+                    EquippedRelicInstanceIds =
+                        CloneStringList(source.EquippedRelicInstanceIds)
                 };
         }
 

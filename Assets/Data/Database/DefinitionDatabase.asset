@@ -31,7 +31,15 @@ MonoBehaviour:
   - {fileID: 11400000, guid: f02a919d628b45e6961823bcd668af14, type: 2}
   resources:
   - {fileID: 11400000, guid: 6b76300afa0442b7ac50b60cbb9736b7, type: 2}
-  relics: []
+  relics:
+  - {fileID: 11400000, guid: 8e939055965d466ab822b88495267cc7, type: 2}
+  - {fileID: 11400000, guid: 6c5740b11261472cb495865cc42fa8c4, type: 2}
+  gachas:
+  - {fileID: 11400000, guid: 4d46d47348da4aa899df4b912d58af14, type: 2}
+  - {fileID: 11400000, guid: 9f36a96bd3d64585a5a667bb0df8018e, type: 2}
+  relicPresentations:
+  - {fileID: 11400000, guid: 23bce22afec04913bcf08b4fc4718f56, type: 2}
+  - {fileID: 11400000, guid: 74fc6fc3b8534614a0ea714080e670da, type: 2}
   bossPresentations:
   - {fileID: 11400000, guid: 36bf445134a546f1b77d55bda4a0bd01, type: 2}
   battleResultBalance: {fileID: 11400000, guid: a84b72d3f7c54a2a9568239d23b9ee21, type: 2}

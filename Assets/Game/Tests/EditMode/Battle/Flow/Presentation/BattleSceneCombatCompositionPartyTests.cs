@@ -8,6 +8,7 @@ using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Healing;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
+using ValorChronicle.Battle.Combat.Shields;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
@@ -15,6 +16,7 @@ using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Party.Battle;
+using ValorChronicle.Relics.Stats;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 {
@@ -102,6 +104,96 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(memberA.Awakening, Is.EqualTo(1));
             Assert.That(memberB.Awakening, Is.EqualTo(2));
             Assert.That(memberC.Awakening, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void Composition_MaxHpRelicChangesOnlyEquippedMemberAndFlowsToHealingAndShield()
+        {
+            BattlePartyMemberInput normal = Member(
+                "normal",
+                slot: 0,
+                level: 1,
+                awakening: 0,
+                cooldown: 3);
+            TestCharacterCombatConfig config =
+                Config<TestCharacterCombatConfig>();
+            config.Initialize(hasActiveAbility: true, activeCooldownTurns: 3);
+            CharacterDefinition boostedDefinition = Definition(
+                "boosted",
+                ElementType.Fire,
+                config);
+            var boosted = new BattlePartyMemberInput(
+                "boosted",
+                partySlotIndex: 1,
+                level: 1,
+                awakening: 0,
+                boostedDefinition,
+                new RelicStatBonusSummary(0.10d, 0d));
+
+            using BattleSceneCombatComposition composition = Compose(
+                new[] { normal, boosted });
+            CharacterBattleState normalState = composition.Party.Characters[0];
+            CharacterBattleState boostedState = composition.Party.Characters[1];
+
+            Assert.That(normalState.MaxHp, Is.EqualTo(100));
+            Assert.That(boostedState.MaxHp, Is.EqualTo(110));
+            Assert.That(composition.Party.MaxHp, Is.EqualTo(210));
+            Assert.That(normalState.Attack, Is.EqualTo(boostedState.Attack));
+            Assert.That(boostedState.PermanentAttackIncreaseRate, Is.Zero);
+
+            HealingContext healing = HealingContextFactory.Build(
+                new HealingContextBuildRequest(
+                    boostedState,
+                    composition.Party,
+                    healingCoefficient: 0.5d,
+                    appliesCombo: false,
+                    finalComboCount: 0));
+            ShieldGenerationContext shield =
+                ShieldGenerationContextFactory.Build(
+                    new ShieldGenerationContextBuildRequest(
+                        boostedState,
+                        composition.Party,
+                        shieldCoefficient: 0.5d,
+                        appliesCombo: false,
+                        finalComboCount: 0));
+
+            Assert.That(healing.SourceMaxHp, Is.EqualTo(110));
+            Assert.That(healing.HealingIncreaseRateSum, Is.Zero);
+            Assert.That(
+                HealingCalculator.Calculate(healing).FinalHealing,
+                Is.EqualTo(55));
+            Assert.That(shield.SourceMaxHp, Is.EqualTo(110));
+            Assert.That(shield.ShieldAmountIncreaseRateSum, Is.Zero);
+            Assert.That(
+                ShieldGenerationCalculator.Calculate(shield).FinalShieldAmount,
+                Is.EqualTo(55));
+        }
+
+        [Test]
+        public void Composition_AttackRelicBecomesPermanentRateWithoutChangingBaseAttack()
+        {
+            TestCharacterCombatConfig config =
+                Config<TestCharacterCombatConfig>();
+            config.Initialize(hasActiveAbility: true, activeCooldownTurns: 3);
+            CharacterDefinition definition = Definition(
+                "sword_user",
+                ElementType.Fire,
+                config);
+            var member = new BattlePartyMemberInput(
+                "sword_user",
+                partySlotIndex: 0,
+                level: 1,
+                awakening: 0,
+                definition,
+                new RelicStatBonusSummary(0d, 0.10d));
+
+            using BattleSceneCombatComposition composition = Compose(
+                new[] { member });
+            CharacterBattleState state = composition.Party.Characters[0];
+
+            Assert.That(state.Attack, Is.EqualTo(10d));
+            Assert.That(state.PermanentAttackIncreaseRate,
+                Is.EqualTo(0.10d));
         }
 
         [Test]

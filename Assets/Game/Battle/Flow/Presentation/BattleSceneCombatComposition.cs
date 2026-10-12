@@ -137,11 +137,13 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 ResolvedCharacterBuild build = buildResolver.Resolve(
                     member.CharacterDefinition,
                     member.Level,
-                    member.Awakening);
+                    member.Awakening,
+                    member.RelicStatBonuses);
                 characterStates[index] = CharacterBattleStateFactory.Create(
                     member.CharacterDefinition,
                     build,
-                    member.PartySlotIndex);
+                    member.PartySlotIndex,
+                    member.RelicStatBonuses);
             }
 
             Party = new PartyBattleState(characterStates);

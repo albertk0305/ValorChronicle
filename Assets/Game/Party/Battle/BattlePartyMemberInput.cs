@@ -1,6 +1,7 @@
 using System;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Save.Rules;
+using ValorChronicle.Relics.Stats;
 
 namespace ValorChronicle.Party.Battle
 {
@@ -11,7 +12,8 @@ namespace ValorChronicle.Party.Battle
             int partySlotIndex,
             int level,
             int awakening,
-            CharacterDefinition characterDefinition)
+            CharacterDefinition characterDefinition,
+            RelicStatBonusSummary relicStatBonuses = null)
         {
             if (string.IsNullOrWhiteSpace(characterId))
             {
@@ -59,6 +61,8 @@ namespace ValorChronicle.Party.Battle
             Level = level;
             Awakening = awakening;
             CharacterDefinition = characterDefinition;
+            RelicStatBonuses = relicStatBonuses
+                ?? RelicStatBonusSummary.None;
         }
 
         public string CharacterId { get; }
@@ -66,5 +70,6 @@ namespace ValorChronicle.Party.Battle
         public int Level { get; }
         public int Awakening { get; }
         public CharacterDefinition CharacterDefinition { get; }
+        public RelicStatBonusSummary RelicStatBonuses { get; }
     }
 }

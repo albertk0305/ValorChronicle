@@ -5,11 +5,14 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using ValorChronicle.Core.Bootstrap;
+using ValorChronicle.Core.Logging;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Relics.Acquisition;
 using ValorChronicle.Save.DTO;
 using ValorChronicle.Save.Rules;
 using ValorChronicle.Save.Services;
+using ValorChronicle.Save.Validation;
 
 namespace ValorChronicle.Editor.SaveDebug
 {
@@ -74,6 +77,7 @@ namespace ValorChronicle.Editor.SaveDebug
             DrawProfile();
             DrawCurrencies();
             DrawCharacters();
+            DrawRelics();
             DrawParty();
             DrawPresets();
             EditorGUILayout.EndScrollView();
@@ -294,6 +298,53 @@ namespace ValorChronicle.Editor.SaveDebug
             }
         }
 
+        private void DrawRelics()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Relics", EditorStyles.boldLabel);
+
+            if (GUILayout.Button("승전자의 부러진 검 지급"))
+            {
+                Run(() => debugService.GrantRelic(
+                    SaveDebugProfileService.VictorsBrokenSwordRelicId));
+            }
+
+            if (GUILayout.Button("세계수의 수피 지급"))
+            {
+                Run(() => debugService.GrantRelic(
+                    SaveDebugProfileService.WorldTreeBarkRelicId));
+            }
+
+            IReadOnlyList<RelicInstanceSaveData> relics =
+                snapshot.RelicInstances;
+            if (relics == null || relics.Count == 0)
+            {
+                EditorGUILayout.LabelField("No owned relics.");
+                return;
+            }
+
+            for (int index = 0; index < relics.Count; index++)
+            {
+                RelicInstanceSaveData relic = relics[index];
+                if (relic == null)
+                {
+                    continue;
+                }
+
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.LabelField(
+                    relic.RelicDefinitionId ?? string.Empty,
+                    EditorStyles.boldLabel);
+                EditorGUILayout.LabelField(
+                    "Instance ID",
+                    relic.InstanceId ?? string.Empty);
+                EditorGUILayout.LabelField(
+                    "Awakening",
+                    relic.Awakening.ToString());
+                EditorGUILayout.EndVertical();
+            }
+        }
+
         private void DrawPresets()
         {
             EditorGUILayout.Space();
@@ -324,6 +375,8 @@ namespace ValorChronicle.Editor.SaveDebug
             {
                 statusMessage = $"Operation failed: {exception.Message}";
                 statusType = MessageType.Error;
+                GameLogger.Exception(exception);
+                GameLogger.Error($"[SaveDebug] {statusMessage}");
                 Repaint();
                 return;
             }
@@ -337,10 +390,20 @@ namespace ValorChronicle.Editor.SaveDebug
 
             if (result.IsSuccess)
             {
+                GameLogger.Log($"[SaveDebug] {result.Message}");
                 Refresh(preserveStatus: true);
             }
             else
             {
+                if (result.Status == SaveDebugOperationStatus.NoChange)
+                {
+                    GameLogger.Warning($"[SaveDebug] {result.Message}");
+                }
+                else
+                {
+                    GameLogger.Error($"[SaveDebug] {result.Message}");
+                }
+
                 Repaint();
             }
         }
@@ -385,11 +448,16 @@ namespace ValorChronicle.Editor.SaveDebug
             }
 
             snapshot = bootstrapper.SaveService.GetCurrentProfileSnapshot();
+            var relicAcquisitionService = new RelicAcquisitionService(
+                bootstrapper.SaveService,
+                new DefinitionDatabaseSaveContentCatalog(definitionDatabase),
+                new GuidRelicInstanceIdProvider());
             debugService = new SaveDebugProfileService(
                 bootstrapper.SaveService,
                 definitionDatabase.Characters
                     .Where(definition => definition != null)
-                    .Select(definition => definition.Id));
+                    .Select(definition => definition.Id),
+                relicAcquisitionService.GrantRelic);
             ResetInputsFromSnapshot();
             Repaint();
         }

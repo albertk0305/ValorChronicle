@@ -30,6 +30,13 @@ namespace ValorChronicle.Data.Database
         private RelicDefinition[] relics = Array.Empty<RelicDefinition>();
 
         [SerializeField]
+        private GachaDefinition[] gachas = Array.Empty<GachaDefinition>();
+
+        [SerializeField]
+        private RelicPresentationDefinition[] relicPresentations =
+            Array.Empty<RelicPresentationDefinition>();
+
+        [SerializeField]
         private BossPresentationDefinition[] bossPresentations =
             Array.Empty<BossPresentationDefinition>();
 
@@ -42,6 +49,9 @@ namespace ValorChronicle.Data.Database
         private Dictionary<string, EffectDefinition> effectsById;
         private Dictionary<string, ResourceDefinition> resourcesById;
         private Dictionary<string, RelicDefinition> relicsById;
+        private Dictionary<string, GachaDefinition> gachasById;
+        private Dictionary<string, RelicPresentationDefinition>
+            relicPresentationsByRelicId;
         private Dictionary<string, BossPresentationDefinition>
             bossPresentationsByBossId;
 
@@ -63,6 +73,14 @@ namespace ValorChronicle.Data.Database
 
         public IReadOnlyList<RelicDefinition> Relics =>
             Array.AsReadOnly(relics ?? Array.Empty<RelicDefinition>());
+
+        public IReadOnlyList<GachaDefinition> Gachas =>
+            Array.AsReadOnly(gachas ?? Array.Empty<GachaDefinition>());
+
+        public IReadOnlyList<RelicPresentationDefinition>
+            RelicPresentations => Array.AsReadOnly(
+                relicPresentations
+                    ?? Array.Empty<RelicPresentationDefinition>());
 
         public IReadOnlyList<BossPresentationDefinition> BossPresentations =>
             Array.AsReadOnly(
@@ -88,6 +106,11 @@ namespace ValorChronicle.Data.Database
                 BuildLookup(Resources, nameof(ResourceDefinition));
             Dictionary<string, RelicDefinition> newRelics =
                 BuildLookup(Relics, nameof(RelicDefinition));
+            Dictionary<string, GachaDefinition> newGachas =
+                BuildLookup(Gachas, nameof(GachaDefinition));
+            Dictionary<string, RelicPresentationDefinition>
+                newRelicPresentations = BuildRelicPresentationLookup(
+                    RelicPresentations);
             Dictionary<string, BossPresentationDefinition>
                 newBossPresentations = BuildBossPresentationLookup(
                     BossPresentations);
@@ -98,6 +121,8 @@ namespace ValorChronicle.Data.Database
             effectsById = newEffects;
             resourcesById = newResources;
             relicsById = newRelics;
+            gachasById = newGachas;
+            relicPresentationsByRelicId = newRelicPresentations;
             bossPresentationsByBossId = newBossPresentations;
             IsInitialized = true;
         }
@@ -124,6 +149,28 @@ namespace ValorChronicle.Data.Database
         {
             EnsureInitialized();
             return TryGet(relicsById, id, out definition);
+        }
+
+        public bool TryGetGacha(string id, out GachaDefinition definition)
+        {
+            EnsureInitialized();
+            return TryGet(gachasById, id, out definition);
+        }
+
+        public bool TryGetRelicPresentation(
+            string relicId,
+            out RelicPresentationDefinition definition)
+        {
+            EnsureInitialized();
+            if (string.IsNullOrEmpty(relicId))
+            {
+                definition = null;
+                return false;
+            }
+
+            return relicPresentationsByRelicId.TryGetValue(
+                relicId,
+                out definition);
         }
 
         public bool TryGetEffect(string id, out EffectDefinition definition)
@@ -243,6 +290,44 @@ namespace ValorChronicle.Data.Database
                 }
 
                 lookup.Add(definition.BossId, definition);
+            }
+
+            return lookup;
+        }
+
+        private static Dictionary<string, RelicPresentationDefinition>
+            BuildRelicPresentationLookup(
+                IReadOnlyList<RelicPresentationDefinition> definitions)
+        {
+            var lookup =
+                new Dictionary<string, RelicPresentationDefinition>(
+                    definitions.Count,
+                    StringComparer.Ordinal);
+
+            for (int index = 0; index < definitions.Count; index++)
+            {
+                RelicPresentationDefinition definition = definitions[index];
+                if (definition == null)
+                {
+                    throw new InvalidOperationException(
+                        "Cannot initialize RelicPresentationDefinition "
+                            + $"lookup: entry {index} is null.");
+                }
+
+                if (string.IsNullOrEmpty(definition.RelicId))
+                {
+                    throw new InvalidOperationException(
+                        "Cannot initialize RelicPresentationDefinition "
+                            + $"lookup: entry {index} has no relic ID.");
+                }
+
+                if (!lookup.TryAdd(definition.RelicId, definition))
+                {
+                    throw new InvalidOperationException(
+                        "Cannot initialize RelicPresentationDefinition "
+                            + "lookup: duplicate relic ID "
+                            + $"'{definition.RelicId}'.");
+                }
             }
 
             return lookup;

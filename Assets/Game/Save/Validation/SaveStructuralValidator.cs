@@ -19,7 +19,10 @@ namespace ValorChronicle.Save.Validation
             var report = new SaveValidationReport();
             ValidateProfile(profile, report);
             ValidateCurrencies(profile.Currencies, report);
-            ValidateCharacters(profile.Characters, report);
+            ValidateCharacters(
+                profile.Characters,
+                profile.RelicInstances,
+                report);
             ValidateRelics(profile.RelicInstances, report);
             ValidateParty(profile.Party, report);
             ValidateGacha(profile.GachaStates, report);
@@ -57,10 +60,34 @@ namespace ValorChronicle.Save.Validation
             if (value < 0) Add(report, SaveValidationCode.NegativeCurrency, SaveValidationSeverity.RecoverableError, path, true);
         }
 
-        private static void ValidateCharacters(IList<CharacterSaveData> characters, SaveValidationReport report)
+        private static void ValidateCharacters(
+            IList<CharacterSaveData> characters,
+            IList<RelicInstanceSaveData> relics,
+            SaveValidationReport report)
         {
             if (characters == null) return;
             var ids = new HashSet<string>(StringComparer.Ordinal);
+            var relicsByInstanceId = new Dictionary<
+                string,
+                RelicInstanceSaveData>(StringComparer.Ordinal);
+            if (relics != null)
+            {
+                for (int relicIndex = 0;
+                    relicIndex < relics.Count;
+                    relicIndex++)
+                {
+                    RelicInstanceSaveData relic = relics[relicIndex];
+                    if (relic != null
+                        && !string.IsNullOrWhiteSpace(relic.InstanceId)
+                        && !relicsByInstanceId.ContainsKey(relic.InstanceId))
+                    {
+                        relicsByInstanceId.Add(relic.InstanceId, relic);
+                    }
+                }
+            }
+
+            var equippedInstanceIds = new HashSet<string>(
+                StringComparer.Ordinal);
             for (int i = 0; i < characters.Count; i++)
             {
                 CharacterSaveData character = characters[i];
@@ -74,6 +101,86 @@ namespace ValorChronicle.Save.Validation
                     Add(report, SaveValidationCode.CharacterLevelOutOfRange, SaveValidationSeverity.RecoverableError, $"{prefix}.Level", true);
                 if (character.Awakening < SaveRules.CharacterMinAwakening || character.Awakening > SaveRules.CharacterMaxAwakening)
                     Add(report, SaveValidationCode.CharacterAwakeningOutOfRange, SaveValidationSeverity.RecoverableError, $"{prefix}.Awakening", true);
+
+                IList<string> relicSlots =
+                    character.EquippedRelicInstanceIds;
+                if (relicSlots == null
+                    || relicSlots.Count
+                        != SaveRules.RelicSlotCountPerCharacter)
+                {
+                    Add(
+                        report,
+                        SaveValidationCode.InvalidCharacterRelicSlotCount,
+                        SaveValidationSeverity.RecoverableError,
+                        $"{prefix}.EquippedRelicInstanceIds",
+                        true);
+                }
+
+                if (relicSlots == null)
+                {
+                    continue;
+                }
+
+                var equippedDefinitionIds = new HashSet<string>(
+                    StringComparer.Ordinal);
+                for (int slotIndex = 0;
+                    slotIndex < relicSlots.Count;
+                    slotIndex++)
+                {
+                    string instanceId = relicSlots[slotIndex];
+                    string slotPath =
+                        $"{prefix}.EquippedRelicInstanceIds[{slotIndex}]";
+                    if (instanceId == null)
+                    {
+                        Add(
+                            report,
+                            SaveValidationCode.NullEquippedRelicInstanceId,
+                            SaveValidationSeverity.RecoverableError,
+                            slotPath,
+                            true);
+                        continue;
+                    }
+
+                    if (instanceId == SaveRules.EmptyId)
+                    {
+                        continue;
+                    }
+
+                    if (!relicsByInstanceId.TryGetValue(
+                            instanceId,
+                            out RelicInstanceSaveData relic))
+                    {
+                        Add(
+                            report,
+                            SaveValidationCode.EquippedRelicInstanceNotFound,
+                            SaveValidationSeverity.RecoverableError,
+                            slotPath,
+                            true);
+                        continue;
+                    }
+
+                    if (!equippedInstanceIds.Add(instanceId))
+                    {
+                        Add(
+                            report,
+                            SaveValidationCode.DuplicateRelicInstanceEquipped,
+                            SaveValidationSeverity.RecoverableError,
+                            slotPath,
+                            true);
+                    }
+
+                    if (!equippedDefinitionIds.Add(
+                            relic.RelicDefinitionId
+                                ?? SaveRules.EmptyId))
+                    {
+                        Add(
+                            report,
+                            SaveValidationCode.DuplicateRelicDefinitionEquipped,
+                            SaveValidationSeverity.RecoverableError,
+                            slotPath,
+                            true);
+                    }
+                }
             }
         }
 
@@ -81,8 +188,6 @@ namespace ValorChronicle.Save.Validation
         {
             if (relics == null) return;
             var ids = new HashSet<string>(StringComparer.Ordinal);
-            var slots = new HashSet<string>(StringComparer.Ordinal);
-            var definitions = new HashSet<string>(StringComparer.Ordinal);
             for (int i = 0; i < relics.Count; i++)
             {
                 RelicInstanceSaveData relic = relics[i];
@@ -97,19 +202,6 @@ namespace ValorChronicle.Save.Validation
                 if (relic.Awakening < SaveRules.RelicMinAwakening || relic.Awakening > SaveRules.RelicMaxAwakening)
                     Add(report, SaveValidationCode.RelicAwakeningOutOfRange, SaveValidationSeverity.RecoverableError, $"{prefix}.Awakening", true);
 
-                bool hasCharacter = !string.IsNullOrEmpty(relic.EquippedCharacterId);
-                bool isUnequippedSlot = relic.EquippedSlotIndex == SaveRules.UnequippedRelicSlotIndex;
-                bool validSlot = relic.EquippedSlotIndex >= SaveRules.EquippedRelicSlotMinIndex && relic.EquippedSlotIndex <= SaveRules.EquippedRelicSlotMaxIndex;
-                if (hasCharacter != !isUnequippedSlot)
-                    Add(report, SaveValidationCode.InvalidRelicEquipPair, SaveValidationSeverity.RecoverableError, $"{prefix}.EquippedCharacterId", true);
-                else if (hasCharacter && !validSlot)
-                    Add(report, SaveValidationCode.InvalidRelicSlot, SaveValidationSeverity.RecoverableError, $"{prefix}.EquippedSlotIndex", true);
-
-                if (!hasCharacter || !validSlot) continue;
-                if (!slots.Add($"{relic.EquippedCharacterId}\u001f{relic.EquippedSlotIndex}"))
-                    Add(report, SaveValidationCode.RelicSlotCollision, SaveValidationSeverity.RecoverableError, $"{prefix}.EquippedSlotIndex", true);
-                if (!definitions.Add($"{relic.EquippedCharacterId}\u001f{relic.RelicDefinitionId}"))
-                    Add(report, SaveValidationCode.DuplicateRelicDefinitionEquipped, SaveValidationSeverity.RecoverableError, $"{prefix}.RelicDefinitionId", true);
             }
         }
 

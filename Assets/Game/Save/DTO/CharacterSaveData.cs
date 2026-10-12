@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using ValorChronicle.Save.Rules;
+
 namespace ValorChronicle.Save.DTO
 {
     public sealed class CharacterSaveData
@@ -7,5 +10,7 @@ namespace ValorChronicle.Save.DTO
         public int Awakening { get; set; }
         public bool IsFavorite { get; set; }
         public bool IsNew { get; set; }
+        public List<string> EquippedRelicInstanceIds { get; set; } =
+            SaveRules.CreateEmptyRelicInstanceIdSlots();
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ValorChronicle.Relics.Acquisition;
 using ValorChronicle.Save.DTO;
 using ValorChronicle.Save.Rules;
 using ValorChronicle.Save.Services;
@@ -37,16 +38,22 @@ namespace ValorChronicle.Editor.SaveDebug
         internal SaveDebugOperationResult(
             SaveDebugOperationStatus status,
             string message,
-            SaveTransactionResult transactionResult = null)
+            SaveTransactionResult transactionResult = null,
+            RelicAcquisitionPersistenceStatus? relicAcquisitionStatus = null,
+            RelicAcquisitionResult relicAcquisitionResult = null)
         {
             Status = status;
             Message = message ?? string.Empty;
             TransactionResult = transactionResult;
+            RelicAcquisitionStatus = relicAcquisitionStatus;
+            RelicAcquisitionResult = relicAcquisitionResult;
         }
 
         public SaveDebugOperationStatus Status { get; }
         public string Message { get; }
         public SaveTransactionResult TransactionResult { get; }
+        public RelicAcquisitionPersistenceStatus? RelicAcquisitionStatus { get; }
+        public RelicAcquisitionResult RelicAcquisitionResult { get; }
         public bool IsSuccess => Status == SaveDebugOperationStatus.Success;
     }
 
@@ -56,13 +63,27 @@ namespace ValorChronicle.Editor.SaveDebug
     public sealed class SaveDebugProfileService
     {
         public const string MareaCharacterId = "character_marea_bluefang";
+        public const string VictorsBrokenSwordRelicId =
+            "relic_victors_broken_sword";
+        public const string WorldTreeBarkRelicId =
+            "relic_world_tree_bark";
 
         private readonly SaveService saveService;
         private readonly HashSet<string> registeredCharacterIds;
+        private readonly Func<string, RelicAcquisitionPersistenceOperationResult>
+            grantRelic;
 
         public SaveDebugProfileService(
             SaveService saveService,
             IEnumerable<string> registeredCharacterIds)
+            : this(saveService, registeredCharacterIds, grantRelic: null)
+        {
+        }
+
+        public SaveDebugProfileService(
+            SaveService saveService,
+            IEnumerable<string> registeredCharacterIds,
+            Func<string, RelicAcquisitionPersistenceOperationResult> grantRelic)
         {
             this.saveService = saveService
                 ?? throw new ArgumentNullException(nameof(saveService));
@@ -74,6 +95,50 @@ namespace ValorChronicle.Editor.SaveDebug
             this.registeredCharacterIds = new HashSet<string>(
                 registeredCharacterIds,
                 StringComparer.Ordinal);
+            this.grantRelic = grantRelic;
+        }
+
+        public SaveDebugOperationResult GrantRelic(string relicDefinitionId)
+        {
+            if (grantRelic == null)
+            {
+                return PersistenceFailure(
+                    "Relic acquisition service is unavailable.");
+            }
+
+            RelicAcquisitionPersistenceOperationResult result =
+                grantRelic(relicDefinitionId);
+            if (result == null)
+            {
+                return PersistenceFailure(
+                    "Relic acquisition returned no result.");
+            }
+
+            if (!result.IsSuccess || result.AcquisitionResult == null)
+            {
+                return new SaveDebugOperationResult(
+                    SaveDebugOperationStatus.PersistenceFailed,
+                    $"Relic grant failed: Definition={relicDefinitionId}, "
+                    + $"Result={result.Status}.",
+                    result.SaveTransactionResult,
+                    result.Status);
+            }
+
+            RelicAcquisitionResult acquisition = result.AcquisitionResult;
+            string awakening = acquisition.PreviousAwakening.HasValue
+                ? $"{acquisition.PreviousAwakening.Value} -> "
+                    + acquisition.NewAwakening
+                : acquisition.NewAwakening.ToString();
+            return new SaveDebugOperationResult(
+                SaveDebugOperationStatus.Success,
+                "Relic granted:\n"
+                + $"Definition={acquisition.RelicDefinitionId}\n"
+                + $"Result={acquisition.Kind}\n"
+                + $"InstanceId={acquisition.AffectedInstanceId}\n"
+                + $"Awakening={awakening}",
+                result.SaveTransactionResult,
+                result.Status,
+                acquisition);
         }
 
         public SaveDebugOperationResult SetCurrency(

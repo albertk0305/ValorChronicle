@@ -6,6 +6,7 @@ namespace ValorChronicle.Core.Scene
         Main = 1,
         Battle = 2,
         Party = 3,
-        Character = 4
+        Character = 4,
+        Gacha = 5
     }
 }

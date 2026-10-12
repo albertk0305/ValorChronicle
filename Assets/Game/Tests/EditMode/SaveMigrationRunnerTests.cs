@@ -76,17 +76,26 @@ namespace ValorChronicle.Tests.EditMode
                 data.ProfileId += "_two";
                 return data;
             });
+            var fourth = new FakeMigrationStep(2, 3, data =>
+            {
+                data.SaveVersion = 3;
+                data.ProfileId += "_three";
+                return data;
+            });
             ProfileSaveData source = CreateProfile(-1);
-            var runner = CreateRunner(first, second, third);
+            var runner = CreateRunner(first, second, third, fourth);
 
             SaveMigrationResult result = runner.Migrate(source);
 
             Assert.That(result.Status, Is.EqualTo(SaveMigrationStatus.Success));
-            Assert.That(result.Data.SaveVersion, Is.EqualTo(2));
-            Assert.That(result.Data.ProfileId, Is.EqualTo("profile_source_zero_one_two"));
+            Assert.That(result.Data.SaveVersion, Is.EqualTo(3));
+            Assert.That(
+                result.Data.ProfileId,
+                Is.EqualTo("profile_source_zero_one_two_three"));
             Assert.That(first.CallCount, Is.EqualTo(1));
             Assert.That(second.CallCount, Is.EqualTo(1));
             Assert.That(third.CallCount, Is.EqualTo(1));
+            Assert.That(fourth.CallCount, Is.EqualTo(1));
             Assert.That(source.SaveVersion, Is.EqualTo(-1));
             Assert.That(source.ProfileId, Is.EqualTo("profile_source"));
         }

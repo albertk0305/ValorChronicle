@@ -1,0 +1,5 @@
+key	en	ko
+relic.victors_broken_sword.name	Victor's Broken Sword	승전자의 부러진 검
+relic.victors_broken_sword.description	Increases the equipped character's ATK by {rate}%.	장착한 캐릭터의 공격력이 {rate}% 증가합니다.
+relic.world_tree_bark.name	World Tree Bark	세계수의 수피
+relic.world_tree_bark.description	Increases the equipped character's maximum HP by {rate}%.	장착한 캐릭터의 최대 HP가 {rate}% 증가합니다.

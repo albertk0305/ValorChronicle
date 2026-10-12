@@ -4,18 +4,22 @@ using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Save.DTO;
 using ValorChronicle.Save.Rules;
+using ValorChronicle.Relics.Stats;
 
 namespace ValorChronicle.Party.Battle
 {
     public sealed class BattlePartyResolver
     {
         private readonly DefinitionDatabase definitionDatabase;
+        private readonly RelicStatBonusResolver relicStatBonusResolver;
 
         public BattlePartyResolver(DefinitionDatabase definitionDatabase)
         {
             this.definitionDatabase = definitionDatabase
                 ?? throw new ArgumentNullException(
                     nameof(definitionDatabase));
+            relicStatBonusResolver = new RelicStatBonusResolver(
+                definitionDatabase);
         }
 
         public BattlePartyResolutionResult Resolve(ProfileSaveData profile)
@@ -108,7 +112,10 @@ namespace ValorChronicle.Party.Battle
                     slotIndex,
                     characterSaveData.Level,
                     characterSaveData.Awakening,
-                    definition));
+                    definition,
+                    relicStatBonusResolver.Resolve(
+                        profile,
+                        characterSaveData)));
             }
 
             return members.Count == 0

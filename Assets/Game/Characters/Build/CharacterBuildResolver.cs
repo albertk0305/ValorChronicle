@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using ValorChronicle.Characters.Stats;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Relics.Stats;
 
 namespace ValorChronicle.Characters.Build
 {
@@ -62,6 +63,19 @@ namespace ValorChronicle.Characters.Build
             int level,
             int awakening)
         {
+            return Resolve(
+                definition,
+                level,
+                awakening,
+                RelicStatBonusSummary.None);
+        }
+
+        public ResolvedCharacterBuild Resolve(
+            CharacterDefinition definition,
+            int level,
+            int awakening,
+            RelicStatBonusSummary relicBonuses)
+        {
             if (definition == null)
             {
                 throw new ArgumentNullException(nameof(definition));
@@ -72,6 +86,11 @@ namespace ValorChronicle.Characters.Build
                 throw new ArgumentException(
                     "Character definition must have a stable ID.",
                     nameof(definition));
+            }
+
+            if (relicBonuses == null)
+            {
+                throw new ArgumentNullException(nameof(relicBonuses));
             }
 
             ValidateAwakening(awakening);
@@ -90,7 +109,10 @@ namespace ValorChronicle.Characters.Build
             }
 
             long maxHp = CharacterStatCalculator.RoundFinalStat(
-                baseStats.MaxHp * multipliers.MaxHpMultiplier);
+                baseStats.MaxHp
+                    * multipliers.MaxHpMultiplier
+                    * (1d + relicBonuses.MaxHpIncreaseRateSum));
+            // Attack relic application belongs to the 11-11 damage step.
             long attack = CharacterStatCalculator.RoundFinalStat(
                 baseStats.Attack * multipliers.AttackMultiplier);
             return new ResolvedCharacterBuild(

@@ -71,7 +71,10 @@ namespace ValorChronicle.Battle.Combat.Modifiers
             ValidateElement(attackElement);
             ValidateAttackType(attackType);
             ValidateAttackTags(attackTags);
-            var values = new AllyModifierValues();
+            var values = new AllyModifierValues
+            {
+                AttackIncrease = attacker.PermanentAttackIncreaseRate
+            };
             CollectAllySource(
                 attacker.Effects.GetActiveEffects(),
                 attackElement,

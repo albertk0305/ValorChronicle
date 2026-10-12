@@ -6,6 +6,7 @@ using ValorChronicle.Characters.Build;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Characters.Stats;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Relics.Stats;
 
 namespace ValorChronicle.Tests.EditMode.Characters.Build
 {
@@ -80,6 +81,72 @@ namespace ValorChronicle.Tests.EditMode.Characters.Build
             Assert.That(baseStats.Attack, Is.EqualTo(523));
             Assert.That(result.MaxHp, Is.EqualTo(1979));
             Assert.That(result.Attack, Is.EqualTo(549));
+        }
+
+        [Test]
+        public void Resolve_MaxHpRelicRateIncreasesHpButDoesNotChangeAttack()
+        {
+            ResolvedCharacterBuild none = resolver.Resolve(
+                definition,
+                1,
+                0,
+                RelicStatBonusSummary.None);
+            ResolvedCharacterBuild barkZero = resolver.Resolve(
+                definition,
+                1,
+                0,
+                new RelicStatBonusSummary(0.05d, 0d));
+            ResolvedCharacterBuild barkFive = resolver.Resolve(
+                definition,
+                1,
+                0,
+                new RelicStatBonusSummary(0.10d, 0d));
+
+            Assert.That(none.MaxHp, Is.EqualTo(900));
+            Assert.That(barkZero.MaxHp, Is.EqualTo(945));
+            Assert.That(barkFive.MaxHp, Is.EqualTo(990));
+            Assert.That(none.MaxHp, Is.LessThan(barkZero.MaxHp));
+            Assert.That(barkZero.MaxHp, Is.LessThan(barkFive.MaxHp));
+            Assert.That(barkZero.Attack, Is.EqualTo(none.Attack));
+            Assert.That(barkFive.Attack, Is.EqualTo(none.Attack));
+        }
+
+        [Test]
+        public void Resolve_AttackRelicSummaryDoesNotChangeBuildBaseAttack()
+        {
+            ResolvedCharacterBuild none = resolver.Resolve(
+                definition,
+                100,
+                2,
+                RelicStatBonusSummary.None);
+            ResolvedCharacterBuild swordZero = resolver.Resolve(
+                definition,
+                100,
+                2,
+                new RelicStatBonusSummary(0d, 0.05d));
+            ResolvedCharacterBuild swordFive = resolver.Resolve(
+                definition,
+                100,
+                2,
+                new RelicStatBonusSummary(0d, 0.10d));
+
+            Assert.That(swordZero.Attack, Is.EqualTo(none.Attack));
+            Assert.That(swordFive.Attack, Is.EqualTo(none.Attack));
+            Assert.That(swordZero.MaxHp, Is.EqualTo(none.MaxHp));
+            Assert.That(swordFive.MaxHp, Is.EqualTo(none.MaxHp));
+        }
+
+        [Test]
+        public void Resolve_AppliesCharacterAwakeningThenSummedRelicRateOnce()
+        {
+            ResolvedCharacterBuild result = resolver.Resolve(
+                definition,
+                1,
+                2,
+                new RelicStatBonusSummary(0.15d, 0d));
+
+            Assert.That(result.MaxHp, Is.EqualTo(1087));
+            Assert.That(result.Attack, Is.EqualTo(189));
         }
 
         [Test]
