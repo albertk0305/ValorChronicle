@@ -121,8 +121,116 @@ namespace ValorChronicle.Tests.EditMode
             }
         }
 
+        [Test]
+        public void ClosedDelayHoldsCurtainAndUsesUnscaledTime()
+        {
+            SceneSetup[] previous = EditorSceneManager.GetSceneManagerSetup();
+            float previousTimeScale = Time.timeScale;
+            try
+            {
+                const float closedDelay = 0.3f;
+                Setup(out GachaSceneInstaller installer);
+                GachaPresentationController controller =
+                    installer.PresentationController;
+                var timeSource = new ManualPresentationTimeSource();
+                controller.Configure(
+                    controller.View,
+                    installer.ResultPresenter,
+                    1f,
+                    60f,
+                    0.15f,
+                    closedDelay,
+                    3f,
+                    timeSource);
+                RectTransform leftCurtain = GetPrivateField<RectTransform>(
+                    controller.View,
+                    "leftCurtain");
+                Vector2 closedPosition = leftCurtain.anchoredPosition;
+
+                Time.timeScale = 0f;
+                Assert.That(controller.Play(Transaction(
+                    CurrencyPull(0, 1000))), Is.True);
+                Assert.That(leftCurtain.anchoredPosition,
+                    Is.EqualTo(closedPosition));
+
+                InvokePrivate(controller, "StopFlow");
+                int version = GetPrivateField<int>(
+                    controller,
+                    "presentationVersion");
+                var closedDelayRoutine = (IEnumerator)InvokePrivate(
+                    controller,
+                    "WaitAtClosedCurtain",
+                    version);
+
+                Assert.That(closedDelayRoutine.MoveNext(), Is.True);
+
+                timeSource.AdvanceTo(0.1);
+                Assert.That(closedDelayRoutine.MoveNext(), Is.True);
+
+                Assert.That(controller.State,
+                    Is.EqualTo(GachaPresentationState.Opening));
+                Assert.That(leftCurtain.anchoredPosition,
+                    Is.EqualTo(closedPosition));
+                Assert.That(Time.timeScale, Is.Zero);
+
+                timeSource.AdvanceTo(0.29);
+                Assert.That(closedDelayRoutine.MoveNext(), Is.True);
+
+                Assert.That(controller.State,
+                    Is.EqualTo(GachaPresentationState.Opening));
+                Assert.That(leftCurtain.anchoredPosition,
+                    Is.EqualTo(closedPosition));
+
+                timeSource.AdvanceTo(closedDelay);
+                Assert.That(closedDelayRoutine.MoveNext(), Is.False);
+
+                Assert.That(controller.State,
+                    Is.EqualTo(GachaPresentationState.Opening));
+                Assert.That(leftCurtain.anchoredPosition,
+                    Is.EqualTo(closedPosition));
+
+                InvokePrivate(controller, "StopFlow");
+                Action enterShowingResult = () => InvokePrivate(
+                    controller,
+                    "EnterShowingResult");
+                var opening = (IEnumerator)InvokePrivate(
+                    controller,
+                    "AnimateCurtain",
+                    0f,
+                    1f,
+                    1f,
+                    version,
+                    enterShowingResult);
+
+                Assert.That(opening.MoveNext(), Is.True);
+                Assert.That(leftCurtain.anchoredPosition,
+                    Is.EqualTo(closedPosition));
+
+                timeSource.AdvanceTo(0.4);
+                Assert.That(opening.MoveNext(), Is.True);
+
+                Assert.That(controller.State,
+                    Is.EqualTo(GachaPresentationState.Opening));
+                Assert.That(leftCurtain.anchoredPosition,
+                    Is.Not.EqualTo(closedPosition));
+                Assert.That(Time.timeScale, Is.Zero);
+
+                timeSource.AdvanceTo(1.31);
+                Assert.That(opening.MoveNext(), Is.True);
+                Assert.That(opening.MoveNext(), Is.False);
+
+                Assert.That(controller.State,
+                    Is.EqualTo(GachaPresentationState.ShowingResult));
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Restore(previous);
+            }
+        }
+
         [UnityTest]
-        public IEnumerator ClosedDelayHoldsCurtainAndUsesUnscaledTime()
+        public IEnumerator UnityUnscaledTimeOpensCurtainWhenTimeScaleIsZero()
         {
             SceneSetup[] previous = EditorSceneManager.GetSceneManagerSetup();
             float previousTimeScale = Time.timeScale;
@@ -134,33 +242,27 @@ namespace ValorChronicle.Tests.EditMode
                 controller.Configure(
                     controller.View,
                     installer.ResultPresenter,
-                    1f,
+                    0.05f,
                     60f,
                     0.15f,
-                    0.3f,
+                    0f,
                     3f);
-                RectTransform leftCurtain = GetPrivateField<RectTransform>(
-                    controller.View,
-                    "leftCurtain");
 
                 Time.timeScale = 0f;
                 Assert.That(controller.Play(Transaction(
                     CurrencyPull(0, 1000))), Is.True);
-                Vector2 closedPosition = leftCurtain.anchoredPosition;
 
-                yield return WaitForRealtime(0.1f);
-
-                Assert.That(controller.State,
-                    Is.EqualTo(GachaPresentationState.Opening));
-                Assert.That(leftCurtain.anchoredPosition,
-                    Is.EqualTo(closedPosition));
-
-                yield return WaitForRealtime(0.3f);
+                yield return null;
+                float timeout = Time.realtimeSinceStartup + 2f;
+                while (controller.State == GachaPresentationState.Opening
+                    && Time.realtimeSinceStartup < timeout)
+                {
+                    yield return null;
+                }
 
                 Assert.That(controller.State,
-                    Is.EqualTo(GachaPresentationState.Opening));
-                Assert.That(leftCurtain.anchoredPosition,
-                    Is.Not.EqualTo(closedPosition));
+                    Is.EqualTo(GachaPresentationState.ShowingResult));
+                Assert.That(Time.timeScale, Is.Zero);
             }
             finally
             {
@@ -678,12 +780,29 @@ namespace ValorChronicle.Tests.EditMode
             return (T)field.GetValue(target);
         }
 
-        private static IEnumerator WaitForRealtime(float duration)
+        private static object InvokePrivate(
+            object target,
+            string methodName,
+            params object[] arguments)
         {
-            float end = Time.realtimeSinceStartup + duration;
-            while (Time.realtimeSinceStartup < end)
+            MethodInfo method = target.GetType().GetMethod(
+                methodName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, methodName);
+            return method.Invoke(target, arguments);
+        }
+
+        private sealed class ManualPresentationTimeSource
+            : IGachaPresentationTimeSource
+        {
+            private double currentTime;
+
+            public double UnscaledTime => currentTime;
+
+            public void AdvanceTo(double time)
             {
-                yield return null;
+                Assert.That(time, Is.GreaterThanOrEqualTo(currentTime));
+                currentTime = time;
             }
         }
     }

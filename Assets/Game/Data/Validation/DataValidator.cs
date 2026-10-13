@@ -42,6 +42,11 @@ namespace ValorChronicle.Data.Validation
                 database.Relics,
                 globalIds,
                 report);
+            ValidateExchangeCatalog(
+                database.ExchangeCatalog,
+                database.Characters,
+                database.Relics,
+                report);
             ValidateRelicPresentations(
                 database.RelicPresentations,
                 database.Relics,
@@ -55,6 +60,88 @@ namespace ValorChronicle.Data.Validation
                 report);
 
             return report;
+        }
+
+        private static void ValidateExchangeCatalog(
+            ExchangeCatalogDefinition catalog,
+            IReadOnlyList<CharacterDefinition> characters,
+            IReadOnlyList<RelicDefinition> relics,
+            ValidationReport report)
+        {
+            if (catalog == null)
+            {
+                report.Add(
+                    ValidationSeverity.Error,
+                    "[DataValidator] ExchangeCatalogDefinition is missing.");
+                return;
+            }
+
+            if (catalog.CharacterExchangeCost <= 0L)
+            {
+                report.Add(
+                    ValidationSeverity.Error,
+                    "[DataValidator] Character exchange cost must be "
+                        + "greater than zero.",
+                    context: catalog);
+            }
+
+            if (catalog.RelicExchangeCost <= 0L)
+            {
+                report.Add(
+                    ValidationSeverity.Error,
+                    "[DataValidator] Relic exchange cost must be greater "
+                        + "than zero.",
+                    context: catalog);
+            }
+
+            ValidateExchangeIds(
+                catalog,
+                "character",
+                catalog.CharacterIds,
+                CollectDefinitionIds(characters),
+                report);
+            ValidateExchangeIds(
+                catalog,
+                "relic",
+                catalog.RelicIds,
+                CollectDefinitionIds(relics),
+                report);
+        }
+
+        private static void ValidateExchangeIds(
+            ExchangeCatalogDefinition catalog,
+            string contentType,
+            IReadOnlyList<string> ids,
+            ISet<string> registeredIds,
+            ValidationReport report)
+        {
+            var uniqueIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < ids.Count; index++)
+            {
+                string id = ids[index];
+                if (!uniqueIds.Add(id ?? string.Empty))
+                {
+                    report.Add(
+                        ValidationSeverity.Error,
+                        $"[DataValidator] Duplicate Exchange "
+                            + $"{contentType} ID: "
+                            + $"{(string.IsNullOrWhiteSpace(id) ? "<empty>" : id)}.",
+                        id,
+                        catalog);
+                }
+
+                if (string.IsNullOrWhiteSpace(id)
+                    || !registeredIds.Contains(id))
+                {
+                    report.Add(
+                        ValidationSeverity.Error,
+                        $"[DataValidator] Exchange {contentType} list "
+                            + "references missing ID: "
+                            + $"{(string.IsNullOrWhiteSpace(id) ? "<empty>" : id)}.",
+                        id,
+                        catalog);
+                }
+            }
         }
 
         private static void ValidateBattleResultBalance(

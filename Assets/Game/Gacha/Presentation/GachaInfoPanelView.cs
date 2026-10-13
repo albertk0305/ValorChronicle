@@ -61,6 +61,7 @@ namespace ValorChronicle.Gacha.Presentation
             infoText = configuredInfoText
                 ?? throw new ArgumentNullException(
                     nameof(configuredInfoText));
+            SetEntryButtonsInteractable(false);
             Close();
             if (isActiveAndEnabled)
             {
@@ -101,6 +102,14 @@ namespace ValorChronicle.Gacha.Presentation
             }
         }
 
+        public void SetEntryButtonsInteractable(bool interactable)
+        {
+            if (characterInfoButton != null)
+                characterInfoButton.interactable = interactable;
+            if (relicInfoButton != null)
+                relicInfoButton.interactable = interactable;
+        }
+
         private void Subscribe()
         {
             if (subscribed || !IsConfigured)
@@ -133,12 +142,17 @@ namespace ValorChronicle.Gacha.Presentation
 
         private void HandleCharacterInfoRequested()
         {
-            CharacterInfoRequested?.Invoke();
+            if (characterInfoButton != null
+                && characterInfoButton.interactable)
+            {
+                CharacterInfoRequested?.Invoke();
+            }
         }
 
         private void HandleRelicInfoRequested()
         {
-            RelicInfoRequested?.Invoke();
+            if (relicInfoButton != null && relicInfoButton.interactable)
+                RelicInfoRequested?.Invoke();
         }
 
         private void HandleCloseRequested()

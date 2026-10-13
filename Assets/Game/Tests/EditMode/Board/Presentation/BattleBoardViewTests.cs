@@ -27,10 +27,13 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
         private Sprite light;
         private Sprite dark;
         private Sprite rock;
+        private float previousTimeScale;
 
         [SetUp]
         public void SetUp()
         {
+            previousTimeScale = Time.timeScale;
+            Time.timeScale = 1f;
             root = new GameObject(
                 "BoardViewTestRoot",
                 typeof(RectTransform));
@@ -75,16 +78,22 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
         [TearDown]
         public void TearDown()
         {
-            for (int index = createdObjects.Count - 1; index >= 0; index--)
+            try
             {
-                if (createdObjects[index] != null)
+                for (int index = createdObjects.Count - 1; index >= 0; index--)
                 {
-                    UnityEngine.Object.DestroyImmediate(
-                        createdObjects[index]);
+                    if (createdObjects[index] != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(
+                            createdObjects[index]);
+                    }
                 }
             }
-
-            createdObjects.Clear();
+            finally
+            {
+                createdObjects.Clear();
+                Time.timeScale = previousTimeScale;
+            }
         }
 
         [Test]

@@ -33,6 +33,9 @@ namespace ValorChronicle.Data.Database
         private GachaDefinition[] gachas = Array.Empty<GachaDefinition>();
 
         [SerializeField]
+        private ExchangeCatalogDefinition exchangeCatalog;
+
+        [SerializeField]
         private RelicPresentationDefinition[] relicPresentations =
             Array.Empty<RelicPresentationDefinition>();
 
@@ -76,6 +79,8 @@ namespace ValorChronicle.Data.Database
 
         public IReadOnlyList<GachaDefinition> Gachas =>
             Array.AsReadOnly(gachas ?? Array.Empty<GachaDefinition>());
+
+        public ExchangeCatalogDefinition ExchangeCatalog => exchangeCatalog;
 
         public IReadOnlyList<RelicPresentationDefinition>
             RelicPresentations => Array.AsReadOnly(

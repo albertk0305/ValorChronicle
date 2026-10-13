@@ -9,6 +9,11 @@ using ValorChronicle.Gacha.Persistence;
 
 namespace ValorChronicle.Gacha.Presentation
 {
+    public interface IGachaPresentationTimeSource
+    {
+        double UnscaledTime { get; }
+    }
+
     public enum GachaPresentationState
     {
         Idle = 0,
@@ -21,6 +26,15 @@ namespace ValorChronicle.Gacha.Presentation
 
     public sealed class GachaPresentationController : MonoBehaviour
     {
+        private sealed class UnityUnscaledTimeSource
+            : IGachaPresentationTimeSource
+        {
+            public double UnscaledTime => Time.unscaledTimeAsDouble;
+        }
+
+        private static readonly IGachaPresentationTimeSource
+            DefaultTimeSource = new UnityUnscaledTimeSource();
+
         public event Action<GachaPresentationState> StateChanged;
         public event Action<GachaTransactionResult> Finished;
         public event Action<GachaTransactionResult, string> Failed;
@@ -44,6 +58,8 @@ namespace ValorChronicle.Gacha.Presentation
         private int lastInputFrame = -1;
         private bool inputOwned;
         private bool resultSubscribed;
+        private IGachaPresentationTimeSource timeSource =
+            DefaultTimeSource;
 
         public GachaPresentationState State { get; private set; } =
             GachaPresentationState.Idle;
@@ -132,6 +148,27 @@ namespace ValorChronicle.Gacha.Presentation
             float configuredCurtainClosedDelay,
             float configuredSkipHideDelay)
         {
+            Configure(
+                configuredView,
+                configuredResultPresenter,
+                configuredOpeningDuration,
+                configuredResultDisplayDuration,
+                configuredTransitionDuration,
+                configuredCurtainClosedDelay,
+                configuredSkipHideDelay,
+                DefaultTimeSource);
+        }
+
+        public void Configure(
+            GachaPresentationView configuredView,
+            GachaResultPresenter configuredResultPresenter,
+            float configuredOpeningDuration,
+            float configuredResultDisplayDuration,
+            float configuredTransitionDuration,
+            float configuredCurtainClosedDelay,
+            float configuredSkipHideDelay,
+            IGachaPresentationTimeSource configuredTimeSource)
+        {
             if (configuredOpeningDuration < 0f
                 || configuredResultDisplayDuration < 0f
                 || configuredTransitionDuration < 0f
@@ -141,6 +178,11 @@ namespace ValorChronicle.Gacha.Presentation
                 throw new ArgumentOutOfRangeException(
                     nameof(configuredOpeningDuration),
                     "Presentation timings cannot be negative.");
+            }
+            if (configuredTimeSource == null)
+            {
+                throw new ArgumentNullException(
+                    nameof(configuredTimeSource));
             }
 
             CancelPresentation(resetView: true);
@@ -156,6 +198,7 @@ namespace ValorChronicle.Gacha.Presentation
             transitionDuration = configuredTransitionDuration;
             curtainClosedDelay = configuredCurtainClosedDelay;
             skipHideDelay = configuredSkipHideDelay;
+            timeSource = configuredTimeSource;
             SubscribeResult();
             SetState(GachaPresentationState.Idle);
         }
@@ -287,15 +330,15 @@ namespace ValorChronicle.Gacha.Presentation
 
         private IEnumerator WaitAtClosedCurtain(int version)
         {
-            float elapsed = 0f;
-            while (elapsed < curtainClosedDelay)
+            double endTime = timeSource.UnscaledTime
+                + curtainClosedDelay;
+            while (timeSource.UnscaledTime < endTime)
             {
                 if (version != presentationVersion)
                 {
                     yield break;
                 }
 
-                elapsed += Time.unscaledDeltaTime;
                 yield return null;
             }
 
@@ -414,6 +457,7 @@ namespace ValorChronicle.Gacha.Presentation
                 yield break;
             }
 
+            double startTime = timeSource.UnscaledTime;
             float elapsed = 0f;
             while (elapsed < duration)
             {
@@ -422,7 +466,7 @@ namespace ValorChronicle.Gacha.Presentation
                     yield break;
                 }
 
-                elapsed += Time.unscaledDeltaTime;
+                elapsed = (float)(timeSource.UnscaledTime - startTime);
                 if (!TrySetCurtainProgress(Mathf.Lerp(
                     from,
                     to,

@@ -37,6 +37,7 @@ MonoBehaviour:
   gachas:
   - {fileID: 11400000, guid: 4d46d47348da4aa899df4b912d58af14, type: 2}
   - {fileID: 11400000, guid: 9f36a96bd3d64585a5a667bb0df8018e, type: 2}
+  exchangeCatalog: {fileID: 11400000, guid: 43ccc8f812314c03957660e88a8bcaa2, type: 2}
   relicPresentations:
   - {fileID: 11400000, guid: 23bce22afec04913bcf08b4fc4718f56, type: 2}
   - {fileID: 11400000, guid: 74fc6fc3b8534614a0ea714080e670da, type: 2}

@@ -779,6 +779,10 @@ namespace ValorChronicle.Tests.EditMode
             DefinitionDatabase database = ScriptableObject.CreateInstance<DefinitionDatabase>();
             createdObjects.Add(database);
 
+            ExchangeCatalogDefinition exchangeCatalog =
+                ScriptableObject.CreateInstance<ExchangeCatalogDefinition>();
+            createdObjects.Add(exchangeCatalog);
+
             BattleResultBalanceDefinition resultBalance =
                 ScriptableObject.CreateInstance<
                     BattleResultBalanceDefinition>();
@@ -808,6 +812,8 @@ namespace ValorChronicle.Tests.EditMode
             SetObjectArray(serializedObject.FindProperty("effects"), effects);
             SetObjectArray(serializedObject.FindProperty("resources"), resources);
             SetObjectArray(serializedObject.FindProperty("relics"), relics);
+            serializedObject.FindProperty("exchangeCatalog")
+                .objectReferenceValue = exchangeCatalog;
             SetObjectArray(
                 serializedObject.FindProperty("relicPresentations"),
                 relicPresentations);

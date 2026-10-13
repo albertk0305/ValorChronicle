@@ -71,6 +71,7 @@ namespace ValorChronicle.Tests.EditMode
                 installer.Install();
                 installer.InfoPresenter.Initialize(
                     LoadDatabase(), LoadLocalization());
+                installer.InfoPresenter.SetEntryButtonsInteractable(true);
 
                 GachaInfoPanelView view =
                     content.GetComponent<GachaInfoPanelView>();
@@ -86,6 +87,7 @@ namespace ValorChronicle.Tests.EditMode
                 Assert.That(view.PanelRoot.transform.GetSiblingIndex(),
                     Is.EqualTo(view.PanelRoot.transform.parent.childCount - 1));
 
+                installer.InfoPresenter.SetEntryButtonsInteractable(true);
                 content.Find("ArtifactPickup/InfoButton")
                     .GetComponent<Button>().onClick.Invoke();
                 Assert.That(view.InfoText.text,

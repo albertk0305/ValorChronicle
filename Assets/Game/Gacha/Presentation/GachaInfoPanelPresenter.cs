@@ -105,6 +105,25 @@ namespace ValorChronicle.Gacha.Presentation
             return true;
         }
 
+        public bool ShowMessage(string message)
+        {
+            if (!IsConfigured
+                || string.IsNullOrWhiteSpace(message))
+            {
+                Fail("A Gacha message could not be shown.");
+                return false;
+            }
+
+            view.Open(message);
+            Opened?.Invoke();
+            return true;
+        }
+
+        public void SetEntryButtonsInteractable(bool interactable)
+        {
+            view?.SetEntryButtonsInteractable(interactable);
+        }
+
         public static bool TryBuildText(
             GachaDefinition definition,
             LocalizationService localization,

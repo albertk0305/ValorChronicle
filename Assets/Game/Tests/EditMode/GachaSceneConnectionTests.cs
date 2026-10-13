@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using ValorChronicle.Core.Scene;
+using ValorChronicle.Exchange.Presentation;
 using ValorChronicle.Gacha.Presentation;
 using ValorChronicle.UI.Navigation;
 using Object = UnityEngine.Object;
@@ -62,6 +63,55 @@ namespace ValorChronicle.Tests.EditMode
                 Assert.That(installer.InfoPresenter.IsConfigured, Is.True);
                 Assert.That(installer.ResultPresenter, Is.Not.Null);
                 Assert.That(installer.ResultPresenter.IsConfigured, Is.True);
+                Assert.That(installer.ExchangeGridView, Is.Not.Null);
+                Assert.That(installer.ExchangeGridView.IsConfigured, Is.True);
+                Assert.That(installer.ExchangeView, Is.Not.Null);
+                Assert.That(installer.ExchangeView.IsConfigured, Is.True);
+                Assert.That(installer.ExchangeConfirmView, Is.Not.Null);
+                Assert.That(installer.ExchangeConfirmView.IsConfigured,
+                    Is.True);
+                Assert.That(installer.ExchangeController, Is.Not.Null);
+                Assert.That(installer.ExchangeController.IsConfigured,
+                    Is.True);
+                Transform exchangeViewport = content.Find(
+                    "Exchange/ScrollPanel");
+                Assert.That(exchangeViewport.GetComponent<ScrollRect>(),
+                    Is.Not.Null);
+                Assert.That(exchangeViewport.GetComponent<RectMask2D>(),
+                    Is.Not.Null);
+                Assert.That(exchangeViewport.Find("Slots"), Is.Not.Null);
+                Assert.That(installer.ExchangeGridView.PoolSize,
+                    Is.GreaterThanOrEqualTo(10));
+                Assert.That(installer.ExchangeView.ScreenRoot,
+                    Is.SameAs(content.Find("Exchange").gameObject));
+                Assert.That(installer.ExchangeView.ConfirmRoot.activeSelf,
+                    Is.False);
+                Assert.That(installer.ExchangeConfirmView.Root,
+                    Is.SameAs(content.Find("Exchange/Confirm").gameObject));
+                Assert.That(installer.ExchangeConfirmView.ContentImage,
+                    Is.SameAs(content.Find("Exchange/Confirm/Image")
+                        .GetComponent<Image>()));
+                Assert.That(installer.ExchangeConfirmView.AwakeningIcon,
+                    Is.SameAs(content.Find(
+                        "Exchange/Confirm/Awakening Icon").gameObject));
+                Assert.That(installer.ExchangeConfirmView.ConfirmButton,
+                    Is.SameAs(content.Find("Exchange/Confirm/OButton")
+                        .GetComponent<Button>()));
+                Assert.That(installer.ExchangeConfirmView.CancelButton,
+                    Is.SameAs(content.Find("Exchange/Confirm/XButton")
+                        .GetComponent<Button>()));
+                Assert.That(installer.ExchangeTransactionService, Is.Null);
+                Assert.That(installer.ExchangeView.IsOpen, Is.False);
+                Assert.That(installer.ExchangeView.HeroTokensText,
+                    Is.SameAs(content.Find("Exchange/Medal/MedalText")
+                        .GetComponent<TMP_Text>()));
+                Assert.That(installer.ExchangeView.RelicTokensText,
+                    Is.SameAs(content.Find(
+                        "Exchange/Artifact/ArtifactText")
+                        .GetComponent<TMP_Text>()));
+                Assert.That(installer.ExchangeView.GachaCurrencyText,
+                    Is.SameAs(content.Find("Exchange/Gold/GoldText")
+                        .GetComponent<TMP_Text>()));
                 GachaScreenView view = installer.View;
                 Assert.That(view.HeroTokensText, Is.SameAs(content.Find(
                     "Medal/MedalText").GetComponent<TMP_Text>()));
@@ -160,6 +210,12 @@ namespace ValorChronicle.Tests.EditMode
                     Is.SameAs(view.RelicTokensText));
                 Assert.That(installer.View.GachaCurrencyText,
                     Is.SameAs(view.GachaCurrencyText));
+                Assert.That(installer.ExchangeGridView,
+                    Is.SameAs(exchangeViewport.GetComponent<
+                        VirtualizedExchangeGridView>()));
+                Assert.That(installer.ExchangeController,
+                    Is.SameAs(content.GetComponent<
+                        ExchangeScreenController>()));
             }
             finally
             {

@@ -171,14 +171,15 @@ namespace ValorChronicle.Gacha.Presentation
             bool characterSingle,
             bool characterTen,
             bool relicSingle,
-            bool relicTen)
+            bool relicTen,
+            bool exchange = false)
         {
             SetInteractable(characterSingleButton, characterSingle);
             SetInteractable(characterTenButton, characterTen);
             SetInteractable(relicSingleButton, relicSingle);
             SetInteractable(relicTenButton, relicTen);
             SetInteractable(settingButton, false);
-            SetInteractable(exchangeButton, false);
+            SetInteractable(exchangeButton, exchange);
         }
 
         public void SetUnavailable()

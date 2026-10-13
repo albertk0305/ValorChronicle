@@ -20,6 +20,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
     {
         private readonly List<UnityEngine.Object> createdObjects =
             new List<UnityEngine.Object>();
+        private float previousTimeScale;
 
         [UnitySetUp]
         public IEnumerator EnterRuntimeMode()
@@ -33,18 +34,32 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             yield return new ExitPlayMode();
         }
 
+        [SetUp]
+        public void SetUp()
+        {
+            previousTimeScale = Time.timeScale;
+            Time.timeScale = 1f;
+        }
+
         [TearDown]
         public void TearDown()
         {
-            for (int index = createdObjects.Count - 1; index >= 0; index--)
+            try
             {
-                if (createdObjects[index] != null)
+                for (int index = createdObjects.Count - 1; index >= 0; index--)
                 {
-                    UnityEngine.Object.DestroyImmediate(createdObjects[index]);
+                    if (createdObjects[index] != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(
+                            createdObjects[index]);
+                    }
                 }
             }
-
-            createdObjects.Clear();
+            finally
+            {
+                createdObjects.Clear();
+                Time.timeScale = previousTimeScale;
+            }
         }
 
         [Test]

@@ -31,6 +31,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         private GameObject notUsersTurnPanel;
         private BattleBoardController boardController;
         private BattleFlowController flowController;
+        private float previousTimeScale;
 
         [UnitySetUp]
         public IEnumerator EnterRuntimeMode()
@@ -47,6 +48,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         [SetUp]
         public void SetUp()
         {
+            previousTimeScale = Time.timeScale;
+            Time.timeScale = 1f;
             root = new GameObject("BattleFlowControllerTests");
             root.SetActive(false);
             createdObjects.Add(root);
@@ -68,16 +71,22 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         [TearDown]
         public void TearDown()
         {
-            for (int index = createdObjects.Count - 1; index >= 0; index--)
+            try
             {
-                if (createdObjects[index] != null)
+                for (int index = createdObjects.Count - 1; index >= 0; index--)
                 {
-                    UnityEngine.Object.DestroyImmediate(
-                        createdObjects[index]);
+                    if (createdObjects[index] != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(
+                            createdObjects[index]);
+                    }
                 }
             }
-
-            createdObjects.Clear();
+            finally
+            {
+                createdObjects.Clear();
+                Time.timeScale = previousTimeScale;
+            }
         }
 
         [Test]

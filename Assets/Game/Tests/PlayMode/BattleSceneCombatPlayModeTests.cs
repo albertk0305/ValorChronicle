@@ -43,10 +43,13 @@ namespace ValorChronicle.Tests.PlayMode
         private MareaBluefangCombatConfig testMareaConfig;
         private KragmorCombatConfig testKragmorConfig;
         private string saveRoot;
+        private float previousTimeScale;
 
         [UnitySetUp]
         public IEnumerator LoadBattleScene()
         {
+            previousTimeScale = Time.timeScale;
+            Time.timeScale = 1f;
             InstallTestBootstrapper();
             yield return SceneManager.LoadSceneAsync(
                 "Battle",
@@ -89,6 +92,7 @@ namespace ValorChronicle.Tests.PlayMode
         [UnityTearDown]
         public IEnumerator UnloadBattleScene()
         {
+            Time.timeScale = previousTimeScale;
             Scene battleScene = SceneManager.GetSceneByName("Battle");
             if (battleScene.IsValid() && battleScene.isLoaded)
             {

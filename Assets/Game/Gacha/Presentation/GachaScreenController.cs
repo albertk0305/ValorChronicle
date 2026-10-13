@@ -6,6 +6,8 @@ using ValorChronicle.Core.Logging;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Exchange.Persistence;
+using ValorChronicle.Exchange.Presentation;
 using ValorChronicle.Gacha.Persistence;
 using ValorChronicle.Localization;
 using ValorChronicle.Relics.Acquisition;
@@ -75,6 +77,9 @@ namespace ValorChronicle.Gacha.Presentation
         private GachaInfoPanelPresenter infoPresenter;
         private GachaResultPresenter resultPresenter;
         private GachaPresentationController presentationController;
+        private ExchangeScreenController exchangeController;
+        private Func<SaveService, DefinitionDatabase,
+            ExchangeTransactionService> exchangeTransactionServiceFactory;
         private SaveService saveService;
         private DefinitionDatabase definitionDatabase;
         private GachaTransactionService transactionService;
@@ -93,7 +98,10 @@ namespace ValorChronicle.Gacha.Presentation
             && (infoPresenter == null || infoPresenter.IsConfigured)
             && (resultPresenter == null || resultPresenter.IsConfigured)
             && (presentationController == null
-                || presentationController.IsConfigured);
+                || presentationController.IsConfigured)
+            && (exchangeController == null
+                || (exchangeController.IsConfigured
+                    && exchangeTransactionServiceFactory != null));
         public bool IsTransactionInProgress => transactionInProgress;
         public bool IsIndividualPresentationReady =>
             individualPresentationReady;
@@ -148,7 +156,11 @@ namespace ValorChronicle.Gacha.Presentation
             GachaInfoPanelPresenter configuredInfoPresenter = null,
             GachaResultPresenter configuredResultPresenter = null,
             GachaPresentationController configuredPresentationController =
-                null)
+                null,
+            ExchangeScreenController configuredExchangeController = null,
+            Func<SaveService, DefinitionDatabase,
+                ExchangeTransactionService>
+                configuredExchangeTransactionServiceFactory = null)
         {
             Unsubscribe();
             presentationController?.Cancel();
@@ -158,6 +170,9 @@ namespace ValorChronicle.Gacha.Presentation
             infoPresenter = configuredInfoPresenter;
             resultPresenter = configuredResultPresenter;
             presentationController = configuredPresentationController;
+            exchangeController = configuredExchangeController;
+            exchangeTransactionServiceFactory =
+                configuredExchangeTransactionServiceFactory;
             view.SetUnavailable();
             if (isActiveAndEnabled)
             {
@@ -181,6 +196,7 @@ namespace ValorChronicle.Gacha.Presentation
             transactionService = null;
             resultResourcesReady = false;
             individualPresentationReady = false;
+            InitializeExchangeController();
             RefreshFromAuthoritativeProfile();
         }
 
@@ -207,6 +223,7 @@ namespace ValorChronicle.Gacha.Presentation
             resultResourcesReady = ValidateResultResources();
             individualPresentationReady = resultResourcesReady
                 && ValidateIndividualPresentationResources();
+            InitializeExchangeController();
             RefreshFromAuthoritativeProfile();
         }
 
@@ -259,6 +276,7 @@ namespace ValorChronicle.Gacha.Presentation
             resultResourcesReady = ValidateResultResources();
             individualPresentationReady = resultResourcesReady
                 && ValidateIndividualPresentationResources();
+            InitializeExchangeController();
             if (!resultResourcesReady)
             {
                 ShowFailure("gacha.error.initialization_failed");
@@ -397,6 +415,7 @@ namespace ValorChronicle.Gacha.Presentation
                 || infoPresenter?.IsOpen == true
                 || resultPresenter?.IsOpen == true
                 || presentationController?.IsPresenting == true
+                || exchangeController?.IsOpen == true
                 || (pullCount != 1
                     && pullCount != GachaCalculator.TenPullCount))
             {
@@ -579,7 +598,9 @@ namespace ValorChronicle.Gacha.Presentation
                 && currentDisplayData != null
                 && infoPresenter?.IsOpen != true
                 && resultPresenter?.IsOpen != true
-                && presentationController?.IsPresenting != true;
+                && presentationController?.IsPresenting != true
+                && exchangeController?.IsOpen != true;
+            infoPresenter?.SetEntryButtonsInteractable(available);
             view.SetPullButtonsInteractable(
                 available
                     && currentDisplayData.CharacterBanner.CanAffordSingle,
@@ -588,7 +609,10 @@ namespace ValorChronicle.Gacha.Presentation
                 available
                     && currentDisplayData.RelicBanner.CanAffordSingle,
                 available
-                    && currentDisplayData.RelicBanner.CanAffordTen);
+                    && currentDisplayData.RelicBanner.CanAffordTen,
+                available
+                    && exchangeController != null
+                    && exchangeController.IsReady);
         }
 
         private void ShowFailure(string localizationKey)
@@ -640,6 +664,16 @@ namespace ValorChronicle.Gacha.Presentation
                     HandlePresentationCancelled;
             }
 
+            if (exchangeController != null)
+            {
+                exchangeController.View.OpenRequested +=
+                    HandleExchangeOpenRequested;
+                exchangeController.Opened += HandleExchangeOpened;
+                exchangeController.Closed += HandleExchangeClosed;
+                exchangeController.AvailabilityChanged +=
+                    HandleExchangeAvailabilityChanged;
+            }
+
             subscribed = true;
         }
 
@@ -678,6 +712,16 @@ namespace ValorChronicle.Gacha.Presentation
                     HandlePresentationCancelled;
             }
 
+            if (exchangeController != null)
+            {
+                exchangeController.View.OpenRequested -=
+                    HandleExchangeOpenRequested;
+                exchangeController.Opened -= HandleExchangeOpened;
+                exchangeController.Closed -= HandleExchangeClosed;
+                exchangeController.AvailabilityChanged -=
+                    HandleExchangeAvailabilityChanged;
+            }
+
             subscribed = false;
         }
 
@@ -694,6 +738,82 @@ namespace ValorChronicle.Gacha.Presentation
             TryExecutePull(RelicGachaId, GachaCalculator.TenPullCount);
 
         private void HandleOverlayOpened()
+        {
+            ApplyButtonState();
+        }
+
+        private void HandleExchangeOpened()
+        {
+            ApplyButtonState();
+        }
+
+        private void HandleExchangeOpenRequested()
+        {
+            if (CanOpenExchange())
+                exchangeController.TryOpen();
+            ApplyButtonState();
+        }
+
+        private bool CanOpenExchange()
+        {
+            return exchangeController != null
+                && exchangeController.IsReady
+                && !exchangeController.IsOpen
+                && transactionService != null
+                && resultResourcesReady
+                && !transactionInProgress
+                && currentDisplayData != null
+                && infoPresenter?.IsOpen != true
+                && resultPresenter?.IsOpen != true
+                && presentationController?.IsPresenting != true;
+        }
+
+        private void InitializeExchangeController()
+        {
+            if (exchangeController == null)
+                return;
+
+            if (saveService == null
+                || definitionDatabase == null
+                || exchangeTransactionServiceFactory == null)
+            {
+                GameLogger.Error(
+                    "[GachaScreenController] Exchange dependencies are "
+                        + "not configured.",
+                    this);
+                return;
+            }
+
+            try
+            {
+                ExchangeTransactionService exchangeTransactionService =
+                    exchangeTransactionServiceFactory(
+                        saveService,
+                        definitionDatabase);
+                exchangeController.Initialize(
+                    saveService,
+                    definitionDatabase,
+                    exchangeTransactionService);
+            }
+            catch (Exception exception)
+            {
+                GameLogger.Exception(exception, this);
+                GameLogger.Error(
+                    "[GachaScreenController] Exchange initialization "
+                        + "failed.",
+                    this);
+            }
+        }
+
+        private void HandleExchangeClosed()
+        {
+            if (saveService != null && definitionDatabase != null)
+                RefreshFromAuthoritativeProfile();
+            else
+                ApplyButtonState();
+        }
+
+        private void HandleExchangeAvailabilityChanged()
         {
             ApplyButtonState();
         }

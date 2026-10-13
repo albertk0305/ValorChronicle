@@ -13,6 +13,9 @@ using UnityEngine.TestTools;
 using UnityEngine.UI;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Database;
+using ValorChronicle.Exchange;
+using ValorChronicle.Exchange.Persistence;
+using ValorChronicle.Exchange.Presentation;
 using ValorChronicle.Gacha.Persistence;
 using ValorChronicle.Gacha.Presentation;
 using ValorChronicle.Localization;
@@ -57,8 +60,508 @@ namespace ValorChronicle.Tests.EditMode
                 Assert.That(context.View.SettingButton.interactable,
                     Is.False);
                 Assert.That(context.View.ExchangeButton.interactable,
-                    Is.False);
+                    Is.True);
             });
+        }
+
+        [Test]
+        public void NewlyInitializedExchangeTryOpenDisplaysHeroSlots()
+        {
+            WithContext(2000L, context =>
+            {
+                Assert.That(context.Exchange.IsOpen, Is.False);
+
+                Assert.That(context.Exchange.TryOpen(), Is.True);
+
+                Assert.That(context.Exchange.IsOpen, Is.True);
+                Assert.That(context.Exchange.SelectedTab,
+                    Is.EqualTo(ExchangeTab.Hero));
+                Assert.That(context.Exchange.Grid.VisibleKind,
+                    Is.EqualTo(ExchangeContentKind.Character));
+                Assert.That(context.Exchange.Grid.ItemCount,
+                    Is.EqualTo(context.Exchange.CurrentCatalog
+                        .Characters.Count));
+                Assert.That(context.Exchange.Grid.BoundItemCount,
+                    Is.GreaterThan(0));
+                Assert.That(context.Exchange.Grid.PoolSlots.Any(slot =>
+                    slot.IsBound && slot.gameObject.activeSelf), Is.True);
+                Assert.That(context.Exchange.Grid.IsAtTop, Is.True);
+            });
+        }
+
+        [Test]
+        public void ExchangeOpensOnHeroTabSwitchesAndClosesWithoutSaving()
+        {
+            WithContext(2000L, context =>
+            {
+                ProfileSaveData initial = context.SaveService
+                    .GetCurrentProfileSnapshot();
+                int writesBefore = context.Repository.Count(
+                    nameof(FakeSaveRepository.WriteTemp));
+                int opened = 0;
+                int closed = 0;
+                context.Exchange.Opened += () => opened++;
+                context.Exchange.Closed += () => closed++;
+
+                context.View.ExchangeButton.onClick.Invoke();
+
+                Assert.That(context.Exchange.IsOpen, Is.True);
+                Assert.That(context.Exchange.SelectedTab,
+                    Is.EqualTo(ExchangeTab.Hero));
+                Assert.That(context.Exchange.Grid.VisibleKind,
+                    Is.EqualTo(ExchangeContentKind.Character));
+                Assert.That(context.Exchange.Grid.ItemCount,
+                    Is.EqualTo(context.Exchange.CurrentCatalog
+                        .Characters.Count));
+                Assert.That(context.Exchange.Grid.BoundItemCount,
+                    Is.GreaterThan(0));
+                Assert.That(context.Exchange.Grid.PoolSlots.Count(slot =>
+                    slot.IsBound && slot.gameObject.activeSelf),
+                    Is.EqualTo(context.Exchange.Grid.BoundItemCount));
+                Assert.That(context.Exchange.Grid.IsAtTop, Is.True);
+                Assert.That(context.Exchange.View.ConfirmRoot.activeSelf,
+                    Is.False);
+                Assert.That(context.Exchange.View.HeroTokensText.text,
+                    Is.EqualTo(initial.Currencies.HeroTokens.ToString(
+                        CultureInfo.InvariantCulture)));
+                Assert.That(context.Exchange.View.RelicTokensText.text,
+                    Is.EqualTo(initial.Currencies.RelicTokens.ToString(
+                        CultureInfo.InvariantCulture)));
+                Assert.That(context.Exchange.View.GachaCurrencyText.text,
+                    Is.EqualTo("2000"));
+                AssertAllPullButtons(context.View, false);
+                Assert.That(context.View.ExchangeButton.interactable,
+                    Is.False);
+                Button infoButton = context.Content.Find(
+                    "HeroesPickup/InfoButton").GetComponent<Button>();
+                Assert.That(infoButton.interactable, Is.False);
+                infoButton.onClick.Invoke();
+                Assert.That(context.View.InfoPanel.activeSelf, Is.False);
+                context.View.CharacterSingleButton.onClick.Invoke();
+                Assert.That(context.Repository.Count(
+                    nameof(FakeSaveRepository.WriteTemp)),
+                    Is.EqualTo(writesBefore));
+                int selections = 0;
+                context.Exchange.SelectionRequested += (_, __) =>
+                    selections++;
+                ExchangeSlotView selectable = context.Exchange.Grid
+                    .PoolSlots.First(slot => slot.IsBound
+                        && slot.Button.interactable);
+                Assert.That(context.Exchange.TrySelect(
+                    selectable.ContentKind,
+                    selectable.ContentId), Is.True);
+                Assert.That(selections, Is.EqualTo(1));
+                Assert.That(context.Exchange.View.ConfirmRoot.activeSelf,
+                    Is.True);
+                Assert.That(context.Exchange.Grid.IsInteractionEnabled,
+                    Is.False);
+                Assert.That(context.Exchange.View.HeroButton.interactable,
+                    Is.False);
+                Assert.That(context.Exchange.View.ExitButton.interactable,
+                    Is.False);
+                Assert.That(context.Repository.Count(
+                    nameof(FakeSaveRepository.WriteTemp)),
+                    Is.EqualTo(writesBefore));
+
+                context.Exchange.ConfirmView.CancelButton.onClick.Invoke();
+                Assert.That(context.Exchange.View.ConfirmRoot.activeSelf,
+                    Is.False);
+                Assert.That(context.Exchange.Grid.IsInteractionEnabled,
+                    Is.True);
+                Assert.That(context.Exchange.SelectedTab,
+                    Is.EqualTo(ExchangeTab.Hero));
+
+                ExchangeCatalogData heroCatalog =
+                    context.Exchange.CurrentCatalog;
+                int heroBoundCount = context.Exchange.Grid.BoundItemCount;
+                context.Exchange.View.HeroButton.onClick.Invoke();
+                Assert.That(context.Exchange.CurrentCatalog,
+                    Is.SameAs(heroCatalog));
+                Assert.That(context.Exchange.Grid.BoundItemCount,
+                    Is.EqualTo(heroBoundCount));
+
+                context.Exchange.View.ArtifactButton.onClick.Invoke();
+                Assert.That(context.Exchange.SelectedTab,
+                    Is.EqualTo(ExchangeTab.Artifact));
+                Assert.That(context.Exchange.Grid.VisibleKind,
+                    Is.EqualTo(ExchangeContentKind.Relic));
+                Assert.That(context.Exchange.Grid.IsAtTop, Is.True);
+                ExchangeCatalogData catalog =
+                    context.Exchange.CurrentCatalog;
+                context.Exchange.View.ArtifactButton.onClick.Invoke();
+                Assert.That(context.Exchange.CurrentCatalog,
+                    Is.SameAs(catalog));
+
+                context.Exchange.View.HeroButton.onClick.Invoke();
+                Assert.That(context.Exchange.SelectedTab,
+                    Is.EqualTo(ExchangeTab.Hero));
+                Assert.That(context.Exchange.Grid.VisibleKind,
+                    Is.EqualTo(ExchangeContentKind.Character));
+                Assert.That(context.Exchange.Grid.BoundItemCount,
+                    Is.GreaterThan(0));
+
+                context.Exchange.View.ExitButton.onClick.Invoke();
+                Assert.That(context.Exchange.IsOpen, Is.False);
+                Assert.That(context.Exchange.HasSelectedTab, Is.False);
+                Assert.That(context.View.ExchangeButton.interactable,
+                    Is.True);
+                Assert.That(context.Repository.Count(
+                    nameof(FakeSaveRepository.WriteTemp)),
+                    Is.EqualTo(writesBefore));
+
+                context.View.ExchangeButton.onClick.Invoke();
+                Assert.That(context.Exchange.SelectedTab,
+                    Is.EqualTo(ExchangeTab.Hero));
+                Assert.That(context.Exchange.Grid.IsAtTop, Is.True);
+                Assert.That(context.Exchange.Grid.VisibleKind,
+                    Is.EqualTo(ExchangeContentKind.Character));
+                Assert.That(context.Exchange.Grid.BoundItemCount,
+                    Is.GreaterThan(0));
+                Assert.That(opened, Is.EqualTo(2));
+                Assert.That(closed, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void ExchangeReentryUsesLatestProfileSnapshot()
+        {
+            WithContext(2000L, context =>
+            {
+                context.View.ExchangeButton.onClick.Invoke();
+                string characterId = context.Exchange.CurrentCatalog
+                    .Characters.First().CharacterId;
+                context.Exchange.View.ExitButton.onClick.Invoke();
+                var result = context.SaveService.ExecuteTransaction(
+                    profile =>
+                    {
+                        profile.Currencies.HeroTokens = 601;
+                        profile.Currencies.RelicTokens = 252;
+                        profile.Currencies.GachaCurrency = 3456;
+                        CharacterSaveData character = profile.Characters
+                            .FirstOrDefault(item =>
+                                item.CharacterId == characterId);
+                        if (character == null)
+                        {
+                            character = new CharacterSaveData
+                            {
+                                CharacterId = characterId,
+                                Level = 1
+                            };
+                            profile.Characters.Add(character);
+                        }
+
+                        character.Awakening = 4;
+                    });
+                Assert.That(result.IsSuccess, Is.True, result.Message);
+
+                context.View.ExchangeButton.onClick.Invoke();
+
+                Assert.That(context.Exchange.View.HeroTokensText.text,
+                    Is.EqualTo("601"));
+                Assert.That(context.Exchange.View.RelicTokensText.text,
+                    Is.EqualTo("252"));
+                Assert.That(context.Exchange.View.GachaCurrencyText.text,
+                    Is.EqualTo("3456"));
+                Assert.That(context.Exchange.SelectedTab,
+                    Is.EqualTo(ExchangeTab.Hero));
+                Assert.That(context.Exchange.Grid.VisibleKind,
+                    Is.EqualTo(ExchangeContentKind.Character));
+                Assert.That(context.Exchange.Grid.BoundItemCount,
+                    Is.GreaterThan(0));
+                CharacterExchangeListItem refreshed = context.Exchange
+                    .CurrentCatalog.Characters.Single(item =>
+                        item.CharacterId == characterId);
+                Assert.That(refreshed.IsOwned, Is.True);
+                Assert.That(refreshed.CurrentAwakening, Is.EqualTo(4));
+                ExchangeSlotView refreshedSlot = context.Exchange.Grid
+                    .PoolSlots.Single(slot =>
+                        slot.IsBound && slot.ContentId == characterId);
+                Assert.That(refreshedSlot.AwakeningText.text,
+                    Is.EqualTo("4 / 6"));
+            });
+        }
+
+        [Test]
+        public void CharacterExchangeConfirmsOnceRefreshesAndKeepsPity()
+        {
+            WithContext(
+                2000L,
+                context =>
+                {
+                    context.View.ExchangeButton.onClick.Invoke();
+                    CharacterExchangeListItem selected = context.Exchange
+                        .CurrentCatalog.Characters.First(item =>
+                            !item.IsMaximumAwakening);
+                    ProfileSaveData before = context.SaveService
+                        .GetCurrentProfileSnapshot();
+                    string pityBefore = PitySignature(before);
+                    int expectedAwakening = selected.IsOwned
+                        ? selected.CurrentAwakening + 1
+                        : 0;
+                    float scrollBefore = context.Exchange.Grid.ScrollOffset;
+
+                    Assert.That(context.Exchange.TrySelect(
+                        ExchangeContentKind.Character,
+                        selected.CharacterId), Is.True);
+                    Assert.That(context.Exchange.IsConfirmOpen, Is.True);
+                    context.Exchange.ConfirmView.ConfirmButton.onClick
+                        .Invoke();
+                    context.Exchange.ConfirmView.ConfirmButton.onClick
+                        .Invoke();
+
+                    ProfileSaveData after = context.SaveService
+                        .GetCurrentProfileSnapshot();
+                    CharacterSaveData awarded = after.Characters.Single(
+                        item => item.CharacterId == selected.CharacterId);
+                    Assert.That(awarded.Awakening,
+                        Is.EqualTo(expectedAwakening));
+                    Assert.That(after.Currencies.HeroTokens, Is.Zero);
+                    Assert.That(PitySignature(after), Is.EqualTo(pityBefore));
+                    Assert.That(context.Repository.Count(
+                        nameof(FakeSaveRepository.WriteTemp)), Is.EqualTo(1));
+                    Assert.That(context.Exchange.IsOpen, Is.True);
+                    Assert.That(context.Exchange.IsConfirmOpen, Is.False);
+                    Assert.That(context.Exchange.SelectedTab,
+                        Is.EqualTo(ExchangeTab.Hero));
+                    Assert.That(context.Exchange.Grid.ScrollOffset,
+                        Is.EqualTo(scrollBefore).Within(0.01f));
+                    Assert.That(context.Exchange.View.HeroTokensText.text,
+                        Is.EqualTo("0"));
+                },
+                profile => profile.Currencies.HeroTokens = 60L);
+        }
+
+        [Test]
+        public void RelicExchangeConfirmsOnceAndRefreshesCurrentTab()
+        {
+            WithContext(
+                2000L,
+                context =>
+                {
+                    context.View.ExchangeButton.onClick.Invoke();
+                    Assert.That(context.Exchange.SelectTab(
+                        ExchangeTab.Artifact), Is.True);
+                    RelicExchangeListItem selected = context.Exchange
+                        .CurrentCatalog.Relics.First();
+                    ProfileSaveData before = context.SaveService
+                        .GetCurrentProfileSnapshot();
+                    int countBefore = before.RelicInstances.Count(item =>
+                        item.RelicDefinitionId == selected.RelicId);
+
+                    Assert.That(context.Exchange.TrySelect(
+                        ExchangeContentKind.Relic,
+                        selected.RelicId), Is.True);
+                    context.Exchange.ConfirmView.ConfirmButton.onClick
+                        .Invoke();
+
+                    ProfileSaveData after = context.SaveService
+                        .GetCurrentProfileSnapshot();
+                    Assert.That(after.Currencies.RelicTokens, Is.Zero);
+                    if (selected.WillCreateNewInstance)
+                    {
+                        Assert.That(after.RelicInstances.Count(item =>
+                            item.RelicDefinitionId == selected.RelicId),
+                            Is.EqualTo(countBefore + 1));
+                        Assert.That(after.RelicInstances.Any(item =>
+                            item.RelicDefinitionId == selected.RelicId
+                            && item.Awakening == 0), Is.True);
+                    }
+                    else
+                    {
+                        RelicInstanceSaveData target = after.RelicInstances
+                            .Single(item => item.InstanceId
+                                == selected.AwakeningTargetInstanceId);
+                        Assert.That(target.Awakening,
+                            Is.EqualTo(selected.TargetAwakening + 1));
+                    }
+                    Assert.That(context.Repository.Count(
+                        nameof(FakeSaveRepository.WriteTemp)), Is.EqualTo(1));
+                    Assert.That(context.Exchange.IsOpen, Is.True);
+                    Assert.That(context.Exchange.IsConfirmOpen, Is.False);
+                    Assert.That(context.Exchange.SelectedTab,
+                        Is.EqualTo(ExchangeTab.Artifact));
+                    Assert.That(context.Exchange.View.RelicTokensText.text,
+                        Is.EqualTo("0"));
+                },
+                profile => profile.Currencies.RelicTokens = 25L);
+        }
+
+        [Test]
+        public void InsufficientCurrencyOpensConfirmButCannotExecute()
+        {
+            WithContext(
+                2000L,
+                context =>
+                {
+                    context.View.ExchangeButton.onClick.Invoke();
+                    CharacterExchangeListItem selected = context.Exchange
+                        .CurrentCatalog.Characters.First(item =>
+                            !item.IsMaximumAwakening);
+
+                    Assert.That(context.Exchange.TrySelect(
+                        ExchangeContentKind.Character,
+                        selected.CharacterId), Is.True);
+                    Assert.That(context.Exchange.IsConfirmOpen, Is.True);
+                    Assert.That(context.Exchange.ConfirmView.ConfirmButton
+                        .interactable, Is.False);
+                    Assert.That(context.Exchange.TryExecuteSelected(),
+                        Is.False);
+                    Assert.That(context.Repository.Count(
+                        nameof(FakeSaveRepository.WriteTemp)), Is.Zero);
+                    Assert.That(context.Exchange.IsConfirmOpen, Is.True);
+                },
+                profile => profile.Currencies.HeroTokens = 0L);
+        }
+
+        [Test]
+        public void PersistenceFailureKeepsConfirmAndAllowsExplicitRetry()
+        {
+            WithContext(
+                2000L,
+                context =>
+                {
+                    context.View.ExchangeButton.onClick.Invoke();
+                    CharacterExchangeListItem selected = context.Exchange
+                        .CurrentCatalog.Characters.First(item =>
+                            !item.IsMaximumAwakening);
+                    Assert.That(context.Exchange.TrySelect(
+                        ExchangeContentKind.Character,
+                        selected.CharacterId), Is.True);
+                    context.Repository.FailWriteTemp = true;
+                    LogAssert.Expect(
+                        LogType.Exception,
+                        new Regex(
+                            "InvalidOperationException: Injected temp "
+                                + "write failure\\."));
+                    LogAssert.Expect(
+                        LogType.Error,
+                        new Regex(
+                            "Exchange transaction failed\\. Status="
+                                + "PersistenceFailed"));
+
+                    context.Exchange.ConfirmView.ConfirmButton.onClick
+                        .Invoke();
+
+                    Assert.That(context.Exchange.IsConfirmOpen, Is.True);
+                    Assert.That(context.Exchange.IsTransactionInProgress,
+                        Is.False);
+                    Assert.That(context.SaveService
+                        .GetCurrentProfileSnapshot()
+                        .Currencies.HeroTokens, Is.EqualTo(60L));
+                    Assert.That(context.Installer.InfoPresenter.IsOpen,
+                        Is.True);
+
+                    context.Repository.FailWriteTemp = false;
+                    context.Content.Find("InfoPanel/ExitButton")
+                        .GetComponent<Button>().onClick.Invoke();
+                    Assert.That(context.Exchange.TryExecuteSelected(),
+                        Is.True);
+                    Assert.That(context.Exchange.IsConfirmOpen, Is.False);
+                    Assert.That(context.SaveService
+                        .GetCurrentProfileSnapshot()
+                        .Currencies.HeroTokens, Is.Zero);
+                },
+                profile => profile.Currencies.HeroTokens = 60L);
+        }
+
+        [Test]
+        public void PersistedStateMismatchBlocksAllFurtherExchangeRequests()
+        {
+            WithContext(
+                2000L,
+                context =>
+                {
+                    context.View.ExchangeButton.onClick.Invoke();
+                    CharacterExchangeListItem selected = context.Exchange
+                        .CurrentCatalog.Characters.First(item =>
+                            !item.IsMaximumAwakening);
+                    var executor = new PersistedMismatchExecutor(
+                        context.Installer.ExchangeTransactionService);
+                    SetPrivateField(
+                        context.Exchange,
+                        "transactionService",
+                        executor);
+                    Assert.That(context.Exchange.TrySelect(
+                        ExchangeContentKind.Character,
+                        selected.CharacterId), Is.True);
+                    LogAssert.Expect(
+                        LogType.Error,
+                        new Regex(
+                            "Exchange transaction failed\\. Status="
+                                + "PersistedStateMismatch"));
+
+                    context.Exchange.ConfirmView.ConfirmButton.onClick
+                        .Invoke();
+
+                    Assert.That(executor.CallCount, Is.EqualTo(1));
+                    Assert.That(context.Exchange.IsConfirmOpen, Is.False);
+                    Assert.That(context.Exchange.IsReady, Is.False);
+                    Assert.That(context.Exchange.Grid.IsInteractionEnabled,
+                        Is.False);
+                    Assert.That(context.Exchange.View.ExitButton.interactable,
+                        Is.True);
+                    Assert.That(context.Installer.InfoPresenter.IsOpen,
+                        Is.True);
+                    Assert.That(context.Exchange.TryExecuteSelected(),
+                        Is.False);
+                    Assert.That(context.Exchange.TrySelect(
+                        ExchangeContentKind.Character,
+                        selected.CharacterId), Is.False);
+                    Assert.That(executor.CallCount, Is.EqualTo(1));
+                    Assert.That(context.Repository.Count(
+                        nameof(FakeSaveRepository.WriteTemp)), Is.EqualTo(1));
+                    AssertReloadedCharacterExchange(
+                        context,
+                        selected.CharacterId);
+                },
+                profile => profile.Currencies.HeroTokens = 60L);
+        }
+
+        [Test]
+        public void SavedExchangeWithRefreshFailureCannotExecuteAgain()
+        {
+            WithContext(
+                2000L,
+                context =>
+                {
+                    context.View.ExchangeButton.onClick.Invoke();
+                    CharacterExchangeListItem selected = context.Exchange
+                        .CurrentCatalog.Characters.First(item =>
+                            !item.IsMaximumAwakening);
+                    Assert.That(context.Exchange.TrySelect(
+                        ExchangeContentKind.Character,
+                        selected.CharacterId), Is.True);
+                    SetPrivateField(context.Exchange, "spriteResolver", null);
+                    LogAssert.Expect(
+                        LogType.Exception,
+                        new Regex("ArgumentNullException"));
+                    LogAssert.Expect(
+                        LogType.Error,
+                        new Regex(
+                            "Exchange data could not be displayed"));
+                    LogAssert.Expect(
+                        LogType.Error,
+                        new Regex(
+                            "Exchange was saved, but the refreshed UI "
+                                + "could not be displayed"));
+
+                    context.Exchange.ConfirmView.ConfirmButton.onClick
+                        .Invoke();
+
+                    Assert.That(context.Exchange.IsOpen, Is.False);
+                    Assert.That(context.Exchange.IsReady, Is.False);
+                    Assert.That(context.Exchange.IsConfirmOpen, Is.False);
+                    Assert.That(context.Installer.InfoPresenter.IsOpen,
+                        Is.True);
+                    Assert.That(context.Exchange.TryExecuteSelected(),
+                        Is.False);
+                    Assert.That(context.Repository.Count(
+                        nameof(FakeSaveRepository.WriteTemp)), Is.EqualTo(1));
+                    AssertReloadedCharacterExchange(
+                        context,
+                        selected.CharacterId);
+                },
+                profile => profile.Currencies.HeroTokens = 60L);
         }
 
         [Test]
@@ -128,6 +631,10 @@ namespace ValorChronicle.Tests.EditMode
                 context.Content.Find("HeroesPickup/InfoButton")
                     .GetComponent<Button>().onClick.Invoke();
                 AssertAllPullButtons(context.View, false);
+                Assert.That(context.View.ExchangeButton.interactable,
+                    Is.False);
+                context.View.ExchangeButton.onClick.Invoke();
+                Assert.That(context.Exchange.IsOpen, Is.False);
                 int writesBefore = context.Repository.Count(
                     nameof(FakeSaveRepository.WriteTemp));
                 context.View.CharacterSingleButton.onClick.Invoke();
@@ -441,7 +948,35 @@ namespace ValorChronicle.Tests.EditMode
             field.SetValue(target, value);
         }
 
-        private static void WithContext(long gold, Action<Context> body)
+        private static string PitySignature(ProfileSaveData profile)
+        {
+            return string.Join(
+                "|",
+                profile.GachaStates.Select(state =>
+                    state.GachaId + ":" + state.PityCount + ":"
+                        + state.TotalPullCount));
+        }
+
+        private static void AssertReloadedCharacterExchange(
+            Context context,
+            string characterId)
+        {
+            SaveService reloaded = SaveServiceTestFactory.Create(
+                context.Repository,
+                new FixedUnixTimeProvider(500L));
+            SaveLoadResult load = reloaded.LoadOrCreate("ignored");
+            Assert.That(load.CanUseProfile, Is.True, load.Message);
+            ProfileSaveData profile = reloaded
+                .GetCurrentProfileSnapshot();
+            Assert.That(profile.Currencies.HeroTokens, Is.Zero);
+            Assert.That(profile.Characters.Any(item =>
+                item.CharacterId == characterId), Is.True);
+        }
+
+        private static void WithContext(
+            long gold,
+            Action<Context> body,
+            Action<ProfileSaveData> configureProfile = null)
         {
             SceneSetup[] previous = EditorSceneManager.GetSceneManagerSetup();
             try
@@ -465,6 +1000,7 @@ namespace ValorChronicle.Tests.EditMode
                     .CreateService();
                 ProfileSaveData profile = SaveTestDataBuilder.Valid();
                 profile.Currencies.GachaCurrency = gold;
+                configureProfile?.Invoke(profile);
                 var repository = new FakeSaveRepository
                 {
                     MainText = SaveTestDataBuilder.Json(profile)
@@ -539,6 +1075,8 @@ namespace ValorChronicle.Tests.EditMode
                 Installer.PresentationController;
             public GachaResultView ResultView =>
                 Installer.ResultPresenter.View;
+            public ExchangeScreenController Exchange =>
+                Installer.ExchangeController;
             public DefinitionDatabase Database { get; }
             public LocalizationService Localization { get; }
             public FakeSaveRepository Repository { get; }
@@ -552,6 +1090,46 @@ namespace ValorChronicle.Tests.EditMode
                 minInclusive;
 
             public float NextFloat() => 0f;
+        }
+
+        private sealed class PersistedMismatchExecutor
+            : IExchangeTransactionExecutor
+        {
+            private readonly IExchangeTransactionExecutor inner;
+
+            public PersistedMismatchExecutor(
+                IExchangeTransactionExecutor inner)
+            {
+                this.inner = inner;
+            }
+
+            public int CallCount { get; private set; }
+
+            public ExchangeTransactionOperationResult Execute(
+                ExchangeTransactionRequest request)
+            {
+                CallCount++;
+                ExchangeTransactionOperationResult persisted =
+                    inner.Execute(request);
+                Assert.That(
+                    persisted.IsSuccess,
+                    Is.True,
+                    persisted.Message);
+                ConstructorInfo constructor = typeof(
+                        ExchangeTransactionOperationResult)
+                    .GetConstructors(
+                        BindingFlags.Instance | BindingFlags.NonPublic)
+                    .Single();
+                return (ExchangeTransactionOperationResult)
+                    constructor.Invoke(new object[]
+                    {
+                        ExchangeTransactionStatus.PersistedStateMismatch,
+                        null,
+                        persisted.SaveTransactionResult,
+                        null,
+                        "Injected persisted state mismatch."
+                    });
+            }
         }
 
         private sealed class SequentialRelicIdProvider

@@ -46,45 +46,18 @@ namespace ValorChronicle.Relics.Acquisition
                 return false;
             }
 
-            var instanceIds = new HashSet<string>(
-                StringComparer.Ordinal);
-            RelicInstanceSaveData awakeningTarget = null;
-            bool hasMatchingDefinition = false;
-            for (int index = 0;
-                index < profile.RelicInstances.Count;
-                index++)
+            if (!RelicAcquisitionTargetResolver.TryResolve(
+                    profile.RelicInstances,
+                    relicDefinitionId,
+                    out RelicAcquisitionTarget target))
             {
-                RelicInstanceSaveData relic =
-                    profile.RelicInstances[index];
-                if (!IsStructurallyUsable(relic)
-                    || !instanceIds.Add(relic.InstanceId))
-                {
-                    return false;
-                }
-
-                if (!string.Equals(
-                        relic.RelicDefinitionId,
-                        relicDefinitionId,
-                        StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                hasMatchingDefinition = true;
-                if (relic.Awakening >= SaveRules.RelicMaxAwakening)
-                {
-                    continue;
-                }
-
-                if (awakeningTarget == null
-                    || relic.Awakening > awakeningTarget.Awakening)
-                {
-                    awakeningTarget = relic;
-                }
+                return false;
             }
 
-            if (awakeningTarget != null)
+            if (target.CanIncreaseAwakening)
             {
+                RelicInstanceSaveData awakeningTarget =
+                    profile.RelicInstances[target.AwakeningTargetIndex];
                 int previousAwakening = awakeningTarget.Awakening;
                 awakeningTarget.Awakening = checked(
                     previousAwakening + 1);
@@ -95,6 +68,12 @@ namespace ValorChronicle.Relics.Acquisition
                     previousAwakening,
                     awakeningTarget.Awakening);
                 return true;
+            }
+
+            var instanceIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < profile.RelicInstances.Count; index++)
+            {
+                instanceIds.Add(profile.RelicInstances[index].InstanceId);
             }
 
             if (!TryCreateUniqueInstanceId(
@@ -118,7 +97,7 @@ namespace ValorChronicle.Relics.Acquisition
                 IsNew = true
             });
             result = new RelicAcquisitionResult(
-                hasMatchingDefinition
+                target.HasMatchingInstance
                     ? RelicAcquisitionKind
                         .NewInstanceCreatedAfterMaxAwakening
                     : RelicAcquisitionKind.NewInstanceCreated,
@@ -151,15 +130,5 @@ namespace ValorChronicle.Relics.Acquisition
             return false;
         }
 
-        private static bool IsStructurallyUsable(
-            RelicInstanceSaveData relic)
-        {
-            return relic != null
-                && !string.IsNullOrWhiteSpace(relic.InstanceId)
-                && !string.IsNullOrWhiteSpace(
-                    relic.RelicDefinitionId)
-                && relic.Awakening >= SaveRules.RelicMinAwakening
-                && relic.Awakening <= SaveRules.RelicMaxAwakening;
-        }
     }
 }

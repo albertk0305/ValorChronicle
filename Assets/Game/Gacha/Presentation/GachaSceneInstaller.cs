@@ -3,7 +3,12 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using ValorChronicle.Core.Logging;
+using ValorChronicle.Data.Database;
+using ValorChronicle.Exchange.Persistence;
+using ValorChronicle.Exchange.Presentation;
 using ValorChronicle.Party.Presentation;
+using ValorChronicle.Relics.Acquisition;
+using ValorChronicle.Save.Services;
 
 namespace ValorChronicle.Gacha.Presentation
 {
@@ -47,6 +52,29 @@ namespace ValorChronicle.Gacha.Presentation
             get;
             private set;
         }
+        public VirtualizedExchangeGridView ExchangeGridView
+        {
+            get;
+            private set;
+        }
+        public ExchangeScreenView ExchangeView { get; private set; }
+        public ExchangeConfirmView ExchangeConfirmView
+        {
+            get;
+            private set;
+        }
+        public ExchangeScreenController ExchangeController
+        {
+            get;
+            private set;
+        }
+        public ExchangeTransactionService ExchangeTransactionService
+        {
+            get;
+            private set;
+        }
+        private SaveService exchangeTransactionSaveService;
+        private DefinitionDatabase exchangeTransactionDatabase;
         public bool IsConfigured =>
             View != null
             && View.IsConfigured
@@ -56,6 +84,14 @@ namespace ValorChronicle.Gacha.Presentation
             && ResultPresenter.IsConfigured
             && PresentationController != null
             && PresentationController.IsConfigured
+            && ExchangeGridView != null
+            && ExchangeGridView.IsConfigured
+            && ExchangeView != null
+            && ExchangeView.IsConfigured
+            && ExchangeConfirmView != null
+            && ExchangeConfirmView.IsConfigured
+            && ExchangeController != null
+            && ExchangeController.IsConfigured
             && Controller != null
             && Controller.IsConfigured;
 
@@ -135,12 +171,142 @@ namespace ValorChronicle.Gacha.Presentation
             ResultPresenter = InstallResultPresentation();
             PresentationController = InstallIndividualPresentation(
                 ResultPresenter);
+            ExchangeGridView = ExchangeGridRuntimeInstaller.Install(
+                RequireTransform(transform, "Exchange"));
+            InstallExchangeScreen();
             Controller = GetOrAdd<GachaScreenController>(gameObject);
             Controller.Configure(
                 View,
                 InfoPresenter,
                 ResultPresenter,
-                PresentationController);
+                PresentationController,
+                ExchangeController,
+                GetOrCreateExchangeTransactionService);
+        }
+
+        public ExchangeSpriteResolver CreateExchangeSpriteResolver(
+            DefinitionDatabase database)
+        {
+            return new ExchangeSpriteResolver(
+                RequireReference(
+                    characterPresentationCatalog,
+                    nameof(characterPresentationCatalog)),
+                database,
+                heroTokenSprite,
+                relicTokenSprite);
+        }
+
+        private void InstallExchangeScreen()
+        {
+            RectTransform exchangeRoot = RequireTransform(
+                transform,
+                "Exchange");
+            RequireComponent<Image>(RequireTransform(
+                exchangeRoot,
+                "Background")).raycastTarget = true;
+            ExchangeView = GetOrAdd<ExchangeScreenView>(gameObject);
+            ExchangeView.Configure(
+                View.ExchangeButton,
+                RequireComponent<Button>(RequireTransform(
+                    exchangeRoot,
+                    "ExitButton")),
+                RequireComponent<Button>(RequireTransform(
+                    exchangeRoot,
+                    "HeroButton")),
+                RequireComponent<Button>(RequireTransform(
+                    exchangeRoot,
+                    "ArtifactButton")),
+                exchangeRoot.gameObject,
+                RequireTransform(exchangeRoot, "Confirm").gameObject,
+                RequireComponent<TMP_Text>(RequireTransform(
+                    exchangeRoot,
+                    "Medal/MedalText")),
+                RequireComponent<TMP_Text>(RequireTransform(
+                    exchangeRoot,
+                    "Artifact/ArtifactText")),
+                RequireComponent<TMP_Text>(RequireTransform(
+                    exchangeRoot,
+                    "Gold/GoldText")),
+                GetOrAdd<CanvasGroup>(exchangeRoot.gameObject));
+
+            RectTransform confirmRoot = RequireTransform(
+                exchangeRoot,
+                "Confirm");
+            RequireComponent<Image>(RequireTransform(
+                confirmRoot,
+                "BackgroundPanel")).raycastTarget = true;
+            RequireComponent<Image>(RequireTransform(
+                confirmRoot,
+                "Background")).raycastTarget = true;
+            ExchangeConfirmView = GetOrAdd<ExchangeConfirmView>(gameObject);
+            ExchangeConfirmView.Configure(
+                confirmRoot.gameObject,
+                RequireComponent<Image>(RequireTransform(
+                    confirmRoot,
+                    "Image")),
+                RequireTransform(
+                    confirmRoot,
+                    "Awakening Icon").gameObject,
+                RequireComponent<TMP_Text>(RequireTransform(
+                    confirmRoot,
+                    "AwakeningText")),
+                RequireComponent<Image>(RequireTransform(
+                    confirmRoot,
+                    "PriceIcon")),
+                RequireComponent<TMP_Text>(RequireTransform(
+                    confirmRoot,
+                    "PriceText")),
+                RequireComponent<Button>(RequireTransform(
+                    confirmRoot,
+                    "OButton")),
+                RequireComponent<Button>(RequireTransform(
+                    confirmRoot,
+                    "XButton")),
+                GetOrAdd<CanvasGroup>(confirmRoot.gameObject));
+
+            ExchangeController = GetOrAdd<ExchangeScreenController>(
+                gameObject);
+            ExchangeController.Configure(
+                ExchangeView,
+                ExchangeGridView,
+                ExchangeConfirmView,
+                CreateExchangeSpriteResolver,
+                ShowExchangeFeedback);
+        }
+
+        private ExchangeTransactionService
+            GetOrCreateExchangeTransactionService(
+                SaveService saveService,
+                DefinitionDatabase database)
+        {
+            if (ExchangeTransactionService != null
+                && ReferenceEquals(
+                    exchangeTransactionSaveService,
+                    saveService)
+                && ReferenceEquals(exchangeTransactionDatabase, database))
+            {
+                return ExchangeTransactionService;
+            }
+
+            ExchangeTransactionService = new ExchangeTransactionService(
+                saveService,
+                database,
+                new GuidRelicInstanceIdProvider());
+            exchangeTransactionSaveService = saveService;
+            exchangeTransactionDatabase = database;
+            return ExchangeTransactionService;
+        }
+
+        private void ShowExchangeFeedback(string message)
+        {
+            if (InfoPresenter == null
+                || !InfoPresenter.ShowMessage(message))
+            {
+                GameLogger.Error(
+                    "[GachaSceneInstaller] Exchange feedback could not "
+                        + "be displayed: " + message,
+                    this);
+            }
         }
 
         private GachaPresentationController InstallIndividualPresentation(

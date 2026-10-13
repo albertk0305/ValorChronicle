@@ -312,6 +312,9 @@ namespace ValorChronicle.Tests.EditMode
                 "relic_victors_broken_sword");
             RelicDefinition secondRelic = CreateDefinition<RelicDefinition>(
                 "relic_world_tree_bark");
+            ExchangeCatalogDefinition exchangeCatalog = ScriptableObject
+                .CreateInstance<ExchangeCatalogDefinition>();
+            createdObjects.Add(exchangeCatalog);
 
             SetObjectArray(
                 database,
@@ -322,6 +325,7 @@ namespace ValorChronicle.Tests.EditMode
                 "relics",
                 new[] { firstRelic, secondRelic });
             SetObjectArray(database, "gachas", gachas);
+            SetValue(database, "exchangeCatalog", exchangeCatalog);
             return database;
         }
 
