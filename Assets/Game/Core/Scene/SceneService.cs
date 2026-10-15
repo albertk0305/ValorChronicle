@@ -9,6 +9,8 @@ namespace ValorChronicle.Core.Scene
     {
         private bool isLoading;
 
+        public event Action<bool> LoadingStateChanged;
+
         public bool IsLoading => isLoading;
 
         public async Task<bool> LoadAsync(GameScene scene)
@@ -25,6 +27,7 @@ namespace ValorChronicle.Core.Scene
 
             try
             {
+                LoadingStateChanged?.Invoke(true);
                 string sceneName = GameSceneNames.GetName(scene);
                 var operation = SceneManager.LoadSceneAsync(sceneName);
 
@@ -44,6 +47,7 @@ namespace ValorChronicle.Core.Scene
             finally
             {
                 isLoading = false;
+                LoadingStateChanged?.Invoke(false);
             }
         }
     }

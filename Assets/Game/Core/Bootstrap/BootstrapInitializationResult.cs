@@ -31,7 +31,7 @@ namespace ValorChronicle.Core.Bootstrap
 
         /// <summary>Gets the high-level initialization outcome.</summary>
         public BootstrapInitializationStatus Status { get; }
-        /// <summary>Gets whether all initialization phases and Main scene loading succeeded.</summary>
+        /// <summary>Gets whether all game initialization phases succeeded.</summary>
         public bool IsSuccess => Status == BootstrapInitializationStatus.Success;
         /// <summary>Gets the detailed save result when save loading was attempted.</summary>
         public SaveLoadResult SaveLoadResult { get; }

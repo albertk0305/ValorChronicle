@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 using NUnit.Framework;
 using TMPro;
@@ -205,7 +206,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(hudController.CombatBridge, Is.SameAs(bridge));
             Assert.That(hudController.ResultOverlay.activeSelf, Is.False);
             Assert.That(hudController.ResultText.text, Is.Empty);
-            Assert.That(hudController.ScoreText.text, Is.EqualTo("Score --"));
+            Assert.That(hudController.ScoreText.text, Is.EqualTo("Score 0"));
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
             Assert.That(emptySlot.ActiveButton.interactable, Is.False);
         }
@@ -228,7 +229,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Context.Result, Is.EqualTo(result));
             Assert.That(hudController.ResultOverlay.activeSelf, Is.False);
             Assert.That(hudController.ResultText.text, Is.Empty);
-            Assert.That(hudController.ScoreText.text, Is.EqualTo("Score --"));
+            Assert.That(hudController.ScoreText.text, Is.EqualTo("Score 0"));
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
             Assert.That(boardController.IsExternalInputEnabled, Is.False);
 
@@ -1196,6 +1197,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 WaterElementResource.Id);
             Assert.That(water.CurrentAmount, Is.Zero);
             Assert.That(batchCount, Is.Zero);
+            Assert.That(bridge.DamageScore, Is.GreaterThan(0L));
+            Assert.That(
+                hudController.ScoreText.text,
+                Is.EqualTo("Score " + bridge.DamageScore.ToString(
+                    "N0",
+                    CultureInfo.InvariantCulture)));
 
             Assert.That(bridge.TryGetNextMatchCombatAction(
                 out CharacterBattleState resourceCharacter,
@@ -1213,6 +1220,11 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(bridge.TryCompleteMatchEventCombat(execution),
                 Is.True);
             Assert.That(batchCount, Is.EqualTo(1));
+            Assert.That(
+                hudController.ScoreText.text,
+                Is.EqualTo("Score " + bridge.DamageScore.ToString(
+                    "N0",
+                    CultureInfo.InvariantCulture)));
         }
 
         [Test]

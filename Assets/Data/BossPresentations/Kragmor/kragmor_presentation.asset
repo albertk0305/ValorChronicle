@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Data.Definitions.BossPresentationDefinition
   bossId: kragmor
   defaultSprite: {fileID: 21300000, guid: 00b50c2e12e3b4c4faf3cb7b0a9ff568, type: 3}
+  faceSprite: {fileID: 21300000, guid: 45a36c0bee090384689f876ec2e65f30, type: 3}
   stateVisuals:
   - visualStateId: kragmor_core_exposure
     sprite: {fileID: 21300000, guid: a87414aac6d212a48bc857dfa8214261, type: 3}

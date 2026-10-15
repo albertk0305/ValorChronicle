@@ -59,20 +59,24 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
 
                 Assert.That(characterButton, Is.Not.Null);
                 var characterRect = (RectTransform)characterButton;
-                Assert.That(characterRect.anchoredPosition.x,
-                    Is.EqualTo(-288f).Within(0.001f));
-                Assert.That(characterRect.anchoredPosition.y,
-                    Is.EqualTo(622f).Within(0.001f));
-                Assert.That(characterButton.GetComponents<Button>(),
-                    Has.Length.EqualTo(1));
+                Assert.That(characterRect.gameObject.activeSelf, Is.True);
+                Button[] buttons = characterButton.GetComponents<Button>();
+                Assert.That(buttons, Has.Length.EqualTo(1));
                 SceneNavigationButton[] navigation = characterButton
                     .GetComponents<SceneNavigationButton>();
                 Assert.That(navigation, Has.Length.EqualTo(1));
                 var navigationData = new SerializedObject(navigation[0]);
                 Assert.That(navigationData.FindProperty("destination")
                     .enumValueIndex, Is.EqualTo((int)GameScene.Character));
-                Assert.That(characterButton.GetComponentInChildren<TMP_Text>()
-                    .text, Is.EqualTo("Character Test"));
+                Image targetImage = characterButton.GetComponent<Image>();
+                Assert.That(targetImage, Is.Not.Null);
+                Assert.That(buttons[0].targetGraphic,
+                    Is.SameAs(targetImage));
+                Assert.That(targetImage.raycastTarget, Is.True);
+                Assert.That(
+                    AssetDatabase.GetAssetPath(targetImage.sprite),
+                    Is.EqualTo(
+                        "Assets/Sprites/UI/Buttons/CharacterButton.png"));
             }
             finally
             {

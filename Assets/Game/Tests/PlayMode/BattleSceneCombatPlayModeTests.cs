@@ -14,6 +14,7 @@ using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
+using ValorChronicle.Battle.Entry;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
@@ -40,6 +41,7 @@ namespace ValorChronicle.Tests.PlayMode
         private DefinitionDatabase testDefinitionDatabase;
         private CharacterDefinition testMareaDefinition;
         private BossDefinition testKragmorDefinition;
+        private BattleResultBalanceDefinition testResultBalanceDefinition;
         private MareaBluefangCombatConfig testMareaConfig;
         private KragmorCombatConfig testKragmorConfig;
         private string saveRoot;
@@ -49,6 +51,10 @@ namespace ValorChronicle.Tests.PlayMode
         public IEnumerator LoadBattleScene()
         {
             previousTimeScale = Time.timeScale;
+            Assert.That(previousTimeScale, Is.EqualTo(1f).Within(0.0001f),
+                "Battle startup requires the project Time Scale to be 1. "
+                    + "A zero value freezes the initial board drop before "
+                    + "InitialBoardReady can start the battle.");
             Time.timeScale = 1f;
             InstallTestBootstrapper();
             yield return SceneManager.LoadSceneAsync(
@@ -122,6 +128,11 @@ namespace ValorChronicle.Tests.PlayMode
             if (testKragmorDefinition != null)
             {
                 UnityEngine.Object.Destroy(testKragmorDefinition);
+            }
+
+            if (testResultBalanceDefinition != null)
+            {
+                UnityEngine.Object.Destroy(testResultBalanceDefinition);
             }
 
             if (testKragmorConfig != null)
@@ -971,6 +982,11 @@ namespace ValorChronicle.Tests.PlayMode
                 testDefinitionDatabase,
                 "bosses",
                 new[] { testKragmorDefinition });
+            testResultBalanceDefinition = CreateResultBalanceDefinition();
+            SetField(
+                testDefinitionDatabase,
+                "battleResultBalance",
+                testResultBalanceDefinition);
             testDefinitionDatabase.Initialize();
 
             saveRoot = Path.Combine(
@@ -1011,6 +1027,18 @@ namespace ValorChronicle.Tests.PlayMode
                 "RandomSource",
                 bootstrapper,
                 new SeededRandomSource(54321));
+            var battleEntryService = new BattleEntryService();
+            Assert.That(
+                battleEntryService.TryRegister(
+                    new BattleEntryRequest(
+                        KragmorRules.BossId,
+                        BattleDifficultyIds.Normal)),
+                Is.True);
+            SetAutoProperty(
+                typeof(GameBootstrapper),
+                "BattleEntryService",
+                bootstrapper,
+                battleEntryService);
             SetField(
                 bootstrapper,
                 "definitionDatabase",
@@ -1020,6 +1048,54 @@ namespace ValorChronicle.Tests.PlayMode
                 "SaveService",
                 bootstrapper,
                 saveService);
+            SetAutoProperty(
+                typeof(GameBootstrapper),
+                "InitializationResult",
+                bootstrapper,
+                CreateSuccessfulInitializationResult(load));
+        }
+
+        private static BootstrapInitializationResult
+            CreateSuccessfulInitializationResult(SaveLoadResult saveLoad)
+        {
+            return (BootstrapInitializationResult)Activator.CreateInstance(
+                typeof(BootstrapInitializationResult),
+                BindingFlags.Instance | BindingFlags.NonPublic,
+                binder: null,
+                args: new object[]
+                {
+                    BootstrapInitializationStatus.Success,
+                    saveLoad,
+                    null,
+                    string.Empty
+                },
+                culture: null);
+        }
+
+        private static BattleResultBalanceDefinition
+            CreateResultBalanceDefinition()
+        {
+            BattleResultBalanceDefinition definition =
+                ScriptableObject.CreateInstance<
+                    BattleResultBalanceDefinition>();
+            SetField(
+                definition,
+                "remainingTurnBonusPercent",
+                BattleResultBalanceDefaults.RemainingTurnBonusPercent);
+            SetField(
+                definition,
+                "gradeThresholds",
+                BattleResultBalanceDefaults.CreateGradeThresholds());
+            SetField(
+                definition,
+                "firstGradeRewards",
+                BattleResultBalanceDefaults.CreateFirstGradeRewards());
+            SetField(
+                definition,
+                "difficultyRepeatRewards",
+                BattleResultBalanceDefaults
+                    .CreateDifficultyRepeatRewards());
+            return definition;
         }
 
         private static void SetField(

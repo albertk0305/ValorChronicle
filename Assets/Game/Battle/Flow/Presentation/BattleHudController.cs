@@ -324,7 +324,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
 
             RefreshTurnAndPhase();
-            RefreshScorePlaceholder();
+            RefreshScore();
             RefreshCombatState();
             RefreshBossIntent();
             RefreshCombo();
@@ -606,6 +606,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void HandleCombatActionsApplied()
         {
+            RefreshScore();
             RefreshCombatState();
             RefreshActiveAvailability();
             RefreshStatusSnapshot();
@@ -616,6 +617,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
         {
             battleFlowController?.CombatPresentationController?.TryPresent(
                 stepResult.ActionStep.Result);
+            RefreshScore();
             RefreshCombatState();
             RefreshActiveAvailability();
             RefreshStatusSnapshot();
@@ -626,6 +628,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
         {
             battleFlowController?.CombatPresentationController?.TryPresent(
                 stepResult.Result);
+            RefreshScore();
             RefreshCombatState();
             RefreshActiveAvailability();
             RefreshStatusSnapshot();
@@ -636,6 +639,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
         {
             battleFlowController?.CombatPresentationController?.TryPresent(
                 stepResult.ActionStep.Result);
+            RefreshScore();
             RefreshCombatState();
             RefreshActiveAvailability();
             RefreshStatusSnapshot();
@@ -876,11 +880,14 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
         }
 
-        private void RefreshScorePlaceholder()
+        private void RefreshScore()
         {
             if (scoreText != null)
             {
-                scoreText.text = "Score --";
+                long damageScore = subscribedBridge?.DamageScore ?? 0L;
+                scoreText.text = "Score " + damageScore.ToString(
+                    "N0",
+                    CultureInfo.InvariantCulture);
             }
         }
 

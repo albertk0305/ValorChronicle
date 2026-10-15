@@ -20,6 +20,42 @@ namespace ValorChronicle.Battle.Combat.Integration
 
         public long DamageScore => accumulator.DamageScore;
 
+        public long CollectAppliedAction(CombatActionResult actionResult)
+        {
+            if (actionResult == null)
+            {
+                throw new ArgumentNullException(nameof(actionResult));
+            }
+
+            if (actionResult.Action == null)
+            {
+                throw new ArgumentException(
+                    "An action result must reference its action.",
+                    nameof(actionResult));
+            }
+
+            long actionId = actionResult.Action.ActionId;
+            if (!collectedActionIds.Add(actionId))
+            {
+                return 0L;
+            }
+
+            long appliedDamage = actionResult is DamageActionResult damage
+                ? damage.AppliedDamage
+                : 0L;
+            try
+            {
+                accumulator.Add(appliedDamage);
+            }
+            catch
+            {
+                collectedActionIds.Remove(actionId);
+                throw;
+            }
+
+            return appliedDamage;
+        }
+
         public long Collect(CombatActionExecutionResult executionResult)
         {
             if (executionResult == null)

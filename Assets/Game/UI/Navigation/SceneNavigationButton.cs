@@ -13,15 +13,28 @@ namespace ValorChronicle.UI.Navigation
         private GameScene destination;
 
         private Button button;
+        private SceneService subscribedSceneService;
 
         private void Awake()
         {
             button = GetComponent<Button>();
             button.onClick.AddListener(HandleClick);
+            TryBindSceneService();
+        }
+
+        private void OnEnable()
+        {
+            TryBindSceneService();
+        }
+
+        private void OnDisable()
+        {
+            UnbindSceneService();
         }
 
         private void OnDestroy()
         {
+            UnbindSceneService();
             if (button != null)
             {
                 button.onClick.RemoveListener(HandleClick);
@@ -50,6 +63,12 @@ namespace ValorChronicle.UI.Navigation
                 return;
             }
 
+            BindSceneService(sceneService);
+            if (sceneService.IsLoading)
+            {
+                return;
+            }
+
             button.interactable = false;
             bool loadSucceeded = false;
 
@@ -65,8 +84,57 @@ namespace ValorChronicle.UI.Navigation
             {
                 if (!loadSucceeded && button != null)
                 {
-                    button.interactable = true;
+                    button.interactable = !sceneService.IsLoading;
                 }
+            }
+        }
+
+        private void TryBindSceneService()
+        {
+            BindSceneService(GameBootstrapper.Instance?.SceneService);
+        }
+
+        private void BindSceneService(SceneService sceneService)
+        {
+            if (ReferenceEquals(subscribedSceneService, sceneService))
+            {
+                if (sceneService != null)
+                {
+                    HandleLoadingStateChanged(sceneService.IsLoading);
+                }
+
+                return;
+            }
+
+            UnbindSceneService();
+            subscribedSceneService = sceneService;
+            if (subscribedSceneService == null)
+            {
+                return;
+            }
+
+            subscribedSceneService.LoadingStateChanged +=
+                HandleLoadingStateChanged;
+            HandleLoadingStateChanged(subscribedSceneService.IsLoading);
+        }
+
+        private void UnbindSceneService()
+        {
+            if (subscribedSceneService == null)
+            {
+                return;
+            }
+
+            subscribedSceneService.LoadingStateChanged -=
+                HandleLoadingStateChanged;
+            subscribedSceneService = null;
+        }
+
+        private void HandleLoadingStateChanged(bool isLoading)
+        {
+            if (button != null)
+            {
+                button.interactable = !isLoading;
             }
         }
     }

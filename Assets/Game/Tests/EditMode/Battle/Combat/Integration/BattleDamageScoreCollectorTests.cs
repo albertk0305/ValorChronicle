@@ -130,6 +130,22 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(collector.DamageScore, Is.EqualTo(100L));
         }
 
+        [Test]
+        public void CollectAppliedAction_UpdatesImmediatelyAndBatchStaysIdempotent()
+        {
+            TestExecution execution = ExecuteDamage(bossHp: 1000L, 1d);
+            CombatActionResult actionResult =
+                execution.Result.ActionResults[0];
+            var collector = Collector();
+
+            Assert.That(
+                collector.CollectAppliedAction(actionResult),
+                Is.EqualTo(100L));
+            Assert.That(collector.DamageScore, Is.EqualTo(100L));
+            Assert.That(collector.Collect(execution.Result), Is.Zero);
+            Assert.That(collector.DamageScore, Is.EqualTo(100L));
+        }
+
         private static BattleDamageScoreCollector Collector()
         {
             return new BattleDamageScoreCollector(

@@ -306,6 +306,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 return false;
             }
 
+            damageScoreCollector.CollectAppliedAction(
+                stepResult.ActionStep.Result);
             ActiveCombatActionStepApplied?.Invoke(stepResult);
             return true;
         }
@@ -412,6 +414,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 return false;
             }
 
+            damageScoreCollector.CollectAppliedAction(
+                stepResult.ActionStep.Result);
             CombatActionStepApplied?.Invoke(stepResult);
             return true;
         }
@@ -529,6 +533,7 @@ namespace ValorChronicle.Battle.Combat.Integration
                 return false;
             }
 
+            damageScoreCollector.CollectAppliedAction(stepResult.Result);
             BossCombatActionStepApplied?.Invoke(stepResult);
             return true;
         }

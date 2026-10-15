@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
@@ -10,6 +11,7 @@ using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
+using ValorChronicle.Battle.Entry;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
@@ -36,6 +38,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         private GameBootstrapper gameBootstrapper;
         private DefinitionDatabase definitionDatabase;
         private CharacterDefinition mareaDefinition;
+        private BossDefinition bossDefinition;
+        private BossDefinition unsupportedBossDefinition;
+        private BattleResultBalanceDefinition resultBalanceDefinition;
+        private BattleEntryService battleEntryService;
         private SaveService saveService;
 
         [SetUp]
@@ -52,7 +58,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             SetField(flowController, "boardController", boardController);
             SetField(flowController, "requireCombatBridge", true);
 
-            BossDefinition bossDefinition =
+            bossDefinition =
                 ScriptableObject.CreateInstance<BossDefinition>();
             createdObjects.Add(bossDefinition);
             SetField(bossDefinition, "id", "kragmor");
@@ -64,14 +70,35 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 new[]
                 {
                     new BossDifficultyStats(
-                        "difficulty_normal",
-                        66000,
-                        850d)
+                        BattleDifficultyIds.Intro, 33000, 500d),
+                    new BossDifficultyStats(
+                        BattleDifficultyIds.Normal, 66000, 850d),
+                    new BossDifficultyStats(
+                        BattleDifficultyIds.Advanced, 99000, 1200d),
+                    new BossDifficultyStats(
+                        BattleDifficultyIds.Hard, 138000, 1550d),
+                    new BossDifficultyStats(
+                        BattleDifficultyIds.Challenge, 198000, 2100d)
                 });
             KragmorCombatConfig kragmorConfig =
                 KragmorTestConfig.Create();
             createdObjects.Add(kragmorConfig);
             SetField(bossDefinition, "combatConfig", kragmorConfig);
+
+            unsupportedBossDefinition =
+                ScriptableObject.CreateInstance<BossDefinition>();
+            createdObjects.Add(unsupportedBossDefinition);
+            SetField(unsupportedBossDefinition, "id", "unimplemented_boss");
+            SetField(unsupportedBossDefinition, "element", ElementType.Dark);
+            SetField(unsupportedBossDefinition, "turnLimit", 10);
+            SetField(
+                unsupportedBossDefinition,
+                "difficultyStats",
+                new[]
+                {
+                    new BossDifficultyStats(
+                        BattleDifficultyIds.Normal, 1000, 100d)
+                });
 
             mareaDefinition =
                 ScriptableObject.CreateInstance<CharacterDefinition>();
@@ -90,6 +117,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             createdObjects.Add(config);
             SetField(mareaDefinition, "combatConfig", config);
 
+            resultBalanceDefinition =
+                CreateResultBalanceDefinition();
+            createdObjects.Add(resultBalanceDefinition);
+
             definitionDatabase = ScriptableObject.CreateInstance<
                 DefinitionDatabase>();
             createdObjects.Add(definitionDatabase);
@@ -97,6 +128,14 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 definitionDatabase,
                 "characters",
                 new[] { mareaDefinition });
+            SetField(
+                definitionDatabase,
+                "bosses",
+                new[] { bossDefinition, unsupportedBossDefinition });
+            SetField(
+                definitionDatabase,
+                "battleResultBalance",
+                resultBalanceDefinition);
             definitionDatabase.Initialize();
 
             GameObject gameBootstrapRoot = new GameObject(
@@ -119,6 +158,18 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 "RandomSource",
                 gameBootstrapper,
                 new SeededRandomSource(1));
+            battleEntryService = new BattleEntryService();
+            SetAutoProperty(
+                typeof(GameBootstrapper),
+                "BattleEntryService",
+                gameBootstrapper,
+                battleEntryService);
+            Assert.That(
+                battleEntryService.TryRegister(
+                    new BattleEntryRequest(
+                        KragmorRules.BossId,
+                        BattleDifficultyIds.Normal)),
+                Is.True);
             InstallProfile(ProfileWithMarea());
 
             combatBootstrap =
@@ -127,17 +178,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 combatBootstrap,
                 "battleFlowController",
                 flowController);
-            SetField(
-                combatBootstrap,
-                "fallbackBossDefinition",
-                bossDefinition);
-            BattleResultBalanceDefinition resultBalance =
-                CreateResultBalanceDefinition();
-            createdObjects.Add(resultBalance);
-            SetField(
-                combatBootstrap,
-                "fallbackResultBalanceDefinition",
-                resultBalance);
         }
 
         [TearDown]
@@ -224,11 +264,155 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Is.EqualTo(0.30m));
             Assert.That(
                 composition.KragmorConfig,
-                Is.SameAs(((BossDefinition)GetField(
-                    combatBootstrap,
-                    "fallbackBossDefinition")).CombatConfig));
+                Is.SameAs(bossDefinition.CombatConfig));
             Assert.That(composition.ActiveBindings[0].CharacterId,
                 Is.EqualTo(mareaDefinition.Id));
+            Assert.That(battleEntryService.HasPendingRequest, Is.False);
+        }
+
+        [Test]
+        public void MissingEntryRequestStopsBeforeFlowInitialization()
+        {
+            Assert.That(
+                battleEntryService.TryGetCurrent(
+                    out BattleEntryRequest request),
+                Is.True);
+            Assert.That(battleEntryService.TryCancel(request), Is.True);
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex("A BattleEntryRequest is required"));
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            Assert.That(combatBootstrap.HasInitializedFlow, Is.False);
+            Assert.That(combatBootstrap.CombatComposition, Is.Null);
+            Assert.That(flowController.Context, Is.Null);
+        }
+
+        [Test]
+        public void IncompleteBootstrapperCancelsPendingRequest()
+        {
+            SetAutoProperty(
+                typeof(GameBootstrapper),
+                "InitializationResult",
+                gameBootstrapper,
+                value: null);
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex("GameBootstrapper initialization is not complete"));
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            Assert.That(combatBootstrap.HasInitializedFlow, Is.False);
+            Assert.That(flowController.Context, Is.Null);
+            Assert.That(battleEntryService.HasPendingRequest, Is.False);
+        }
+
+        [Test]
+        public void MissingBossCancelsRequestAndAllowsAnotherRegistration()
+        {
+            ReplaceRequest("missing_boss", BattleDifficultyIds.Normal);
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex("BossDefinition 'missing_boss' was not found"));
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            Assert.That(combatBootstrap.HasInitializedFlow, Is.False);
+            Assert.That(battleEntryService.HasPendingRequest, Is.False);
+            Assert.That(
+                battleEntryService.TryRegister(
+                    new BattleEntryRequest(
+                        KragmorRules.BossId,
+                        BattleDifficultyIds.Normal)),
+                Is.True);
+        }
+
+        [Test]
+        public void UnimplementedBossCancelsRequest()
+        {
+            ReplaceRequest(
+                unsupportedBossDefinition.Id,
+                BattleDifficultyIds.Normal);
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex("has no implemented battle composition"));
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            Assert.That(combatBootstrap.HasInitializedFlow, Is.False);
+            Assert.That(battleEntryService.HasPendingRequest, Is.False);
+            Assert.That(flowController.Context, Is.Null);
+        }
+
+        [TestCase(BattleDifficultyIds.Intro, 33000L, 500d)]
+        [TestCase(BattleDifficultyIds.Normal, 66000L, 850d)]
+        [TestCase(BattleDifficultyIds.Advanced, 99000L, 1200d)]
+        [TestCase(BattleDifficultyIds.Hard, 138000L, 1550d)]
+        [TestCase(BattleDifficultyIds.Challenge, 198000L, 2100d)]
+        public void RequestedDifficultyControlsBossStatsAndResultIdentity(
+            string difficultyId,
+            long expectedMaxHp,
+            double expectedAttack)
+        {
+            ReplaceRequest(KragmorRules.BossId, difficultyId);
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            BattleSceneCombatComposition composition =
+                combatBootstrap.CombatComposition;
+            Assert.That(combatBootstrap.HasInitializedCombat, Is.True);
+            Assert.That(composition.Boss.BossId,
+                Is.EqualTo(KragmorRules.BossId));
+            Assert.That(composition.DifficultyId,
+                Is.EqualTo(difficultyId));
+            Assert.That(composition.Boss.MaxHp,
+                Is.EqualTo(expectedMaxHp));
+            Assert.That(composition.Boss.Attack,
+                Is.EqualTo(expectedAttack));
+            Assert.That(composition.KragmorConfig,
+                Is.SameAs(bossDefinition.CombatConfig));
+            Assert.That(battleEntryService.HasPendingRequest, Is.False);
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            Assert.That(
+                flowController.Coordinator.NotifyBossDefeated(),
+                Is.True);
+            Assert.That(composition.Bridge.LastFinalResult.BossId,
+                Is.EqualTo(KragmorRules.BossId));
+            Assert.That(composition.Bridge.LastFinalResult.DifficultyId,
+                Is.EqualTo(difficultyId));
+            BossRecordSaveData savedRecord = saveService
+                .GetCurrentProfileSnapshot().BossRecords.Single(record =>
+                    record.BossId == KragmorRules.BossId
+                    && record.DifficultyId == difficultyId);
+            Assert.That(savedRecord.DifficultyId, Is.EqualTo(difficultyId));
+        }
+
+        [Test]
+        public void KnownButUnavailableBossDifficultyCancelsRequest()
+        {
+            SetField(
+                bossDefinition,
+                "difficultyStats",
+                new[]
+                {
+                    new BossDifficultyStats(
+                        BattleDifficultyIds.Normal, 66000, 850d)
+                });
+            ReplaceRequest(
+                KragmorRules.BossId,
+                BattleDifficultyIds.Intro);
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex(
+                    "Boss difficulty is not available.*"
+                        + "DifficultyId=difficulty_intro"));
+
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+
+            Assert.That(combatBootstrap.HasInitializedCombat, Is.False);
+            Assert.That(battleEntryService.HasPendingRequest, Is.False);
+            Assert.That(flowController.Context, Is.Null);
         }
 
         [Test]
@@ -369,6 +553,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(combatBootstrap.HasInitializedCombat, Is.False);
             Assert.That(combatBootstrap.CombatComposition, Is.Null);
             Assert.That(flowController.Context, Is.Null);
+            Assert.That(battleEntryService.HasPendingRequest, Is.False);
         }
 
         [Test]
@@ -394,6 +579,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(combatBootstrap.HasInitializedCombat, Is.False);
             Assert.That(combatBootstrap.CombatComposition, Is.Null);
             Assert.That(flowController.Context, Is.Null);
+            Assert.That(battleEntryService.HasPendingRequest, Is.False);
         }
 
         [Test]
@@ -413,6 +599,13 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(combatBootstrap.HasInitializedCombat, Is.False);
             Assert.That(combatBootstrap.CombatComposition, Is.Null);
             Assert.That(flowController.Context, Is.Null);
+            Assert.That(battleEntryService.HasPendingRequest, Is.False);
+            Assert.That(
+                battleEntryService.TryRegister(
+                    new BattleEntryRequest(
+                        KragmorRules.BossId,
+                        BattleDifficultyIds.Normal)),
+                Is.True);
         }
 
         [Test]
@@ -434,6 +627,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(combatBootstrap.HasInitializedCombat, Is.False);
             Assert.That(combatBootstrap.CombatComposition, Is.Null);
             Assert.That(flowController.Context, Is.Null);
+            Assert.That(battleEntryService.HasPendingRequest, Is.False);
         }
 
         [Test]
@@ -501,9 +695,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             BattlePartyResolutionResult nextParty =
                 new BattlePartyResolver(definitionDatabase).Resolve(
                     saveService.GetCurrentProfileSnapshot());
-            BossDefinition boss = (BossDefinition)GetField(
-                combatBootstrap,
-                "fallbackBossDefinition");
+            BossDefinition boss = bossDefinition;
             Assert.That(nextParty.IsSuccess, Is.True);
             Assert.That(boss.TryGetDifficultyStats(
                 "difficulty_normal",
@@ -535,15 +727,13 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         [Test]
         public void UnknownDifficultyDoesNotInitializeOrUseFallbackStats()
         {
-            SetField(
-                combatBootstrap,
-                "developmentDifficultyId",
+            ReplaceRequest(
+                KragmorRules.BossId,
                 "difficulty_unknown");
             LogAssert.Expect(
                 LogType.Error,
                 new Regex(
-                    "Boss difficulty is not available.*"
-                        + "DifficultyId=difficulty_unknown"));
+                    "DifficultyId 'difficulty_unknown' is not recognized"));
 
             InvokePrivate(combatBootstrap, "InitializeFlowOnce");
 
@@ -551,6 +741,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(combatBootstrap.HasInitializedCombat, Is.False);
             Assert.That(combatBootstrap.CombatComposition, Is.Null);
             Assert.That(flowController.Context, Is.Null);
+            Assert.That(battleEntryService.HasPendingRequest, Is.False);
         }
 
         [Test]
@@ -594,13 +785,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         [Test]
         public void WrongKragmorConfigTypeDoesNotInitialize()
         {
-            BossDefinition boss = (BossDefinition)GetField(
-                combatBootstrap,
-                "fallbackBossDefinition");
             MareaBluefangCombatConfig wrong =
                 MareaBluefangTestConfig.Create();
             createdObjects.Add(wrong);
-            SetField(boss, "combatConfig", wrong);
+            SetField(bossDefinition, "combatConfig", wrong);
             LogAssert.Expect(
                 LogType.Error,
                 new Regex("Kragmor requires a KragmorCombatConfig"));
@@ -614,13 +802,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         [Test]
         public void InvalidKragmorConfigDoesNotInitialize()
         {
-            BossDefinition boss = (BossDefinition)GetField(
-                combatBootstrap,
-                "fallbackBossDefinition");
             KragmorCombatConfig invalid = KragmorTestConfig.Create(
                 maximumRockCount: -1);
             createdObjects.Add(invalid);
-            SetField(boss, "combatConfig", invalid);
+            SetField(bossDefinition, "combatConfig", invalid);
             LogAssert.Expect(
                 LogType.Error,
                 new Regex("Kragmor combat config is invalid"));
@@ -635,8 +820,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         public void MissingResultBalanceDoesNotInitialize()
         {
             SetField(
-                combatBootstrap,
-                "fallbackResultBalanceDefinition",
+                definitionDatabase,
+                "battleResultBalance",
                 null);
             LogAssert.Expect(
                 LogType.Error,
@@ -651,11 +836,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         [Test]
         public void InvalidResultBalanceDoesNotInitialize()
         {
-            BattleResultBalanceDefinition definition =
-                (BattleResultBalanceDefinition)GetField(
-                    combatBootstrap,
-                    "fallbackResultBalanceDefinition");
-            SetField(definition, "remainingTurnBonusPercent", 29);
+            SetField(
+                resultBalanceDefinition,
+                "remainingTurnBonusPercent",
+                29);
             LogAssert.Expect(
                 LogType.Error,
                 new Regex("Battle result balance is invalid"));
@@ -700,6 +884,44 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 "SaveService",
                 gameBootstrapper,
                 saveService);
+            SetAutoProperty(
+                typeof(GameBootstrapper),
+                "InitializationResult",
+                gameBootstrapper,
+                CreateSuccessfulInitializationResult(load));
+        }
+
+        private static BootstrapInitializationResult
+            CreateSuccessfulInitializationResult(SaveLoadResult saveLoad)
+        {
+            return (BootstrapInitializationResult)Activator.CreateInstance(
+                typeof(BootstrapInitializationResult),
+                BindingFlags.Instance | BindingFlags.NonPublic,
+                binder: null,
+                args: new object[]
+                {
+                    BootstrapInitializationStatus.Success,
+                    saveLoad,
+                    null,
+                    string.Empty
+                },
+                culture: null);
+        }
+
+        private void ReplaceRequest(string bossId, string difficultyId)
+        {
+            if (battleEntryService.TryGetCurrent(
+                out BattleEntryRequest current))
+            {
+                Assert.That(
+                    battleEntryService.TryCancel(current),
+                    Is.True);
+            }
+
+            Assert.That(
+                battleEntryService.TryRegister(
+                    new BattleEntryRequest(bossId, difficultyId)),
+                Is.True);
         }
 
         private static object InvokePrivate(
@@ -780,25 +1002,5 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             backingField.SetValue(target, value);
         }
 
-        private static object GetField(object target, string fieldName)
-        {
-            Type type = target.GetType();
-            while (type != null)
-            {
-                FieldInfo field = type.GetField(
-                    fieldName,
-                    BindingFlags.Instance | BindingFlags.NonPublic);
-                if (field != null)
-                {
-                    return field.GetValue(target);
-                }
-
-                type = type.BaseType;
-            }
-
-            throw new MissingFieldException(
-                target.GetType().FullName,
-                fieldName);
-        }
     }
 }

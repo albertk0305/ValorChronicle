@@ -8,7 +8,6 @@ using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Core.Scene;
-using ValorChronicle.Data.Definitions;
 using ValorChronicle.UI.Navigation;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
@@ -197,33 +196,24 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                         "resultPresentationController")
                         .objectReferenceValue,
                     Is.SameAs(resultController));
-                BossDefinition fallbackBoss = bootstrapObject.FindProperty(
-                    "fallbackBossDefinition").objectReferenceValue
-                    as BossDefinition;
-                Assert.That(fallbackBoss, Is.Not.Null);
-                Assert.That(fallbackBoss.name, Is.EqualTo("boss_kragmor"));
-                Assert.That(fallbackBoss.TurnLimit, Is.EqualTo(25));
+                Assert.That(
+                    bootstrapObject.FindProperty(
+                        "fallbackBossDefinition"),
+                    Is.Null);
                 Assert.That(
                     bootstrapObject.FindProperty(
                         "fallbackMareaDefinition"),
                     Is.Null);
-                BattleResultBalanceDefinition fallbackResultBalance =
-                    bootstrapObject.FindProperty(
-                        "fallbackResultBalanceDefinition")
-                        .objectReferenceValue
-                        as BattleResultBalanceDefinition;
-                Assert.That(fallbackResultBalance, Is.Not.Null);
                 Assert.That(
-                    fallbackResultBalance.TryValidate(out string error),
-                    Is.True,
-                    error);
+                    bootstrapObject.FindProperty(
+                        "fallbackResultBalanceDefinition"),
+                    Is.Null);
                 Assert.That(
                     bootstrapObject.FindProperty("developmentMareaLevel"),
                     Is.Null);
                 Assert.That(
-                    bootstrapObject.FindProperty("developmentDifficultyId")
-                        .stringValue,
-                    Is.EqualTo("difficulty_normal"));
+                    bootstrapObject.FindProperty("developmentDifficultyId"),
+                    Is.Null);
                 Assert.That(
                     bootstrapObject.FindProperty("developmentBossMaxHp"),
                     Is.Null);
@@ -356,10 +346,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 index < hudController.BossStatusSlotCount;
                 index++)
             {
-                Assert.That(
-                    hudController.GetBossStatusSlot(index).IsConfigured,
-                    Is.True,
-                    $"Boss status slot {index} is incomplete.");
+                AssertStatusSlotContainsItsBackground(
+                    hudController.GetBossStatusSlot(index),
+                    $"Boss status slot {index}");
             }
 
             Assert.That(hudController.MatchEventSlotCount, Is.EqualTo(10));
@@ -403,11 +392,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     statusIndex < slot.StatusSlotCount;
                     statusIndex++)
                 {
-                    Assert.That(
-                        slot.GetStatusSlot(statusIndex).IsConfigured,
-                        Is.True,
-                        $"Character {index} status {statusIndex} "
-                            + "is incomplete.");
+                    AssertStatusSlotContainsItsBackground(
+                        slot.GetStatusSlot(statusIndex),
+                        $"Character {index} status {statusIndex}");
                 }
             }
 
@@ -416,11 +403,26 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 index < hudController.PartyStatusSlotCount;
                 index++)
             {
-                Assert.That(
-                    hudController.GetPartyStatusSlot(index).IsConfigured,
-                    Is.True,
-                    $"Party status slot {index} is incomplete.");
+                AssertStatusSlotContainsItsBackground(
+                    hudController.GetPartyStatusSlot(index),
+                    $"Party status slot {index}");
             }
+        }
+
+        private static void AssertStatusSlotContainsItsBackground(
+            BattleStatusIconView slot,
+            string context)
+        {
+            Assert.That(slot.IsConfigured, Is.True,
+                $"{context} is incomplete.");
+            Assert.That(
+                slot.Root.transform.Find("Background"),
+                Is.Not.Null,
+                $"{context} root must include its background.");
+            Assert.That(
+                slot.IconImage.transform.IsChildOf(slot.Root.transform),
+                Is.True,
+                $"{context} root must include its icon.");
         }
 
         private static void AssertResultPresentation(

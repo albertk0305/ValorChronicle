@@ -11,28 +11,30 @@ namespace ValorChronicle.Core.Bootstrap
         private readonly Func<bool> validateContent;
         private readonly Func<SaveService> createSaveService;
         private readonly IProfileIdProvider profileIdProvider;
-        private readonly Func<Task<bool>> loadMainScene;
 
         /// <summary>Creates an initialization coordinator with explicit phase boundaries.</summary>
         public GameInitializationCoordinator(
             Action initializeContent,
             Func<bool> validateContent,
             Func<SaveService> createSaveService,
-            IProfileIdProvider profileIdProvider,
-            Func<Task<bool>> loadMainScene)
+            IProfileIdProvider profileIdProvider)
         {
             this.initializeContent = initializeContent ?? throw new ArgumentNullException(nameof(initializeContent));
             this.validateContent = validateContent ?? throw new ArgumentNullException(nameof(validateContent));
             this.createSaveService = createSaveService ?? throw new ArgumentNullException(nameof(createSaveService));
             this.profileIdProvider = profileIdProvider ?? throw new ArgumentNullException(nameof(profileIdProvider));
-            this.loadMainScene = loadMainScene ?? throw new ArgumentNullException(nameof(loadMainScene));
         }
 
         /// <summary>Gets the composed save service after its composition phase succeeds.</summary>
         public SaveService SaveService { get; private set; }
 
-        /// <summary>Runs content, save, and Main scene initialization in the required order.</summary>
-        public async Task<BootstrapInitializationResult> InitializeAsync()
+        /// <summary>Runs content and save initialization in the required order.</summary>
+        public Task<BootstrapInitializationResult> InitializeAsync()
+        {
+            return Task.FromResult(Initialize());
+        }
+
+        private BootstrapInitializationResult Initialize()
         {
             try
             {
@@ -87,7 +89,7 @@ namespace ValorChronicle.Core.Bootstrap
                     exception);
             }
 
-            if (!CanEnterMain(saveLoadResult, SaveService))
+            if (!HasUsableProfile(saveLoadResult, SaveService))
             {
                 return new BootstrapInitializationResult(
                     BootstrapInitializationStatus.SaveInitializationFailed,
@@ -96,31 +98,14 @@ namespace ValorChronicle.Core.Bootstrap
                     "Save initialization did not produce a writable profile.");
             }
 
-            try
-            {
-                if (!await loadMainScene())
-                {
-                    return new BootstrapInitializationResult(
-                        BootstrapInitializationStatus.SceneLoadFailed,
-                        saveLoadResult,
-                        message: "Main scene loading did not complete.");
-                }
-            }
-            catch (Exception exception)
-            {
-                return new BootstrapInitializationResult(
-                    BootstrapInitializationStatus.SceneLoadFailed,
-                    saveLoadResult,
-                    exception,
-                    "Main scene loading threw an exception.");
-            }
-
             return new BootstrapInitializationResult(
                 BootstrapInitializationStatus.Success,
                 saveLoadResult);
         }
 
-        private static bool CanEnterMain(SaveLoadResult result, SaveService saveService)
+        private static bool HasUsableProfile(
+            SaveLoadResult result,
+            SaveService saveService)
         {
             if (result == null || saveService == null || !result.IsSuccess)
                 return false;

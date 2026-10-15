@@ -412,7 +412,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -420,8 +420,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Boss Name
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
+  m_sharedMaterial: {fileID: 3720058980238421274, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -549,7 +549,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -557,8 +557,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Boss Name
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
+  m_sharedMaterial: {fileID: 3720058980238421274, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -686,7 +686,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -694,8 +694,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: best score comes here
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
+  m_sharedMaterial: {fileID: 3720058980238421274, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -859,7 +859,6 @@ GameObject:
   - component: {fileID: 277989440}
   - component: {fileID: 277989439}
   - component: {fileID: 277989438}
-  - component: {fileID: 277989437}
   m_Layer: 5
   m_Name: SettingButton
   m_TagString: Untagged
@@ -886,19 +885,6 @@ RectTransform:
   m_AnchoredPosition: {x: 287, y: 870}
   m_SizeDelta: {x: 150, y: 150}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &277989437
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 277989435}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b8f94fa2c1833854fa0b3ae7bbe7b8db, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ValorChronicle.UI.Navigation.SceneNavigationButton
-  destination: 2
 --- !u!114 &277989438
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -992,6 +978,7 @@ GameObject:
   - component: {fileID: 287272773}
   - component: {fileID: 287272775}
   - component: {fileID: 287272774}
+  - component: {fileID: 2107000712}
   m_Layer: 5
   m_Name: BackgroundPanel
   m_TagString: Untagged
@@ -1016,7 +1003,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 980, y: 1820}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &287272774
 MonoBehaviour:
@@ -1585,7 +1572,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -1593,8 +1580,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Boss Name
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
+  m_sharedMaterial: {fileID: 3720058980238421274, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -2081,7 +2068,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 0.78431374}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -2231,7 +2218,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -2239,8 +2226,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: best score comes here
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
+  m_sharedMaterial: {fileID: 3720058980238421274, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -2443,7 +2430,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -2451,8 +2438,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Boss Name
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
+  m_sharedMaterial: {fileID: 3720058980238421274, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -2613,6 +2600,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 746513831}
+  - component: {fileID: 2105000503}
   m_Layer: 5
   m_Name: Slot (2)
   m_TagString: Untagged
@@ -2779,10 +2767,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 753719167}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b8f94fa2c1833854fa0b3ae7bbe7b8db, type: 3}
+  m_Script: {fileID: 11500000, guid: 194ab2d4f87644ab0e21738495a6b7c8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ValorChronicle.UI.Navigation.SceneNavigationButton
-  destination: 2
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Main.Presentation.MainScreenController
+  battleButton: {fileID: 753719169}
+  battlePanel: {fileID: 2045717408}
+  bossSelectionList: {fileID: 2105000504}
+  levelSelect: {fileID: 1920845561}
+  levelSelectView: {fileID: 2106000601}
+  unvalidParty: {fileID: 1316413689}
+  unvalidPartyView: {fileID: 2107000711}
+  inputCanvasGroup: {fileID: 2107000710}
+  goldText: {fileID: 1366673549}
 --- !u!1 &770609997
 GameObject:
   m_ObjectHideFlags: 0
@@ -3467,8 +3463,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Unvalid Party message comes here
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
+  m_sharedMaterial: {fileID: 3720058980238421274, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -3596,7 +3592,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 0.78431374}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -3671,7 +3667,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -3679,8 +3675,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: best score comes here
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
+  m_sharedMaterial: {fileID: 3720058980238421274, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -4033,7 +4029,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -4041,8 +4037,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: best score comes here
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
+  m_sharedMaterial: {fileID: 3720058980238421274, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -4203,6 +4199,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1104834341}
+  - component: {fileID: 2105000504}
   m_Layer: 5
   m_Name: BossSlots
   m_TagString: Untagged
@@ -4225,13 +4222,13 @@ RectTransform:
   - {fileID: 1928293782}
   - {fileID: 1686223499}
   - {fileID: 746513831}
-  m_Father: {fileID: 2045717409}
+  m_Father: {fileID: 1772106200}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_SizeDelta: {x: 0, y: 1150}
+  m_Pivot: {x: 0.5, y: 1}
 --- !u!1 &1132076274
 GameObject:
   m_ObjectHideFlags: 0
@@ -4700,6 +4697,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1316413690}
+  - component: {fileID: 2107000711}
   m_Layer: 5
   m_Name: UnvalidParty
   m_TagString: Untagged
@@ -4722,12 +4720,12 @@ RectTransform:
   - {fileID: 287272773}
   - {fileID: 950075914}
   - {fileID: 974889651}
-  m_Father: {fileID: 1920845562}
+  m_Father: {fileID: 1747010638}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1366673547
 GameObject:
@@ -4788,8 +4786,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 100000000
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
+  m_sharedMaterial: {fileID: 3720058980238421274, guid: ff41ae382e2310e4e83f51782d668a7b, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -5051,7 +5049,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 0.78431374}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -5545,7 +5543,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 0.78431374}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -5741,7 +5739,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -5774,6 +5772,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1686223499}
+  - component: {fileID: 2105000502}
   m_Layer: 5
   m_Name: Slot (1)
   m_TagString: Untagged
@@ -5819,6 +5818,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1747010638}
+  - component: {fileID: 2107000710}
   m_Layer: 5
   m_Name: GameContent
   m_TagString: Untagged
@@ -5847,6 +5847,7 @@ RectTransform:
   - {fileID: 2107000002}
   - {fileID: 1377613700}
   - {fileID: 2045717409}
+  - {fileID: 1316413690}
   m_Father: {fileID: 959467558}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -5999,6 +6000,8 @@ GameObject:
   - component: {fileID: 1772106200}
   - component: {fileID: 1772106202}
   - component: {fileID: 1772106201}
+  - component: {fileID: 2105000505}
+  - component: {fileID: 2105000506}
   m_Layer: 5
   m_Name: ScrollPanel
   m_TagString: Untagged
@@ -6017,7 +6020,8 @@ RectTransform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 1104834341}
   m_Father: {fileID: 2045717409}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -6222,6 +6226,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1920845562}
+  - component: {fileID: 2106000601}
   m_Layer: 5
   m_Name: LevelSelect
   m_TagString: Untagged
@@ -6248,7 +6253,6 @@ RectTransform:
   - {fileID: 1998519044}
   - {fileID: 1926606011}
   - {fileID: 833848362}
-  - {fileID: 1316413690}
   m_Father: {fileID: 2045717409}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -6256,6 +6260,35 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &2106000601
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1920845561}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a67b3c4d5e64f7890a1b2c3d4e5f607, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Main.Presentation.LevelSelectView
+  bossFaceImage: {fileID: 1456311251}
+  bossNameText: {fileID: 681395499}
+  bossType: {fileID: 1407232440}
+  bestScoreText: {fileID: 596831356}
+  bestGrade: {fileID: 1089384663}
+  gradeSpriteSource: {fileID: 2105000504}
+  beginnerButton: {fileID: 1652261608}
+  standardButton: {fileID: 1132076276}
+  advancedButton: {fileID: 1990538501}
+  expertButton: {fileID: 1998519045}
+  masterButton: {fileID: 1926606012}
+  beginnerBestGrade: {fileID: 1026143599}
+  standardBestGrade: {fileID: 1136406887}
+  advancedBestGrade: {fileID: 701164798}
+  expertBestGrade: {fileID: 1897432726}
+  masterBestGrade: {fileID: 1834384289}
+  returnButton: {fileID: 833848363}
 --- !u!1 &1926606010
 GameObject:
   m_ObjectHideFlags: 0
@@ -6386,6 +6419,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1928293782}
+  - component: {fileID: 2105000501}
   m_Layer: 5
   m_Name: Slot
   m_TagString: Untagged
@@ -6743,7 +6777,6 @@ RectTransform:
   m_Children:
   - {fileID: 2112545459}
   - {fileID: 1772106200}
-  - {fileID: 1104834341}
   - {fileID: 363849123}
   - {fileID: 1920845562}
   m_Father: {fileID: 1747010638}
@@ -7187,6 +7220,202 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2129065109}
   m_CullTransparentMesh: 1
+--- !u!114 &2105000501
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1928293781}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 172890b2d6544289ec0f5162738495a6, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Main.Presentation.BossSlotView
+  bossFaceImage: {fileID: 2084204965}
+  bossNameText: {fileID: 165419556}
+  bossType: {fileID: 370858619}
+  bestScoreText: {fileID: 181181519}
+  bestGrade: {fileID: 126598555}
+  touchPanel: {fileID: 770609999}
+--- !u!114 &2105000502
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1686223498}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 172890b2d6544289ec0f5162738495a6, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Main.Presentation.BossSlotView
+  bossFaceImage: {fileID: 1571559405}
+  bossNameText: {fileID: 181149944}
+  bossType: {fileID: 461764610}
+  bestScoreText: {fileID: 1083010309}
+  bestGrade: {fileID: 880837709}
+  touchPanel: {fileID: 2109799743}
+--- !u!114 &2105000503
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 746513830}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 172890b2d6544289ec0f5162738495a6, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Main.Presentation.BossSlotView
+  bossFaceImage: {fileID: 1244690227}
+  bossNameText: {fileID: 432079303}
+  bossType: {fileID: 117489115}
+  bestScoreText: {fileID: 1007820281}
+  bestGrade: {fileID: 561834994}
+  touchPanel: {fileID: 457121108}
+--- !u!114 &2105000504
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1104834340}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1839a1c3e765439afd1062738495a6b7, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Main.Presentation.BossSelectionListView
+  scrollRect: {fileID: 2105000505}
+  content: {fileID: 1104834341}
+  initialSlots:
+  - {fileID: 2105000501}
+  - {fileID: 2105000502}
+  - {fileID: 2105000503}
+  elementIconSet: {fileID: 11400000, guid: d1af3f29998046b985c2a52c99c3d0a8, type: 2}
+  gradeC: {fileID: 21300000, guid: 2c9d81577f45c244198d5863afb53347, type: 3}
+  gradeB: {fileID: 21300000, guid: a20dcdb3ef9b52046a871d434be9beb8, type: 3}
+  gradeA: {fileID: 21300000, guid: 51f88198a6fad25498ee9b4b549843a6, type: 3}
+  gradeS: {fileID: 21300000, guid: 2d6befa27d6925c4e82dd20b1fe902fc, type: 3}
+  gradeSS: {fileID: 21300000, guid: 41001892bb3b2e843978364c22542baa, type: 3}
+  gradeSSS: {fileID: 21300000, guid: 596ee56ec0ebb964f9703a880b0a20b1, type: 3}
+  slotHeight: 300
+  spacing: 35
+  verticalPadding: 45
+--- !u!114 &2105000505
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1772106199}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1aa08ab6e0800fa44ae55d278d1423e3, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ScrollRect
+  m_Content: {fileID: 1104834341}
+  m_Horizontal: 0
+  m_Vertical: 1
+  m_MovementType: 2
+  m_Elasticity: 0.1
+  m_Inertia: 1
+  m_DecelerationRate: 0.135
+  m_ScrollSensitivity: 1
+  m_Viewport: {fileID: 1772106200}
+  m_HorizontalScrollbar: {fileID: 0}
+  m_VerticalScrollbar: {fileID: 0}
+  m_HorizontalScrollbarVisibility: 0
+  m_VerticalScrollbarVisibility: 0
+  m_HorizontalScrollbarSpacing: -3
+  m_VerticalScrollbarSpacing: -3
+  m_OnValueChanged:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &2105000506
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1772106199}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3312d7739989d2b4e91e6319e9a96d76, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.RectMask2D
+  m_Padding: {x: 0, y: 0, z: 0, w: 0}
+  m_Softness: {x: 0, y: 0}
+--- !u!225 &2107000710
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1747010637}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &2107000711
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1316413689}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c89d5e6f7084192a3b4c5d6e7f80912, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Main.Presentation.UnvalidPartyView
+  messageText: {fileID: 974889652}
+  dismissButton: {fileID: 2107000712}
+--- !u!114 &2107000712
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 287272772}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+  m_Navigation:
+    m_Mode: 0
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 0
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 287272774}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

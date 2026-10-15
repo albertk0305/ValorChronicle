@@ -1,5 +1,7 @@
+using System;
 using System.Threading.Tasks;
 using UnityEngine;
+using ValorChronicle.Battle.Entry;
 using ValorChronicle.Core.Logging;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Core.Scene;
@@ -19,7 +21,11 @@ namespace ValorChronicle.Core.Bootstrap
 
         public static GameBootstrapper Instance { get; private set; }
 
+        public event Action<BootstrapInitializationResult>
+            InitializationCompleted;
+
         public SceneService SceneService { get; private set; }
+        public BattleEntryService BattleEntryService { get; private set; }
         public DefinitionDatabase DefinitionDatabase => definitionDatabase;
         public LocalizationService LocalizationService { get; private set; }
         public IRandomSource RandomSource { get; private set; }
@@ -39,18 +45,39 @@ namespace ValorChronicle.Core.Bootstrap
             Instance = this;
             DontDestroyOnLoad(gameObject);
 
-            SceneService = new SceneService();
-            RandomSource = new UnityRandomSource();
+            InitializeRuntimeServices();
 
+            BootstrapInitializationResult result;
             try
             {
-                InitializationResult = await InitializeAsync();
-                HandleInitializationResult(InitializationResult);
+                result = await InitializeAsync();
             }
-            catch (System.Exception exception)
+            catch (Exception exception)
             {
-                GameLogger.Exception(exception, this);
-                GameLogger.Error("[Bootstrap] Unexpected initialization failure.", this);
+                result = new BootstrapInitializationResult(
+                    BootstrapInitializationStatus.UnexpectedFailure,
+                    exception: exception,
+                    message: "Unexpected initialization failure.");
+            }
+
+            CompleteInitialization(result);
+        }
+
+        private void InitializeRuntimeServices()
+        {
+            if (SceneService == null)
+            {
+                SceneService = new SceneService();
+            }
+
+            if (BattleEntryService == null)
+            {
+                BattleEntryService = new BattleEntryService();
+            }
+
+            if (RandomSource == null)
+            {
+                RandomSource = new UnityRandomSource();
             }
         }
 
@@ -89,12 +116,19 @@ namespace ValorChronicle.Core.Bootstrap
                         Application.persistentDataPath,
                         definitionDatabase);
                 },
-                profileIdProvider: new GuidProfileIdProvider(),
-                loadMainScene: () => SceneService.LoadAsync(GameScene.Main));
+                profileIdProvider: new GuidProfileIdProvider());
 
             BootstrapInitializationResult result = await coordinator.InitializeAsync();
             SaveService = coordinator.SaveService;
             return result;
+        }
+
+        private void CompleteInitialization(
+            BootstrapInitializationResult result)
+        {
+            InitializationResult = result;
+            HandleInitializationResult(result);
+            InitializationCompleted?.Invoke(result);
         }
 
         private void HandleInitializationResult(BootstrapInitializationResult result)

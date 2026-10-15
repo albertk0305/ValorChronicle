@@ -95,8 +95,11 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(
                 fixture.Selection.PreviewAwakeningText.text,
                 Is.EqualTo("0"));
-            Assert.That(fixture.Selection.DescriptionText.text,
-                Does.Contain("5%"));
+            Assert.That(
+                fixture.Selection.DescriptionText.text,
+                Is.EqualTo(
+                    "Victor's Broken Sword\n\n"
+                        + "Increases the equipped character's ATK by 5%."));
             RelicInventoryCellView swordCell = fixture.InventoryGrid.PoolCells
                 .Single(cell => cell.IsBound
                     && cell.InstanceId == "sword");
@@ -124,8 +127,12 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(
                 fixture.Selection.PreviewAwakeningText.text,
                 Is.EqualTo("5"));
-            Assert.That(fixture.Selection.DescriptionText.text,
-                Does.Contain("10%"));
+            Assert.That(
+                fixture.Selection.DescriptionText.text,
+                Is.EqualTo(
+                    "World Tree Bark\n\n"
+                        + "Increases the equipped character's maximum HP "
+                        + "by 10%."));
             Assert.That(
                 fixture.Repository.Count(
                     nameof(FakeSaveRepository.WriteTemp)),
@@ -163,6 +170,31 @@ namespace ValorChronicle.Tests.EditMode
                     .Select(entry => entry.DisplayName),
                 Is.Not.EqualTo(englishNames));
             Assert.That(fixture.InventoryGrid.IsAtTop, Is.True);
+        }
+
+        [Test]
+        public void MissingLocalizedName_UsesSafeMarkerAndKeepsDescription()
+        {
+            LocalizationTable table = LocalizationTableParser.Parse(
+                "missing-relic-names.tsv",
+                "key\ten\n"
+                    + "relic.victors_broken_sword.description\t"
+                    + "Increases the equipped character's ATK by {rate}%.\n"
+                    + "relic.world_tree_bark.description\t"
+                    + "Increases the equipped character's maximum HP by "
+                    + "{rate}%.\n");
+            var localization = new LocalizationService(new[] { table });
+            Fixture fixture = CreateFixture(
+                Profile(new[] { "sword", "", "", "" }),
+                localization);
+            fixture.Controller.TryPresent(CharacterId);
+
+            Assert.That(fixture.Controller.Open(CharacterId, 0), Is.True);
+            Assert.That(
+                fixture.Selection.DescriptionText.text,
+                Is.EqualTo(
+                    "[[relic.victors_broken_sword.name]]\n\n"
+                        + "Increases the equipped character's ATK by 5%."));
         }
 
         [Test]
@@ -317,6 +349,7 @@ namespace ValorChronicle.Tests.EditMode
 
             Assert.That(fixture.Controller.EditSession, Is.Null);
             Assert.That(fixture.SelectionRoot.activeSelf, Is.False);
+            Assert.That(fixture.Selection.DescriptionText.text, Is.Empty);
             SaveTransactionResult transaction = fixture.SaveService
                 .ExecuteTransaction(profile =>
                 {
@@ -337,7 +370,9 @@ namespace ValorChronicle.Tests.EditMode
                 Is.EqualTo("5"));
         }
 
-        private Fixture CreateFixture(ProfileSaveData profile)
+        private Fixture CreateFixture(
+            ProfileSaveData profile,
+            LocalizationService localizationOverride = null)
         {
             var repository = new FakeSaveRepository
             {
@@ -356,7 +391,8 @@ namespace ValorChronicle.Tests.EditMode
                 AssetDatabase.LoadAssetAtPath<LocalizationCatalog>(
                     LocalizationCatalogPath);
             Assert.That(catalog, Is.Not.Null);
-            LocalizationService localization = catalog.CreateService();
+            LocalizationService localization =
+                localizationOverride ?? catalog.CreateService();
 
             GameObject root = Create("RelicControllerRoot");
             CharacterRelicSlotsView slotsView =

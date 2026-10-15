@@ -361,15 +361,20 @@ namespace ValorChronicle.Relics.Presentation
             definitionDatabase.TryGetRelicPresentation(
                 instance.RelicDefinitionId,
                 out RelicPresentationDefinition presentation);
-            string description = includeDescription
-                ? localizationService.Format(
+            string description = string.Empty;
+            if (includeDescription)
+            {
+                string displayName = localizationService.GetText(
+                    definition.DisplayNameKey);
+                string effectDescription = localizationService.Format(
                     definition.DescriptionKey,
                     new Dictionary<string, object>
                     {
                         ["rate"] = FormatPercent(
                             definition.GetEffectRate(instance.Awakening))
-                    })
-                : string.Empty;
+                    });
+                description = $"{displayName}\n\n{effectDescription}";
+            }
             return RelicPresentationModel.Equipped(
                 instance.InstanceId,
                 presentation?.Icon,

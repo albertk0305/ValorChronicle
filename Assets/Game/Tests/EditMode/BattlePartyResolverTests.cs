@@ -105,6 +105,35 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
+        public void Resolve_AllFiveSlotsPreservesMaximumPartyOrder()
+        {
+            ProfileSaveData profile = Profile(
+                activePresetIndex: 0,
+                activeSlots: Slots("a", "b", "c", "d", "e"),
+                Character("a", 1, 0),
+                Character("b", 2, 1),
+                Character("c", 3, 2),
+                Character("d", 4, 3),
+                Character("e", 5, 4));
+
+            BattlePartyResolutionResult result = Resolver(
+                Definition("a", ElementType.Fire),
+                Definition("b", ElementType.Water),
+                Definition("c", ElementType.Light),
+                Definition("d", ElementType.Dark),
+                Definition("e", ElementType.Fire)).Resolve(profile);
+
+            Assert.That(result.IsSuccess, Is.True);
+            Assert.That(result.Members, Has.Count.EqualTo(5));
+            Assert.That(
+                result.Members.Select(member => member.CharacterId),
+                Is.EqualTo(new[] { "a", "b", "c", "d", "e" }));
+            Assert.That(
+                result.Members.Select(member => member.PartySlotIndex),
+                Is.EqualTo(new[] { 0, 1, 2, 3, 4 }));
+        }
+
+        [Test]
         public void Resolve_EmptyActivePresetReturnsEmptyParty()
         {
             BattlePartyResolutionResult result = Resolver().Resolve(

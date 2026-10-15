@@ -16,11 +16,15 @@ namespace ValorChronicle.Data.Definitions
         private Sprite defaultSprite;
 
         [SerializeField]
+        private Sprite faceSprite;
+
+        [SerializeField]
         private BossVisualStateEntry[] stateVisuals =
             Array.Empty<BossVisualStateEntry>();
 
         public string BossId => bossId;
         public Sprite DefaultSprite => defaultSprite;
+        public Sprite FaceSprite => faceSprite;
         public IReadOnlyList<BossVisualStateEntry> StateVisuals =>
             Array.AsReadOnly(
                 stateVisuals ?? Array.Empty<BossVisualStateEntry>());

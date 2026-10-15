@@ -26,18 +26,16 @@ namespace ValorChronicle.Tests.EditMode
         [TestCase("created")]
         [TestCase("repaired")]
         [TestCase("recovered")]
-        public async Task InitializeAsync_WritableSaveOutcomes_LoadMainScene(string scenario)
+        public async Task InitializeAsync_WritableSaveOutcomes_CompleteWithoutNavigation(string scenario)
         {
             FakeSaveRepository repository = CreateRepository(scenario);
-            int mainLoads = 0;
             var order = new List<string>();
             var profileIds = new FixedProfileIdProvider("profile_created");
             var coordinator = new GameInitializationCoordinator(
                 () => order.Add("initialize-content"),
                 () => { order.Add("validate-content"); return true; },
                 () => { order.Add("create-save"); return SaveServiceTestFactory.Create(repository); },
-                profileIds,
-                () => { order.Add("load-main"); mainLoads++; return Task.FromResult(true); });
+                profileIds);
 
             BootstrapInitializationResult result = await coordinator.InitializeAsync();
 
@@ -48,116 +46,85 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(coordinator.SaveService, Is.Not.Null);
             Assert.That(coordinator.SaveService.HasCurrentProfile, Is.True);
             Assert.That(coordinator.SaveService.CanWriteCurrentProfile, Is.True);
-            Assert.That(mainLoads, Is.EqualTo(1));
             Assert.That(profileIds.CallCount, Is.EqualTo(1));
             CollectionAssert.AreEqual(
-                new[] { "initialize-content", "validate-content", "create-save", "load-main" },
+                new[] { "initialize-content", "validate-content", "create-save" },
                 order);
         }
 
         [Test]
-        public async Task InitializeAsync_ContentInitializationFails_DoesNotCreateSaveOrLoadMain()
+        public async Task InitializeAsync_ContentInitializationFails_DoesNotCreateSave()
         {
             int saveCreates = 0;
-            int mainLoads = 0;
             var coordinator = new GameInitializationCoordinator(
                 () => throw new InvalidOperationException("content init"),
                 () => true,
                 () => { saveCreates++; return SaveServiceTestFactory.Create(new FakeSaveRepository()); },
-                new FixedProfileIdProvider("profile"),
-                () => { mainLoads++; return Task.FromResult(true); });
+                new FixedProfileIdProvider("profile"));
 
             BootstrapInitializationResult result = await coordinator.InitializeAsync();
 
             Assert.That(result.Status, Is.EqualTo(BootstrapInitializationStatus.ContentInitializationFailed));
             Assert.That(saveCreates, Is.Zero);
-            Assert.That(mainLoads, Is.Zero);
         }
 
         [TestCase(false)]
         [TestCase(true)]
-        public async Task InitializeAsync_ContentValidationFails_DoesNotCreateSaveOrLoadMain(bool throws)
+        public async Task InitializeAsync_ContentValidationFails_DoesNotCreateSave(bool throws)
         {
             int saveCreates = 0;
-            int mainLoads = 0;
             var coordinator = new GameInitializationCoordinator(
                 () => { },
                 () => throws ? throw new InvalidOperationException("validation") : false,
                 () => { saveCreates++; return SaveServiceTestFactory.Create(new FakeSaveRepository()); },
-                new FixedProfileIdProvider("profile"),
-                () => { mainLoads++; return Task.FromResult(true); });
+                new FixedProfileIdProvider("profile"));
 
             BootstrapInitializationResult result = await coordinator.InitializeAsync();
 
             Assert.That(result.Status, Is.EqualTo(BootstrapInitializationStatus.ContentValidationFailed));
             Assert.That(saveCreates, Is.Zero);
-            Assert.That(mainLoads, Is.Zero);
         }
 
         [TestCase("future", SaveLoadStatus.FutureVersion)]
         [TestCase("older", SaveLoadStatus.UnsupportedOlderVersion)]
         [TestCase("invalid", SaveLoadStatus.MainAndBackupInvalid)]
         [TestCase("readonly", SaveLoadStatus.RecoveredFromBackupButMainRepairFailed)]
-        public async Task InitializeAsync_UnusableSave_DoesNotLoadMain(
+        public async Task InitializeAsync_UnusableSave_FailsInitialization(
             string scenario,
             SaveLoadStatus expectedSaveStatus)
         {
             FakeSaveRepository repository = CreateRepository(scenario);
-            int mainLoads = 0;
-            var coordinator = CreateCoordinator(
-                repository,
-                () => { mainLoads++; return Task.FromResult(true); });
+            var coordinator = CreateCoordinator(repository);
 
             BootstrapInitializationResult result = await coordinator.InitializeAsync();
 
             Assert.That(result.Status, Is.EqualTo(BootstrapInitializationStatus.SaveInitializationFailed));
             Assert.That(result.SaveLoadResult.Status, Is.EqualTo(expectedSaveStatus));
-            Assert.That(mainLoads, Is.Zero);
             Assert.That(repository.Count(nameof(FakeSaveRepository.WriteTemp)),
                 Is.EqualTo(scenario == "readonly" ? 1 : 0));
         }
 
         [Test]
-        public async Task InitializeAsync_SaveCompositionException_DoesNotLoadMain()
+        public async Task InitializeAsync_SaveCompositionException_FailsInitialization()
         {
-            int mainLoads = 0;
             var coordinator = new GameInitializationCoordinator(
                 () => { },
                 () => true,
                 () => throw new InvalidOperationException("save composition"),
-                new FixedProfileIdProvider("profile"),
-                () => { mainLoads++; return Task.FromResult(true); });
+                new FixedProfileIdProvider("profile"));
 
             BootstrapInitializationResult result = await coordinator.InitializeAsync();
 
             Assert.That(result.Status, Is.EqualTo(BootstrapInitializationStatus.SaveInitializationFailed));
             Assert.That(result.Exception, Is.TypeOf<InvalidOperationException>());
-            Assert.That(mainLoads, Is.Zero);
-        }
-
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task InitializeAsync_MainSceneFailure_ReturnsSceneLoadFailed(bool throws)
-        {
-            var repository = new FakeSaveRepository { MainText = SaveTestDataBuilder.ValidJson() };
-            Func<Task<bool>> load = throws
-                ? () => throw new InvalidOperationException("scene")
-                : () => Task.FromResult(false);
-            GameInitializationCoordinator coordinator = CreateCoordinator(repository, load);
-
-            BootstrapInitializationResult result = await coordinator.InitializeAsync();
-
-            Assert.That(result.Status, Is.EqualTo(BootstrapInitializationStatus.SceneLoadFailed));
-            Assert.That(result.SaveLoadResult.Status, Is.EqualTo(SaveLoadStatus.LoadedMain));
         }
 
         [Test]
         public async Task InitializeAsync_TransactionDataRemainsAvailableThroughExposedSaveService()
         {
             var repository = new FakeSaveRepository { MainText = SaveTestDataBuilder.ValidJson() };
-            GameInitializationCoordinator coordinator = CreateCoordinator(
-                repository,
-                () => Task.FromResult(true));
+            GameInitializationCoordinator coordinator =
+                CreateCoordinator(repository);
             Assert.That((await coordinator.InitializeAsync()).IsSuccess, Is.True);
 
             SaveTransactionResult transaction = coordinator.SaveService.ExecuteTransaction(
@@ -169,15 +136,13 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         private static GameInitializationCoordinator CreateCoordinator(
-            FakeSaveRepository repository,
-            Func<Task<bool>> loadMain)
+            FakeSaveRepository repository)
         {
             return new GameInitializationCoordinator(
                 () => { },
                 () => true,
                 () => SaveServiceTestFactory.Create(repository),
-                new FixedProfileIdProvider("profile_created"),
-                loadMain);
+                new FixedProfileIdProvider("profile_created"));
         }
 
         private static FakeSaveRepository CreateRepository(string scenario)

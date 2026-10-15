@@ -2,11 +2,11 @@ using System;
 using UnityEngine;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
+using ValorChronicle.Battle.Entry;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Logging;
-using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Party.Battle;
@@ -17,27 +17,12 @@ namespace ValorChronicle.Battle.Flow.Presentation
 {
     public sealed class BattleSceneCombatBootstrap : MonoBehaviour
     {
-        private const string DevelopmentBossId = "kragmor";
-        private const string DefaultDevelopmentDifficultyId =
-            "difficulty_normal";
-
         [SerializeField]
         private BattleFlowController battleFlowController = null;
 
         [SerializeField]
         private BattleResultPresentationController
             resultPresentationController = null;
-
-        [SerializeField]
-        private BossDefinition fallbackBossDefinition = null;
-
-        [SerializeField]
-        private BattleResultBalanceDefinition
-            fallbackResultBalanceDefinition = null;
-
-        [SerializeField]
-        private string developmentDifficultyId =
-            DefaultDevelopmentDifficultyId;
 
         private bool initializationAttempted;
 
@@ -72,39 +57,89 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
 
             initializationAttempted = true;
-            DefinitionDatabase = ResolveInitializedDefinitionDatabase();
+            GameBootstrapper bootstrapper = GameBootstrapper.Instance;
+            if (bootstrapper == null)
+            {
+                FailInitialization(
+                    "GameBootstrapper is not available.");
+                return;
+            }
+
+            BattleEntryService entryService =
+                bootstrapper.BattleEntryService;
+            if (entryService == null)
+            {
+                FailInitialization(
+                    "BattleEntryService is not available.");
+                return;
+            }
+
+            if (!entryService.TryGetCurrent(
+                out BattleEntryRequest entryRequest))
+            {
+                FailInitialization(
+                    "A BattleEntryRequest is required.");
+                return;
+            }
+
+            if (bootstrapper.InitializationResult == null
+                || !bootstrapper.InitializationResult.IsSuccess)
+            {
+                FailInitialization(
+                    "GameBootstrapper initialization is not complete.",
+                    entryService,
+                    entryRequest);
+                return;
+            }
+
             if (battleFlowController == null)
             {
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] BattleFlowController "
-                        + "is not assigned.",
-                    this);
+                FailInitialization(
+                    "BattleFlowController is not assigned.",
+                    entryService,
+                    entryRequest);
                 return;
             }
 
             if (battleFlowController.Context != null)
             {
-                HasInitializedFlow = true;
+                FailInitialization(
+                    "BattleFlowController is already initialized.",
+                    entryService,
+                    entryRequest);
                 return;
             }
 
+            DefinitionDatabase = bootstrapper.DefinitionDatabase;
             if (DefinitionDatabase == null)
             {
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] An initialized "
-                        + "DefinitionDatabase is required.",
-                    this);
+                FailInitialization(
+                    "An initialized DefinitionDatabase is required.",
+                    entryService,
+                    entryRequest);
                 return;
             }
 
-            SaveService saveService =
-                GameBootstrapper.Instance?.SaveService;
+            if (!BattleEncounterFactory.TryCreate(
+                DefinitionDatabase,
+                entryRequest,
+                out BattleEncounterDefinition encounter,
+                out string encounterError))
+            {
+                FailInitialization(
+                    encounterError,
+                    entryService,
+                    entryRequest);
+                return;
+            }
+
+            SaveService saveService = bootstrapper.SaveService;
             if (saveService == null || !saveService.HasCurrentProfile)
             {
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] SaveService with a "
-                        + "current profile is required.",
-                    this);
+                FailInitialization(
+                    "SaveService with a current profile is required.",
+                    entryService,
+                    entryRequest);
                 return;
             }
 
@@ -115,11 +150,11 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
             catch (Exception exception)
             {
-                GameLogger.Exception(exception, this);
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] Current profile "
-                        + "snapshot could not be read.",
-                    this);
+                FailInitialization(
+                    "Current profile snapshot could not be read.",
+                    entryService,
+                    entryRequest,
+                    exception);
                 return;
             }
 
@@ -129,84 +164,49 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 partyResolver.Resolve(profileSnapshot);
             if (!partyResolution.IsSuccess)
             {
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] Battle party "
-                        + $"resolution failed. Status="
-                        + $"{partyResolution.Status}. "
+                FailInitialization(
+                    "Battle party resolution failed. "
+                        + $"Status={partyResolution.Status}. "
                         + partyResolution.ErrorMessage,
-                    this);
-                return;
-            }
-
-            BossDefinition selectedBoss = ResolveBossDefinition();
-            if (selectedBoss == null)
-            {
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] No BossDefinition is "
-                        + "available.",
-                    this);
-                return;
-            }
-
-            if (!selectedBoss.TryGetDifficultyStats(
-                developmentDifficultyId,
-                out BossDifficultyStats selectedDifficulty))
-            {
-                GameLogger.Error(
-                    $"[BattleSceneCombatBootstrap] Boss difficulty is not "
-                        + $"available. BossId={selectedBoss.Id}; "
-                        + $"DifficultyId={developmentDifficultyId}.",
-                    this);
-                return;
-            }
-
-            if (!(selectedBoss.CombatConfig is
-                KragmorCombatConfig selectedKragmorConfig))
-            {
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] Kragmor requires a "
-                        + "KragmorCombatConfig.",
-                    this);
-                return;
-            }
-
-            if (!selectedKragmorConfig.TryValidate(
-                out string kragmorConfigError))
-            {
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] Kragmor combat config "
-                        + $"is invalid. {kragmorConfigError}",
-                    this);
+                    entryService,
+                    entryRequest);
                 return;
             }
 
             BattleResultBalanceDefinition selectedResultBalance =
-                ResolveResultBalanceDefinition();
+                DefinitionDatabase.BattleResultBalance;
             if (selectedResultBalance == null)
             {
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] No "
-                        + "BattleResultBalanceDefinition is available.",
-                    this);
+                FailInitialization(
+                    "No BattleResultBalanceDefinition is available.",
+                    entryService,
+                    entryRequest);
                 return;
             }
 
             if (!selectedResultBalance.TryValidate(
                 out string resultBalanceError))
             {
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] Battle result balance "
-                        + $"is invalid. {resultBalanceError}",
-                    this);
+                FailInitialization(
+                    "Battle result balance is invalid. "
+                        + resultBalanceError,
+                    entryService,
+                    entryRequest);
+                return;
+            }
+
+            if (bootstrapper.RandomSource == null)
+            {
+                FailInitialization(
+                    "IRandomSource is not available.",
+                    entryService,
+                    entryRequest);
                 return;
             }
 
             BattleSceneCombatComposition composition = null;
             try
             {
-                IRandomSource randomSource =
-                    GameBootstrapper.Instance?.RandomSource
-                    ?? new UnityRandomSource();
                 var characterRegistrars =
                     new CharacterCombatProviderRegistrarCatalog(
                         new ICharacterCombatProviderRegistrar[]
@@ -216,10 +216,10 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 composition = new BattleSceneCombatComposition(
                     partyResolution.Members,
                     characterRegistrars,
-                    selectedBoss,
-                    selectedKragmorConfig,
-                    selectedDifficulty,
-                    randomSource,
+                    encounter.Boss,
+                    encounter.KragmorConfig,
+                    encounter.Difficulty,
+                    bootstrapper.RandomSource,
                     selectedResultBalance.CreateBalance(),
                     saveService);
                 battleFlowController.Initialize(
@@ -234,57 +234,51 @@ namespace ValorChronicle.Battle.Flow.Presentation
                         composition.ResultPersistenceCoordinator);
                 }
 
+                if (!entryService.TryConsume(entryRequest, out _))
+                {
+                    throw new InvalidOperationException(
+                        "The BattleEntryRequest could not be consumed.");
+                }
+
                 CombatComposition = composition;
                 HasInitializedFlow = true;
             }
             catch (Exception exception)
             {
                 composition?.Dispose();
+                if (battleFlowController.Context != null)
+                {
+                    battleFlowController.enabled = false;
+                }
+
+                FailInitialization(
+                    "Battle Flow initialization failed.",
+                    entryService,
+                    entryRequest,
+                    exception);
+            }
+        }
+
+        private void FailInitialization(
+            string message,
+            BattleEntryService entryService = null,
+            BattleEntryRequest entryRequest = null,
+            Exception exception = null)
+        {
+            if (exception != null)
+            {
                 GameLogger.Exception(exception, this);
-                GameLogger.Error(
-                    "[BattleSceneCombatBootstrap] Battle Flow "
-                        + "initialization failed.",
-                    this);
             }
-        }
 
-        private BossDefinition ResolveBossDefinition()
-        {
-            DefinitionDatabase database = DefinitionDatabase;
-            if (database != null
-                && database.IsInitialized
-                && database.TryGetBoss(
-                    DevelopmentBossId,
-                    out BossDefinition databaseBoss))
+            GameLogger.Error(
+                "[BattleSceneCombatBootstrap] " + message,
+                this);
+            if (entryService == null || entryRequest == null)
             {
-                return databaseBoss;
+                return;
             }
 
-            return fallbackBossDefinition;
-        }
-
-        private BattleResultBalanceDefinition
-            ResolveResultBalanceDefinition()
-        {
-            DefinitionDatabase database = DefinitionDatabase;
-            if (database != null
-                && database.IsInitialized
-                && database.BattleResultBalance != null)
-            {
-                return database.BattleResultBalance;
-            }
-
-            return fallbackResultBalanceDefinition;
-        }
-
-        private static DefinitionDatabase
-            ResolveInitializedDefinitionDatabase()
-        {
-            DefinitionDatabase database =
-                GameBootstrapper.Instance?.DefinitionDatabase;
-            return database != null && database.IsInitialized
-                ? database
-                : null;
+            entryService.TryCancel(entryRequest);
         }
     }
 }
