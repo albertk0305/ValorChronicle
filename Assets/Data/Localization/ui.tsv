@@ -17,3 +17,4 @@ ui.battle.result.turn_bonus_format	Turn Bonus: {score}	잔여 턴 보너스: {sc
 ui.battle.result.reward	Reward	보상
 ui.battle.result.first_grade_bonus	First Grade Bonus	최초 등급 달성 보상
 ui.battle.pause.paused	Game Paused	일시정지
+ui.battle.pause.give_up_confirm	Are you sure you want to give up?	정말 포기하시겠습니까?

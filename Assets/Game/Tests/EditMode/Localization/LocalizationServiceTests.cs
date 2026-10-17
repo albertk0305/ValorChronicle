@@ -290,6 +290,9 @@ namespace ValorChronicle.Tests.EditMode.Localization
                 Is.EqualTo("First Grade Bonus"));
             Assert.That(service.GetText("ui.battle.pause.paused"),
                 Is.EqualTo("Game Paused"));
+            Assert.That(service.GetText(
+                    "ui.battle.pause.give_up_confirm"),
+                Is.EqualTo("Are you sure you want to give up?"));
 
             service.SetLocale("ko");
 
@@ -373,6 +376,9 @@ namespace ValorChronicle.Tests.EditMode.Localization
                 Is.EqualTo("최초 등급 달성 보상"));
             Assert.That(service.GetText("ui.battle.pause.paused"),
                 Is.EqualTo("일시정지"));
+            Assert.That(service.GetText(
+                    "ui.battle.pause.give_up_confirm"),
+                Is.EqualTo("정말 포기하시겠습니까?"));
         }
 
         private static LocalizationService Service(params string[] tables)

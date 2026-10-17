@@ -13261,7 +13261,6 @@ GameObject:
   - component: {fileID: 857152765}
   - component: {fileID: 857152764}
   - component: {fileID: 857152763}
-  - component: {fileID: 857152766}
   m_Layer: 5
   m_Name: PauseButton
   m_TagString: Untagged
@@ -13370,19 +13369,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 857152761}
   m_CullTransparentMesh: 1
---- !u!114 &857152766
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 857152761}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b8f94fa2c1833854fa0b3ae7bbe7b8db, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ValorChronicle.UI.Navigation.SceneNavigationButton
-  destination: 1
 --- !u!1 &859819529
 GameObject:
   m_ObjectHideFlags: 0
@@ -14085,6 +14071,7 @@ GameObject:
   - component: {fileID: 910000009}
   - component: {fileID: 910000010}
   - component: {fileID: 910000011}
+  - component: {fileID: 910000012}
   m_Layer: 5
   m_Name: GameContent
   m_TagString: Untagged
@@ -14574,7 +14561,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e43ec73ff52c4f759c67e04a8d9043cb, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Flow.Presentation.BattleResultPresentationController
   resultView: {fileID: 920000011}
   battleHudController: {fileID: 910000008}
@@ -14608,6 +14595,28 @@ MonoBehaviour:
   m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Flow.Presentation.BattleSettingsPanelBinding
   settingsPanelHost: {fileID: 910000010}
   battleFlowController: {fileID: 910000005}
+--- !u!114 &910000012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 907370524}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fbc67d68a2d4de38c43aad975498d1f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Flow.Presentation.BattlePausePanelBinding
+  pauseButton: {fileID: 857152763}
+  pausePanel: {fileID: 67622957}
+  pauseText: {fileID: 940000003}
+  resumeButton: {fileID: 1112850548}
+  giveUpButton: {fileID: 393685726}
+  giveUpConfirmation: {fileID: 1281661464}
+  confirmGiveUpButton: {fileID: 70643564}
+  cancelGiveUpButton: {fileID: 412931233}
+  battleFlowController: {fileID: 910000005}
+  settingsPanelHost: {fileID: 910000010}
 --- !u!1 &914691423
 GameObject:
   m_ObjectHideFlags: 0
@@ -15490,6 +15499,48 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 937317349}
   m_CullTransparentMesh: 1
+--- !u!114 &940000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 609770738}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7f51a3c97e14e248f94d67aab0e53c1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Localization.LocalizedTMPText
+  targetText: {fileID: 609770740}
+  localizationKey: ui.battle.result.reward
+--- !u!114 &940000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2055906975}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7f51a3c97e14e248f94d67aab0e53c1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Localization.LocalizedTMPText
+  targetText: {fileID: 2055906977}
+  localizationKey: ui.battle.result.first_grade_bonus
+--- !u!114 &940000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1764830337}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7f51a3c97e14e248f94d67aab0e53c1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Localization.LocalizedTMPText
+  targetText: {fileID: 1764830339}
+  localizationKey: ui.battle.pause.paused
 --- !u!1 &940000101
 GameObject:
   m_ObjectHideFlags: 0
@@ -37351,48 +37402,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2141574397}
   m_CullTransparentMesh: 1
---- !u!114 &940000001
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 609770738}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b7f51a3c97e14e248f94d67aab0e53c1, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Localization.LocalizedTMPText
-  targetText: {fileID: 609770740}
-  localizationKey: ui.battle.result.reward
---- !u!114 &940000002
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2055906975}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b7f51a3c97e14e248f94d67aab0e53c1, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Localization.LocalizedTMPText
-  targetText: {fileID: 2055906977}
-  localizationKey: ui.battle.result.first_grade_bonus
---- !u!114 &940000003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1764830337}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b7f51a3c97e14e248f94d67aab0e53c1, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Localization.LocalizedTMPText
-  targetText: {fileID: 1764830339}
-  localizationKey: ui.battle.pause.paused
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

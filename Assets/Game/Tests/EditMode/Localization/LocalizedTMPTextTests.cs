@@ -60,6 +60,30 @@ namespace ValorChronicle.Tests.EditMode.Localization
         }
 
         [Test]
+        public void RuntimeKeyChange_AppliesImmediatelyAndTracksLocale()
+        {
+            LocalizationService service = CreateService();
+            LocalizedTMPText binding = CreateBinding(
+                "label",
+                active: true,
+                out TMP_Text text);
+            binding.Initialize(service);
+
+            binding.SetLocalizationKey("confirm");
+            Assert.That(binding.LocalizationKey, Is.EqualTo("confirm"));
+            Assert.That(text.text,
+                Is.EqualTo("Are you sure you want to give up?"));
+
+            service.SetLocale("ko");
+            Assert.That(text.text, Is.EqualTo("정말 포기하시겠습니까?"));
+
+            binding.SetLocalizationKey("label");
+            Assert.That(text.text, Is.EqualTo("설정"));
+            Assert.Throws<ArgumentException>(
+                () => binding.SetLocalizationKey(" "));
+        }
+
+        [Test]
         public void InactiveText_AppliesLatestLocaleWhenReenabled()
         {
             LocalizationService service = CreateService();
@@ -251,7 +275,10 @@ namespace ValorChronicle.Tests.EditMode.Localization
         {
             LocalizationTable table = LocalizationTableParser.Parse(
                 "localized-text-test.tsv",
-                "key\ten\tko\nlabel\tSettings\t설정");
+                "key\ten\tko\n"
+                    + "label\tSettings\t설정\n"
+                    + "confirm\tAre you sure you want to give up?\t"
+                    + "정말 포기하시겠습니까?");
             return new LocalizationService(new[] { table });
         }
 

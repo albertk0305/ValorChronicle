@@ -75,6 +75,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     Object.FindObjectsByType<DamageNumberPool>(
                         FindObjectsInactive.Exclude,
                         FindObjectsSortMode.None);
+                BattlePausePanelBinding[] pauseBindings =
+                    Object.FindObjectsByType<BattlePausePanelBinding>(
+                        FindObjectsInactive.Include,
+                        FindObjectsSortMode.None);
 
                 Assert.That(boardControllers, Has.Length.EqualTo(1));
                 Assert.That(flowControllers, Has.Length.EqualTo(1));
@@ -87,6 +91,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     Has.Length.EqualTo(1));
                 Assert.That(projectilePools, Has.Length.EqualTo(1));
                 Assert.That(damageNumberPools, Has.Length.EqualTo(1));
+                Assert.That(pauseBindings, Has.Length.EqualTo(1));
 
                 BattleBoardController boardController = boardControllers[0];
                 BattleFlowController flowController = flowControllers[0];
@@ -100,12 +105,14 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     combatPresentationControllers[0];
                 AttackProjectilePool projectilePool = projectilePools[0];
                 DamageNumberPool damageNumberPool = damageNumberPools[0];
+                BattlePausePanelBinding pauseBinding = pauseBindings[0];
                 Assert.That(flowController.gameObject.name,
                     Is.EqualTo("GameContent"));
                 Assert.That(hudController.gameObject,
                     Is.SameAs(flowController.gameObject));
                 Assert.That(combatBootstrap.gameObject,
                     Is.SameAs(flowController.gameObject));
+                AssertPausePanelBinding(pauseBinding, flowController);
                 Assert.That(IsBelowSafeArea(hudController.transform), Is.True);
                 AssertResultPresentation(
                     resultController,
@@ -517,6 +524,60 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(pauseButton, Is.Not.Null);
             Assert.That(pauseButton.onClick.GetPersistentEventCount(),
                 Is.Zero);
+        }
+
+        private static void AssertPausePanelBinding(
+            BattlePausePanelBinding binding,
+            BattleFlowController flowController)
+        {
+            Assert.That(binding.IsConfigured, Is.True);
+            Assert.That(binding.gameObject, Is.SameAs(flowController.gameObject));
+            Assert.That(binding.BattleFlowController,
+                Is.SameAs(flowController));
+            Assert.That(binding.PauseButton.gameObject.name,
+                Is.EqualTo("PauseButton"));
+            Assert.That(binding.PausePanel.name, Is.EqualTo("PausePanel"));
+            Assert.That(binding.PauseText, Is.Not.Null);
+            Assert.That(binding.PauseText.gameObject.name,
+                Is.EqualTo("PauseText"));
+            Assert.That(binding.PauseText.LocalizationKey,
+                Is.EqualTo("ui.battle.pause.paused"));
+            Assert.That(binding.ResumeButton.gameObject.name,
+                Is.EqualTo("ReturnButton"));
+            Assert.That(binding.GiveUpButton.gameObject.name,
+                Is.EqualTo("GiveUpButton"));
+            Assert.That(binding.GiveUpConfirmation.name,
+                Is.EqualTo("GiveUpConfirm"));
+            Assert.That(binding.ConfirmGiveUpButton.gameObject.name,
+                Is.EqualTo("YesButton"));
+            Assert.That(binding.CancelGiveUpButton.gameObject.name,
+                Is.EqualTo("NoButton"));
+            Assert.That(binding.PausePanel.activeSelf, Is.False);
+            Assert.That(binding.GiveUpConfirmation.activeSelf, Is.False);
+            Assert.That(binding.PausePanel.transform.GetSiblingIndex(),
+                Is.EqualTo(binding.transform.childCount - 1));
+
+            Button[] buttons =
+            {
+                binding.PauseButton,
+                binding.ResumeButton,
+                binding.GiveUpButton,
+                binding.ConfirmGiveUpButton,
+                binding.CancelGiveUpButton
+            };
+            foreach (Button button in buttons)
+            {
+                Assert.That(button, Is.Not.Null);
+                Assert.That(button.onClick.GetPersistentEventCount(), Is.Zero);
+                Assert.That(
+                    button.GetComponents<SceneNavigationButton>(),
+                    Is.Empty);
+            }
+
+            Image blocker = binding.PausePanel.transform
+                .Find("BackgroundPanel")?.GetComponent<Image>();
+            Assert.That(blocker, Is.Not.Null);
+            Assert.That(blocker.raycastTarget, Is.True);
         }
 
         private static void AssertLocalizedText(

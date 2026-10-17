@@ -1,3 +1,4 @@
+using System;
 using TMPro;
 using UnityEngine;
 using ValorChronicle.Core.Bootstrap;
@@ -61,6 +62,19 @@ namespace ValorChronicle.Localization
                 return;
 
             SubscribeLocalization();
+            ApplyCurrentLocale();
+        }
+
+        public void SetLocalizationKey(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                throw new ArgumentException(
+                    "A localization key is required.",
+                    nameof(key));
+            }
+
+            localizationKey = key;
             ApplyCurrentLocale();
         }
 

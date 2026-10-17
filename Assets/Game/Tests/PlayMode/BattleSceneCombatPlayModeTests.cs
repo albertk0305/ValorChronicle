@@ -9,6 +9,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using UnityEngine.UI;
 using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Combat.Actions;
@@ -23,9 +24,11 @@ using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Pause;
 using ValorChronicle.Core.Random;
+using ValorChronicle.Core.Scene;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Save.DTO;
+using ValorChronicle.Save.Copying;
 using ValorChronicle.Save.Services;
 
 namespace ValorChronicle.Tests.PlayMode
@@ -48,6 +51,8 @@ namespace ValorChronicle.Tests.PlayMode
         private string saveRoot;
         private float previousTimeScale;
         private GamePauseService gamePauseService;
+        private SaveService saveService;
+        private BattlePausePanelBinding pausePanelBinding;
 
         [UnitySetUp]
         public IEnumerator LoadBattleScene()
@@ -89,12 +94,189 @@ namespace ValorChronicle.Tests.PlayMode
                 BattleBoardView>();
             boardInput = UnityEngine.Object.FindFirstObjectByType<
                 BattleBoardInput>();
+            pausePanelBinding = UnityEngine.Object.FindFirstObjectByType<
+                BattlePausePanelBinding>();
             Assert.That(combatBootstrap.HasInitializedCombat, Is.True);
             Assert.That(boardController, Is.Not.Null);
             Assert.That(boardView, Is.Not.Null);
             Assert.That(boardInput, Is.Not.Null);
+            Assert.That(pausePanelBinding, Is.Not.Null);
+            Assert.That(pausePanelBinding.IsConfigured, Is.True);
+            Assert.That(pausePanelBinding.PauseButton.interactable, Is.True);
             Assert.That(flow.Context.Phase,
                 Is.EqualTo(BattlePhase.PlayerInput));
+        }
+
+        [UnityTest]
+        public IEnumerator PausePanelPausesAndResumesLoadedBattleInPlace()
+        {
+            BattlePhase phase = flow.Context.Phase;
+            int turn = flow.Context.CurrentTurn;
+            long bossHp = combat.Boss.CurrentHp;
+            long partyHp = combat.Party.CurrentHp;
+            int patternIndex = combat.KragmorRuntimeState.PatternIndex;
+            int resultCount = 0;
+            int sceneLoadStartCount = 0;
+            flow.BattleResultReached += _ => resultCount++;
+            GameBootstrapper.Instance.SceneService.LoadingStateChanged +=
+                isLoading =>
+                {
+                    if (isLoading)
+                    {
+                        sceneLoadStartCount++;
+                    }
+                };
+            SetField(boardInput, "isTrackingPointer", true);
+
+            ClickThroughEventSystem(pausePanelBinding.PauseButton);
+            yield return null;
+
+            Assert.That(pausePanelBinding.IsOpen, Is.True);
+            Assert.That(pausePanelBinding.IsGiveUpConfirmationOpen, Is.False);
+            Assert.That(
+                pausePanelBinding.ResumeButton.gameObject.activeSelf,
+                Is.True);
+            Assert.That(
+                pausePanelBinding.GiveUpButton.gameObject.activeSelf,
+                Is.True);
+            Assert.That(pausePanelBinding.PauseText.LocalizationKey,
+                Is.EqualTo("ui.battle.pause.paused"));
+            Assert.That(flow.Context.Result,
+                Is.EqualTo(BattleResultKind.None));
+            Assert.That(resultCount, Is.Zero);
+            Assert.That(sceneLoadStartCount, Is.Zero);
+            Assert.That(SceneManager.GetSceneByName("Battle").isLoaded,
+                Is.True);
+            Assert.That(gamePauseService.ActiveRequestCount, Is.EqualTo(1));
+            Assert.That(gamePauseService.IsPaused, Is.True);
+            Assert.That(Time.timeScale, Is.Zero);
+            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+            Assert.That(boardInput.IsTrackingPointer, Is.False);
+            Assert.That(flow.CanUseActive(0), Is.False);
+
+            ClickThroughEventSystem(pausePanelBinding.GiveUpButton);
+            Assert.That(pausePanelBinding.IsGiveUpConfirmationOpen, Is.True);
+            Assert.That(
+                pausePanelBinding.ResumeButton.gameObject.activeSelf,
+                Is.False);
+            Assert.That(
+                pausePanelBinding.GiveUpButton.gameObject.activeSelf,
+                Is.False);
+            Assert.That(gamePauseService.ActiveRequestCount, Is.EqualTo(1));
+            Assert.That(flow.Context.Result,
+                Is.EqualTo(BattleResultKind.None));
+
+            ClickThroughEventSystem(pausePanelBinding.CancelGiveUpButton);
+            Assert.That(pausePanelBinding.IsGiveUpConfirmationOpen, Is.False);
+            Assert.That(
+                pausePanelBinding.ResumeButton.gameObject.activeSelf,
+                Is.True);
+            Assert.That(
+                pausePanelBinding.GiveUpButton.gameObject.activeSelf,
+                Is.True);
+            Assert.That(pausePanelBinding.PauseText.LocalizationKey,
+                Is.EqualTo("ui.battle.pause.paused"));
+            Assert.That(gamePauseService.ActiveRequestCount, Is.EqualTo(1));
+            Assert.That(gamePauseService.IsPaused, Is.True);
+
+            ClickThroughEventSystem(pausePanelBinding.ResumeButton);
+            yield return null;
+
+            Assert.That(pausePanelBinding.IsOpen, Is.False);
+            Assert.That(gamePauseService.ActiveRequestCount, Is.Zero);
+            Assert.That(gamePauseService.IsPaused, Is.False);
+            Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(flow.Context.Phase, Is.EqualTo(phase));
+            Assert.That(flow.Context.CurrentTurn, Is.EqualTo(turn));
+            Assert.That(combat.Boss.CurrentHp, Is.EqualTo(bossHp));
+            Assert.That(combat.Party.CurrentHp, Is.EqualTo(partyHp));
+            Assert.That(combat.KragmorRuntimeState.PatternIndex,
+                Is.EqualTo(patternIndex));
+            Assert.That(boardController.IsExternalInputEnabled, Is.True);
+            Assert.That(flow.Context.Result,
+                Is.EqualTo(BattleResultKind.None));
+            Assert.That(resultCount, Is.Zero);
+            Assert.That(sceneLoadStartCount, Is.Zero);
+        }
+
+        [UnityTest]
+        public IEnumerator GiveUpAbortsWithoutFinalizationOrProfileMutation()
+        {
+            ProfileSaveData before = saveService.GetCurrentProfileSnapshot();
+            int navigationCount = 0;
+            SetField(
+                pausePanelBinding,
+                "loadMainSceneAsync",
+                (Func<System.Threading.Tasks.Task<bool>>)(() =>
+                {
+                    navigationCount++;
+                    Assert.That(flow.Context.Result,
+                        Is.EqualTo(BattleResultKind.Aborted));
+                    return System.Threading.Tasks.Task.FromResult(true);
+                }));
+
+            ClickThroughEventSystem(pausePanelBinding.PauseButton);
+            ClickThroughEventSystem(pausePanelBinding.GiveUpButton);
+
+            Assert.That(pausePanelBinding.IsGiveUpConfirmationOpen, Is.True);
+            Assert.That(
+                pausePanelBinding.ResumeButton.gameObject.activeSelf,
+                Is.False);
+            Assert.That(
+                pausePanelBinding.GiveUpButton.gameObject.activeSelf,
+                Is.False);
+            Assert.That(pausePanelBinding.PauseText.LocalizationKey,
+                Is.EqualTo("ui.battle.pause.give_up_confirm"));
+            Assert.That(flow.Context.Result,
+                Is.EqualTo(BattleResultKind.None));
+            Assert.That(navigationCount, Is.Zero);
+
+            ClickThroughEventSystem(pausePanelBinding.ConfirmGiveUpButton);
+            yield return null;
+
+            Assert.That(flow.Context.Result,
+                Is.EqualTo(BattleResultKind.Aborted));
+            Assert.That(navigationCount, Is.EqualTo(1));
+            Assert.That(gamePauseService.ActiveRequestCount, Is.Zero);
+            Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(
+                combat.ResultPersistenceCoordinator.IsPersistenceCompleted,
+                Is.False);
+            BattleHudController hud = UnityEngine.Object
+                .FindFirstObjectByType<BattleHudController>();
+            Assert.That(hud.ResultOverlay.activeSelf, Is.False);
+            Assert.That(
+                new SaveDataValueComparer().Equals(
+                    before,
+                    saveService.GetCurrentProfileSnapshot()),
+                Is.True);
+        }
+
+        private static void ClickThroughEventSystem(Button button)
+        {
+            Assert.That(EventSystem.current, Is.Not.Null);
+            var eventData = new PointerEventData(EventSystem.current)
+            {
+                button = PointerEventData.InputButton.Left,
+                clickCount = 1,
+                pointerId = -1,
+                position = RectTransformUtility.WorldToScreenPoint(
+                    null,
+                    button.transform.position)
+            };
+
+            ExecuteEvents.Execute(
+                button.gameObject,
+                eventData,
+                ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(
+                button.gameObject,
+                eventData,
+                ExecuteEvents.pointerUpHandler);
+            ExecuteEvents.Execute(
+                button.gameObject,
+                eventData,
+                ExecuteEvents.pointerClickHandler);
         }
 
         [UnityTearDown]
@@ -997,7 +1179,7 @@ namespace ValorChronicle.Tests.PlayMode
                 Application.temporaryCachePath,
                 "ValorChronicleBattleSceneTests",
                 Guid.NewGuid().ToString("N"));
-            SaveService saveService = SaveSystemFactory.Create(
+            saveService = SaveSystemFactory.Create(
                 saveRoot,
                 testDefinitionDatabase);
             SaveLoadResult load = saveService.LoadOrCreate(
@@ -1037,6 +1219,11 @@ namespace ValorChronicle.Tests.PlayMode
                 "GamePauseService",
                 bootstrapper,
                 gamePauseService);
+            SetAutoProperty(
+                typeof(GameBootstrapper),
+                "SceneService",
+                bootstrapper,
+                new SceneService());
             var battleEntryService = new BattleEntryService();
             Assert.That(
                 battleEntryService.TryRegister(
