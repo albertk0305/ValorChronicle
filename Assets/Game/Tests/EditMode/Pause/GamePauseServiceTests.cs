@@ -74,6 +74,60 @@ namespace ValorChronicle.Tests.EditMode.Pause
             Assert.That(setCount, Is.EqualTo(2));
         }
 
+        [TestCase(0.5f)]
+        [TestCase(1f)]
+        [TestCase(1.5f)]
+        public void ConfiguredResumeScaleIsRestoredAfterPause(float targetScale)
+        {
+            float timeScale = 1f;
+            var service = new GamePauseService(
+                () => timeScale,
+                value => timeScale = value);
+
+            service.SetResumeTimeScale(targetScale);
+            IDisposable request = service.RequestPause();
+            Assert.That(timeScale, Is.Zero);
+
+            request.Dispose();
+            Assert.That(timeScale, Is.EqualTo(targetScale));
+        }
+
+        [Test]
+        public void ChangingResumeScaleWhileNestedPausedKeepsZeroAndRestoresLatest()
+        {
+            float timeScale = 0.5f;
+            var service = new GamePauseService(
+                () => timeScale,
+                value => timeScale = value);
+            IDisposable first = service.RequestPause();
+            IDisposable second = service.RequestPause();
+
+            service.SetResumeTimeScale(1.5f);
+
+            Assert.That(timeScale, Is.Zero);
+            first.Dispose();
+            Assert.That(timeScale, Is.Zero);
+            second.Dispose();
+            Assert.That(timeScale, Is.EqualTo(1.5f));
+        }
+
+        [Test]
+        public void ReleaseAllRestoresLatestResumeScale()
+        {
+            float timeScale = 1f;
+            var service = new GamePauseService(
+                () => timeScale,
+                value => timeScale = value);
+            IDisposable request = service.RequestPause();
+            service.SetResumeTimeScale(0.5f);
+
+            service.ReleaseAll();
+            request.Dispose();
+
+            Assert.That(timeScale, Is.EqualTo(0.5f));
+            Assert.That(service.ActiveRequestCount, Is.Zero);
+        }
+
         [Test]
         public void DisposeRestoresTimeAndRejectsNewRequests()
         {

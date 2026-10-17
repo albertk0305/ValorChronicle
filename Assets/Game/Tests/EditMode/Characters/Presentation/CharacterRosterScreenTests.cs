@@ -206,6 +206,42 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
             Assert.That(notifications, Is.EqualTo(2));
         }
 
+        [Test]
+        public void ExternalTransaction_RefreshesCurrenciesWithoutResettingUiState()
+        {
+            Fixture fixture = CreateFixture(
+                Profile(
+                    ("fire", 20, 1),
+                    ("water", 10, 4)),
+                new[]
+                {
+                    Definition("fire", ElementType.Fire),
+                    Definition("water", ElementType.Water)
+                });
+            fixture.View.FilterButtons
+                .Single(item => item.Element == ElementType.Water)
+                .Button.onClick.Invoke();
+            fixture.View.AwakeningSortButton.onClick.Invoke();
+
+            Assert.That(fixture.SaveService.ExecuteTransaction(profile =>
+            {
+                profile.Currencies.GachaCurrency = 10000L;
+            }).IsSuccess, Is.True);
+
+            Assert.That(fixture.View.GoldText.text, Is.EqualTo("10000"));
+            Assert.That(fixture.Controller.SelectedElement,
+                Is.EqualTo(ElementType.Water));
+            Assert.That(fixture.Controller.SortMode,
+                Is.EqualTo(CharacterRosterSortMode.Awakening));
+
+            fixture.DeactivateLifecycle();
+            Assert.That(fixture.SaveService.ExecuteTransaction(profile =>
+            {
+                profile.Currencies.GachaCurrency = 10001L;
+            }).IsSuccess, Is.True);
+            Assert.That(fixture.View.GoldText.text, Is.EqualTo("10000"));
+        }
+
         private Fixture CreateFixture(
             ProfileSaveData profile,
             CharacterDefinition[] definitions)
@@ -281,7 +317,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
             controller.Initialize(saveService, database);
             root.SetActive(true);
 
-            var fixture = new Fixture(root, controller, view);
+            var fixture = new Fixture(root, controller, view, saveService);
             fixture.ActivateLifecycle();
             return fixture;
         }
@@ -467,16 +503,19 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
             public Fixture(
                 GameObject root,
                 CharacterRosterScreenController controller,
-                CharacterRosterScreenView view)
+                CharacterRosterScreenView view,
+                SaveService saveService)
             {
                 Root = root;
                 Controller = controller;
                 View = view;
+                SaveService = saveService;
             }
 
             public GameObject Root { get; }
             public CharacterRosterScreenController Controller { get; }
             public CharacterRosterScreenView View { get; }
+            public SaveService SaveService { get; }
 
             public void ActivateLifecycle()
             {

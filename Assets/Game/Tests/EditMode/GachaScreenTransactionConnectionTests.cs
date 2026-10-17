@@ -19,6 +19,7 @@ using ValorChronicle.Exchange.Presentation;
 using ValorChronicle.Gacha.Persistence;
 using ValorChronicle.Gacha.Presentation;
 using ValorChronicle.Localization;
+using ValorChronicle.Redeem;
 using ValorChronicle.Relics.Acquisition;
 using ValorChronicle.Save.Copying;
 using ValorChronicle.Save.DTO;
@@ -60,6 +61,26 @@ namespace ValorChronicle.Tests.EditMode
                 Assert.That(context.View.SettingButton.interactable,
                     Is.True);
                 Assert.That(context.View.ExchangeButton.interactable,
+                    Is.True);
+            });
+        }
+
+        [Test]
+        public void RedeemTransaction_RefreshesVisibleGachaCurrency()
+        {
+            WithContext(100L, context =>
+            {
+                var redeem = new RedeemCodeService(context.SaveService);
+
+                RedeemCodeResult result = redeem.Redeem("NEAT3");
+
+                Assert.That(result.IsSuccess, Is.True);
+                Assert.That(context.View.GachaCurrencyText.text,
+                    Is.EqualTo("10100"));
+                Assert.That(
+                    context.View.CharacterTenButton.interactable,
+                    Is.True);
+                Assert.That(context.View.RelicTenButton.interactable,
                     Is.True);
             });
         }

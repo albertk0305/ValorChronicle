@@ -10,6 +10,7 @@ namespace ValorChronicle.Settings.Validation
         public const int MaximumVolume = 100;
         public const int NormalBattleSpeed = 1;
         public const int FastBattleSpeed = 2;
+        public const int VeryFastBattleSpeed = 3;
 
         public SettingsValidationResult Validate(GameSettingsData source)
         {
@@ -71,7 +72,9 @@ namespace ValorChronicle.Settings.Validation
 
         public static int NormalizeBattleSpeed(int value)
         {
-            return value == NormalBattleSpeed || value == FastBattleSpeed
+            return value == NormalBattleSpeed
+                || value == FastBattleSpeed
+                || value == VeryFastBattleSpeed
                 ? value
                 : NormalBattleSpeed;
         }

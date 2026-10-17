@@ -14,6 +14,7 @@ using ValorChronicle.Data.Definitions;
 using ValorChronicle.Localization;
 using ValorChronicle.Party.Battle;
 using ValorChronicle.Save.DTO;
+using ValorChronicle.Save.Services;
 
 namespace ValorChronicle.Main.Presentation
 {
@@ -33,6 +34,7 @@ namespace ValorChronicle.Main.Presentation
         private SceneService subscribedSceneService;
         private GameBootstrapper subscribedLocalizationBootstrapper;
         private LocalizationService subscribedLocalizationService;
+        private SaveService subscribedSaveService;
 
         public event Action<string> BossSelected;
 
@@ -74,10 +76,12 @@ namespace ValorChronicle.Main.Presentation
             RefreshGoldDisplay();
             BindSceneLoadingState();
             BindLocalizationState();
+            BindSaveService();
         }
 
         private void OnDisable()
         {
+            UnbindSaveService();
             UnbindSceneLoadingState();
             UnbindLocalizationState();
         }
@@ -154,6 +158,7 @@ namespace ValorChronicle.Main.Presentation
 
         private void OnDestroy()
         {
+            UnbindSaveService();
             UnbindSceneLoadingState();
             UnbindLocalizationState();
             if (battleButton != null)
@@ -585,7 +590,38 @@ namespace ValorChronicle.Main.Presentation
                 HandleLocalizationInitializationCompleted;
             BindLocalizationService(
                 subscribedLocalizationBootstrapper?.LocalizationService);
+            BindSaveService();
             RefreshLocalizedContent();
+        }
+
+        private void BindSaveService()
+        {
+            SaveService service = GameBootstrapper.Instance?.SaveService;
+            if (ReferenceEquals(subscribedSaveService, service))
+                return;
+
+            UnbindSaveService();
+            subscribedSaveService = service;
+            if (subscribedSaveService != null)
+            {
+                subscribedSaveService.CurrentProfileChanged +=
+                    HandleCurrentProfileChanged;
+            }
+        }
+
+        private void UnbindSaveService()
+        {
+            if (subscribedSaveService == null)
+                return;
+
+            subscribedSaveService.CurrentProfileChanged -=
+                HandleCurrentProfileChanged;
+            subscribedSaveService = null;
+        }
+
+        private void HandleCurrentProfileChanged()
+        {
+            RefreshGoldDisplay();
         }
 
         private void HandleLocaleChanged(string _)

@@ -90,6 +90,7 @@ namespace ValorChronicle.Gacha.Presentation
         private bool awaitingResultCompletion;
         private bool activeUsesIndividualPresentation;
         private GachaTransactionResult activeTransactionResult;
+        private bool profileChangeSubscribed;
         private bool subscribed;
 
         public bool IsConfigured =>
@@ -109,6 +110,7 @@ namespace ValorChronicle.Gacha.Presentation
         private void OnEnable()
         {
             Subscribe();
+            SubscribeProfileChanges();
             if (saveService != null && definitionDatabase != null)
             {
                 RefreshFromAuthoritativeProfile();
@@ -117,6 +119,7 @@ namespace ValorChronicle.Gacha.Presentation
 
         private void OnDisable()
         {
+            UnsubscribeProfileChanges();
             Unsubscribe();
             presentationController?.Cancel();
             ClearResultSession();
@@ -185,9 +188,7 @@ namespace ValorChronicle.Gacha.Presentation
             DefinitionDatabase initializedDefinitionDatabase)
         {
             ResetResultPresentationSession();
-            saveService = initializedSaveService
-                ?? throw new ArgumentNullException(
-                    nameof(initializedSaveService));
+            SetSaveService(initializedSaveService);
             definitionDatabase = initializedDefinitionDatabase
                 ?? throw new ArgumentNullException(
                     nameof(initializedDefinitionDatabase));
@@ -206,9 +207,7 @@ namespace ValorChronicle.Gacha.Presentation
             LocalizationService initializedLocalization)
         {
             ResetResultPresentationSession();
-            saveService = initializedSaveService
-                ?? throw new ArgumentNullException(
-                    nameof(initializedSaveService));
+            SetSaveService(initializedSaveService);
             definitionDatabase = initializedDefinitionDatabase
                 ?? throw new ArgumentNullException(
                     nameof(initializedDefinitionDatabase));
@@ -257,9 +256,7 @@ namespace ValorChronicle.Gacha.Presentation
             GachaTransactionService initializedTransactionService)
         {
             ResetResultPresentationSession();
-            saveService = initializedSaveService
-                ?? throw new ArgumentNullException(
-                    nameof(initializedSaveService));
+            SetSaveService(initializedSaveService);
             definitionDatabase = initializedDefinitionDatabase
                 ?? throw new ArgumentNullException(
                     nameof(initializedDefinitionDatabase));
@@ -723,6 +720,49 @@ namespace ValorChronicle.Gacha.Presentation
             }
 
             subscribed = false;
+        }
+
+        private void SetSaveService(SaveService initializedSaveService)
+        {
+            UnsubscribeProfileChanges();
+            saveService = initializedSaveService
+                ?? throw new ArgumentNullException(
+                    nameof(initializedSaveService));
+            SubscribeProfileChanges();
+        }
+
+        private void SubscribeProfileChanges()
+        {
+            if (profileChangeSubscribed
+                || saveService == null
+                || !isActiveAndEnabled)
+            {
+                return;
+            }
+
+            saveService.CurrentProfileChanged +=
+                HandleCurrentProfileChanged;
+            profileChangeSubscribed = true;
+        }
+
+        private void UnsubscribeProfileChanges()
+        {
+            if (!profileChangeSubscribed || saveService == null)
+                return;
+
+            saveService.CurrentProfileChanged -=
+                HandleCurrentProfileChanged;
+            profileChangeSubscribed = false;
+        }
+
+        private void HandleCurrentProfileChanged()
+        {
+            if (!transactionInProgress
+                && saveService != null
+                && definitionDatabase != null)
+            {
+                RefreshFromAuthoritativeProfile();
+            }
         }
 
         private void HandleCharacterSingle() =>

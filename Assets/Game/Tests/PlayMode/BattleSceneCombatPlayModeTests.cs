@@ -30,6 +30,7 @@ using ValorChronicle.Data.Definitions;
 using ValorChronicle.Save.DTO;
 using ValorChronicle.Save.Copying;
 using ValorChronicle.Save.Services;
+using ValorChronicle.Settings.Services;
 
 namespace ValorChronicle.Tests.PlayMode
 {
@@ -52,6 +53,7 @@ namespace ValorChronicle.Tests.PlayMode
         private float previousTimeScale;
         private GamePauseService gamePauseService;
         private SaveService saveService;
+        private SettingsService settingsService;
         private BattlePausePanelBinding pausePanelBinding;
 
         [UnitySetUp]
@@ -105,6 +107,7 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(pausePanelBinding.PauseButton.interactable, Is.True);
             Assert.That(flow.Context.Phase,
                 Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(Time.timeScale, Is.EqualTo(0.5f).Within(0.0001f));
         }
 
         [UnityTest]
@@ -185,7 +188,7 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(pausePanelBinding.IsOpen, Is.False);
             Assert.That(gamePauseService.ActiveRequestCount, Is.Zero);
             Assert.That(gamePauseService.IsPaused, Is.False);
-            Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(Time.timeScale, Is.EqualTo(0.5f).Within(0.0001f));
             Assert.That(flow.Context.Phase, Is.EqualTo(phase));
             Assert.That(flow.Context.CurrentTurn, Is.EqualTo(turn));
             Assert.That(combat.Boss.CurrentHp, Is.EqualTo(bossHp));
@@ -250,6 +253,107 @@ namespace ValorChronicle.Tests.PlayMode
                     before,
                     saveService.GetCurrentProfileSnapshot()),
                 Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator BattleSpeedChangesPreserveStateAndPauseRestoresLatest()
+        {
+            BattlePhase phase = flow.Context.Phase;
+            int turn = flow.Context.CurrentTurn;
+            long bossHp = combat.Boss.CurrentHp;
+            long partyHp = combat.Party.CurrentHp;
+            int patternIndex = combat.KragmorRuntimeState.PatternIndex;
+
+            settingsService.SetBattleSpeed(2);
+            Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.0001f));
+
+            IDisposable first = gamePauseService.RequestPause();
+            IDisposable second = gamePauseService.RequestPause();
+            settingsService.SetBattleSpeed(3);
+            Assert.That(Time.timeScale, Is.Zero);
+
+            first.Dispose();
+            Assert.That(Time.timeScale, Is.Zero);
+            second.Dispose();
+            Assert.That(Time.timeScale, Is.EqualTo(1.5f).Within(0.0001f));
+
+            settingsService.SetBattleSpeed(1);
+            Assert.That(Time.timeScale, Is.EqualTo(0.5f).Within(0.0001f));
+            Assert.That(flow.Context.Phase, Is.EqualTo(phase));
+            Assert.That(flow.Context.CurrentTurn, Is.EqualTo(turn));
+            Assert.That(combat.Boss.CurrentHp, Is.EqualTo(bossHp));
+            Assert.That(combat.Party.CurrentHp, Is.EqualTo(partyHp));
+            Assert.That(combat.KragmorRuntimeState.PatternIndex,
+                Is.EqualTo(patternIndex));
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator BoardFallDurationIsSpeedIndependentAndPausesInPlace()
+        {
+            const float dropDuration = 0.12f;
+            var measuredDurations = new List<float>();
+            int[] speeds = { 1, 2, 3 };
+            for (int index = 0; index < speeds.Length; index++)
+            {
+                settingsService.SetBattleSpeed(speeds[index]);
+                yield return null;
+                float startedAt = Time.realtimeSinceStartup;
+                IEnumerator drop = boardView.RenderInitialDrop(
+                    boardController.CurrentBoard,
+                    dropDuration,
+                    0f);
+                while (drop.MoveNext())
+                    yield return drop.Current;
+                measuredDurations.Add(
+                    Time.realtimeSinceStartup - startedAt);
+            }
+
+            Assert.That(measuredDurations.Max() - measuredDurations.Min(),
+                Is.LessThan(0.08f));
+            Assert.That(measuredDurations[1],
+                Is.EqualTo(dropDuration).Within(0.08f));
+
+            settingsService.SetBattleSpeed(3);
+            IEnumerator pausedDrop = boardView.RenderInitialDrop(
+                boardController.CurrentBoard,
+                0.3f,
+                0f);
+            IDisposable pause = null;
+            try
+            {
+                Assert.That(pausedDrop.MoveNext(), Is.True);
+                yield return pausedDrop.Current;
+                BlockView trackedView = boardView.ActiveViews[
+                    boardController.CurrentBoard.Get(
+                        new BoardPosition(0, 0)).RuntimeId];
+                pause = gamePauseService.RequestPause();
+                Vector2 pausedPosition =
+                    trackedView.RectTransform.anchoredPosition;
+                for (int frame = 0; frame < 3; frame++)
+                {
+                    Assert.That(pausedDrop.MoveNext(), Is.True);
+                    yield return pausedDrop.Current;
+                    Assert.That(trackedView.RectTransform.anchoredPosition,
+                        Is.EqualTo(pausedPosition));
+                }
+
+                pause.Dispose();
+                pause = null;
+                while (pausedDrop.MoveNext())
+                    yield return pausedDrop.Current;
+            }
+            finally
+            {
+                pause?.Dispose();
+                if (pausedDrop is IDisposable disposable)
+                    disposable.Dispose();
+            }
+
+            Assert.That(boardView.MatchesBoard(boardController.CurrentBoard),
+                Is.True);
+            Assert.That(boardView.IsAnimating, Is.False);
+            settingsService.SetBattleSpeed(1);
         }
 
         private static void ClickThroughEventSystem(Button button)
@@ -1219,6 +1323,13 @@ namespace ValorChronicle.Tests.PlayMode
                 "GamePauseService",
                 bootstrapper,
                 gamePauseService);
+            settingsService = SettingsService.CreateInMemoryDefaults();
+            settingsService.LoadOrCreate();
+            SetAutoProperty(
+                typeof(GameBootstrapper),
+                "SettingsService",
+                bootstrapper,
+                settingsService);
             SetAutoProperty(
                 typeof(GameBootstrapper),
                 "SceneService",

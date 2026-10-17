@@ -55,6 +55,10 @@ namespace ValorChronicle.Battle.Board.Presentation
         private BoardShufflePresentationPlan activeShufflePlan;
         private BoardState activeActionFinalBoard;
         private int animationVersion;
+        private Func<bool> isBlockAnimationPaused =
+            () => Mathf.Approximately(Time.timeScale, 0f);
+        private Func<float> getUnscaledDeltaTime =
+            () => Time.unscaledDeltaTime;
 
         public int ActiveViewCount => viewsByRuntimeId.Count;
         public bool IsAnimating { get; private set; }
@@ -84,6 +88,18 @@ namespace ValorChronicle.Battle.Board.Presentation
                 ?? throw new ArgumentNullException(nameof(elementSpriteSet));
             pool = viewPool
                 ?? throw new ArgumentNullException(nameof(viewPool));
+        }
+
+        public void ConfigureBlockAnimationTimeSources(
+            Func<bool> configuredPauseStateSource,
+            Func<float> configuredUnscaledDeltaTimeSource)
+        {
+            isBlockAnimationPaused = configuredPauseStateSource
+                ?? throw new ArgumentNullException(
+                    nameof(configuredPauseStateSource));
+            getUnscaledDeltaTime = configuredUnscaledDeltaTimeSource
+                ?? throw new ArgumentNullException(
+                    nameof(configuredUnscaledDeltaTimeSource));
         }
 
         public void Render(BoardState board)
@@ -751,7 +767,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                             duration,
                             columnStagger);
                         yield return null;
-                        elapsed += Time.deltaTime;
+                        elapsed += GetBlockAnimationDeltaTime();
                     }
                 }
             }
@@ -1375,7 +1391,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                 {
                     UpdateSwapPositions(elapsed / duration, false);
                     yield return null;
-                    elapsed += Time.deltaTime;
+                    elapsed += GetBlockAnimationDeltaTime();
                 }
             }
 
@@ -1394,7 +1410,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                 {
                     UpdateSwapPositions(elapsed / duration, true);
                     yield return null;
-                    elapsed += Time.deltaTime;
+                    elapsed += GetBlockAnimationDeltaTime();
                 }
             }
         }
@@ -1584,7 +1600,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                 {
                     UpdateRemovalScales(elapsed / removalDuration);
                     yield return null;
-                    elapsed += Time.deltaTime;
+                    elapsed += GetBlockAnimationDeltaTime();
                 }
             }
 
@@ -1607,7 +1623,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                 {
                     UpdateMovePositions(elapsed / collapseDuration);
                     yield return null;
-                    elapsed += Time.deltaTime;
+                    elapsed += GetBlockAnimationDeltaTime();
                 }
             }
 
@@ -1633,7 +1649,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                 {
                     UpdateSpawnPositions(elapsed / refillDuration);
                     yield return null;
-                    elapsed += Time.deltaTime;
+                    elapsed += GetBlockAnimationDeltaTime();
                 }
             }
 
@@ -1659,6 +1675,21 @@ namespace ValorChronicle.Battle.Board.Presentation
             {
                 removalViewItems[index].View.SetLocalScale(scale);
             }
+        }
+
+        private float GetBlockAnimationDeltaTime()
+        {
+            // Block timings are authored at the 2X baseline. Advance them
+            // with real frame time, but never while gameplay is paused.
+            if (isBlockAnimationPaused())
+                return 0f;
+
+            float deltaTime = getUnscaledDeltaTime();
+            return deltaTime >= 0f
+                && !float.IsNaN(deltaTime)
+                && !float.IsInfinity(deltaTime)
+                    ? deltaTime
+                    : 0f;
         }
 
         private void ReleaseRemovedViews(
@@ -1836,7 +1867,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                         elapsed / phaseDuration,
                         true);
                     yield return null;
-                    elapsed += Time.deltaTime;
+                    elapsed += GetBlockAnimationDeltaTime();
                 }
             }
 
@@ -1861,7 +1892,7 @@ namespace ValorChronicle.Battle.Board.Presentation
                         elapsed / phaseDuration,
                         false);
                     yield return null;
-                    elapsed += Time.deltaTime;
+                    elapsed += GetBlockAnimationDeltaTime();
                 }
             }
 

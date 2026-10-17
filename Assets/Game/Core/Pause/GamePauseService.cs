@@ -33,6 +33,16 @@ namespace ValorChronicle.Core.Pause
         public bool IsPaused => activeRequests.Count > 0;
         public int ActiveRequestCount => activeRequests.Count;
 
+        public void SetResumeTimeScale(float value)
+        {
+            ThrowIfDisposed();
+            resumeTimeScale = SanitizeResumeTimeScale(value);
+            if (!IsPaused)
+            {
+                setTimeScale(resumeTimeScale);
+            }
+        }
+
         public IDisposable RequestPause()
         {
             ThrowIfDisposed();

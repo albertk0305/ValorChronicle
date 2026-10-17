@@ -111,6 +111,21 @@ namespace ValorChronicle.Tests.EditMode.Settings
         }
 
         [Test]
+        public void BattleSpeedThree_PersistsAndReloads()
+        {
+            SettingsService service = CreateService();
+            service.LoadOrCreate();
+
+            Assert.That(service.SetBattleSpeed(3), Is.True);
+            Assert.That(service.Flush().Status,
+                Is.EqualTo(SettingsWriteStatus.Success));
+
+            SettingsService restarted = CreateService();
+            restarted.LoadOrCreate();
+            Assert.That(restarted.Current.BattleSpeed, Is.EqualTo(3));
+        }
+
+        [Test]
         public void CorruptMain_RecoversBackupWithoutOverwritingBackup()
         {
             Directory.CreateDirectory(rootDirectory);

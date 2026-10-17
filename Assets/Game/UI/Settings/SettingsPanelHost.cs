@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Logging;
 using ValorChronicle.Core.Pause;
+using ValorChronicle.Redeem;
 using ValorChronicle.Settings.Services;
 
 namespace ValorChronicle.UI.Settings
@@ -245,7 +246,16 @@ namespace ValorChronicle.UI.Settings
 
             panelView.Close();
             panelView.Hidden += HandlePanelHidden;
-            presenter = new SettingsPanelPresenter(settingsService, panelView);
+            IRedeemCodeService redeemCodeService =
+                subscribedBootstrapper?.SaveService == null
+                    ? null
+                    : new RedeemCodeService(
+                        subscribedBootstrapper.SaveService);
+            presenter = new SettingsPanelPresenter(
+                settingsService,
+                panelView,
+                redeemCodeService,
+                subscribedBootstrapper?.LocalizationService);
             presenter.Closed += HandlePanelClosed;
             return true;
         }

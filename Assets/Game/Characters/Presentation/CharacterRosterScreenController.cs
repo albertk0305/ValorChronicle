@@ -25,6 +25,7 @@ namespace ValorChronicle.Characters.Presentation
             Array.Empty<CharacterRosterEntry>();
         private readonly HashSet<string> ownedCharacterIds =
             new HashSet<string>(StringComparer.Ordinal);
+        private bool profileChangeSubscribed;
         private bool subscribed;
         private bool initialized;
 
@@ -104,6 +105,7 @@ namespace ValorChronicle.Characters.Presentation
             SaveService initializedSaveService,
             DefinitionDatabase definitionDatabase)
         {
+            UnsubscribeProfileChanges();
             saveService = initializedSaveService
                 ?? throw new ArgumentNullException(
                     nameof(initializedSaveService));
@@ -133,6 +135,7 @@ namespace ValorChronicle.Characters.Presentation
                     "[CharacterRosterScreenController] " + message,
                     this));
             initialized = true;
+            SubscribeProfileChanges();
             RefreshFromAuthoritativeProfile(resetControls: true);
         }
 
@@ -245,10 +248,12 @@ namespace ValorChronicle.Characters.Presentation
             view.ElementFilterRequested += HandleElementFilterRequested;
             view.SortRequested += HandleSortRequested;
             subscribed = true;
+            SubscribeProfileChanges();
         }
 
         private void Unsubscribe()
         {
+            UnsubscribeProfileChanges();
             if (!subscribed)
             {
                 return;
@@ -258,6 +263,35 @@ namespace ValorChronicle.Characters.Presentation
             view.ElementFilterRequested -= HandleElementFilterRequested;
             view.SortRequested -= HandleSortRequested;
             subscribed = false;
+        }
+
+        private void SubscribeProfileChanges()
+        {
+            if (profileChangeSubscribed
+                || saveService == null
+                || !isActiveAndEnabled)
+            {
+                return;
+            }
+
+            saveService.CurrentProfileChanged +=
+                HandleCurrentProfileChanged;
+            profileChangeSubscribed = true;
+        }
+
+        private void UnsubscribeProfileChanges()
+        {
+            if (!profileChangeSubscribed || saveService == null)
+                return;
+
+            saveService.CurrentProfileChanged -=
+                HandleCurrentProfileChanged;
+            profileChangeSubscribed = false;
+        }
+
+        private void HandleCurrentProfileChanged()
+        {
+            RefreshFromAuthoritativeProfile(resetControls: false);
         }
     }
 }

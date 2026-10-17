@@ -1,4 +1,5 @@
 using System;
+using ValorChronicle.Core.Logging;
 using ValorChronicle.Save.Copying;
 using ValorChronicle.Save.DTO;
 using ValorChronicle.Save.Migration;
@@ -59,6 +60,8 @@ namespace ValorChronicle.Save.Services
         private bool canWriteProfile;
         private bool transactionInProgress;
         private bool saveInProgress;
+
+        public event Action CurrentProfileChanged;
 
         /// <summary>Creates a save service with fully injected policy and infrastructure dependencies.</summary>
         public SaveService(
@@ -304,11 +307,13 @@ namespace ValorChronicle.Save.Services
                             "The transaction candidate could not be persisted.");
                     }
 
-                    return new SaveTransactionResult(
+                    var result = new SaveTransactionResult(
                         SaveTransactionStatus.Success,
                         validation.WasModified || write.WasSanitized,
                         validation,
                         write);
+                    PublishCurrentProfileChanged();
+                    return result;
                 }
                 catch (Exception exception)
                 {
@@ -320,6 +325,25 @@ namespace ValorChronicle.Save.Services
                 finally
                 {
                     transactionInProgress = false;
+                }
+            }
+        }
+
+        private void PublishCurrentProfileChanged()
+        {
+            Action observers = CurrentProfileChanged;
+            if (observers == null)
+                return;
+
+            foreach (Action observer in observers.GetInvocationList())
+            {
+                try
+                {
+                    observer();
+                }
+                catch (Exception exception)
+                {
+                    GameLogger.Exception(exception);
                 }
             }
         }

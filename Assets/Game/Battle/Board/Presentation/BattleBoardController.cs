@@ -196,6 +196,11 @@ namespace ValorChronicle.Battle.Board.Presentation
                     "GameBootstrapper.RandomSource is not initialized.");
             }
 
+            boardView.ConfigureBlockAnimationTimeSources(
+                () => bootstrapper.GamePauseService?.IsPaused
+                    ?? Mathf.Approximately(Time.timeScale, 0f),
+                () => Time.unscaledDeltaTime);
+
             var sharedIdGenerator = new BoardBlockIdGenerator();
             var moveAnalyzer = new BoardMoveAnalyzer();
             var generator = new BoardGenerator(

@@ -19,8 +19,14 @@ namespace ValorChronicle.UI.Settings
         [SerializeField] private TMP_Text bgmVolumeText;
         [SerializeField] private TMP_Text sfxVolumeText;
         [SerializeField] private TMP_Dropdown languageDropdown;
-        [SerializeField] private Toggle speedUpToggle;
+        [SerializeField] private Toggle speedUp2XToggle;
+        [SerializeField] private Toggle speedUp3XToggle;
         [SerializeField] private Button closeButton;
+        [SerializeField] private TMP_InputField redeemCodeInputField;
+        [SerializeField] private Button redeemConfirmButton;
+        [SerializeField] private GameObject redeemResultOverlay;
+        [SerializeField] private Button redeemResultDismissButton;
+        [SerializeField] private TMP_Text redeemResultText;
 
         private bool subscribed;
 
@@ -29,6 +35,8 @@ namespace ValorChronicle.UI.Settings
         public event Action<int> SfxVolumeChanged;
         public event Action<string> LocaleChanged;
         public event Action<int> BattleSpeedChanged;
+        public event Action<string> RedeemCodeRequested;
+        public event Action RedeemResultDismissed;
         public event Action CloseRequested;
         public event Action Hidden;
 
@@ -41,8 +49,22 @@ namespace ValorChronicle.UI.Settings
             && bgmVolumeText != null
             && sfxVolumeText != null
             && languageDropdown != null
-            && speedUpToggle != null
+            && speedUp2XToggle != null
+            && speedUp3XToggle != null
             && closeButton != null;
+        public bool IsRedeemConfigured =>
+            redeemCodeInputField != null
+            && redeemConfirmButton != null
+            && redeemResultOverlay != null
+            && redeemResultDismissButton != null
+            && redeemResultText != null;
+        public bool IsRedeemResultVisible =>
+            redeemResultOverlay != null
+            && redeemResultOverlay.activeSelf;
+        public TMP_InputField RedeemCodeInputField => redeemCodeInputField;
+        public Button RedeemConfirmButton => redeemConfirmButton;
+        public GameObject RedeemResultOverlay => redeemResultOverlay;
+        public TMP_Text RedeemResultText => redeemResultText;
 
         private void Awake()
         {
@@ -57,6 +79,7 @@ namespace ValorChronicle.UI.Settings
         private void OnDisable()
         {
             Unsubscribe();
+            ResetRedeemUi();
             Hidden?.Invoke();
         }
 
@@ -68,7 +91,8 @@ namespace ValorChronicle.UI.Settings
             TMP_Text configuredBgmVolumeText,
             TMP_Text configuredSfxVolumeText,
             TMP_Dropdown configuredLanguageDropdown,
-            Toggle configuredSpeedUpToggle,
+            Toggle configuredSpeedUp2XToggle,
+            Toggle configuredSpeedUp3XToggle,
             Button configuredCloseButton)
         {
             Unsubscribe();
@@ -86,12 +110,45 @@ namespace ValorChronicle.UI.Settings
                 ?? throw new ArgumentNullException(nameof(configuredSfxVolumeText));
             languageDropdown = configuredLanguageDropdown
                 ?? throw new ArgumentNullException(nameof(configuredLanguageDropdown));
-            speedUpToggle = configuredSpeedUpToggle
-                ?? throw new ArgumentNullException(nameof(configuredSpeedUpToggle));
+            speedUp2XToggle = configuredSpeedUp2XToggle
+                ?? throw new ArgumentNullException(
+                    nameof(configuredSpeedUp2XToggle));
+            speedUp3XToggle = configuredSpeedUp3XToggle
+                ?? throw new ArgumentNullException(
+                    nameof(configuredSpeedUp3XToggle));
             closeButton = configuredCloseButton
                 ?? throw new ArgumentNullException(nameof(configuredCloseButton));
 
             NormalizeControls();
+            if (isActiveAndEnabled)
+                Subscribe();
+        }
+
+        public void ConfigureRedeem(
+            TMP_InputField configuredInputField,
+            Button configuredConfirmButton,
+            GameObject configuredResultOverlay,
+            Button configuredResultDismissButton,
+            TMP_Text configuredResultText)
+        {
+            Unsubscribe();
+            redeemCodeInputField = configuredInputField
+                ?? throw new ArgumentNullException(
+                    nameof(configuredInputField));
+            redeemConfirmButton = configuredConfirmButton
+                ?? throw new ArgumentNullException(
+                    nameof(configuredConfirmButton));
+            redeemResultOverlay = configuredResultOverlay
+                ?? throw new ArgumentNullException(
+                    nameof(configuredResultOverlay));
+            redeemResultDismissButton = configuredResultDismissButton
+                ?? throw new ArgumentNullException(
+                    nameof(configuredResultDismissButton));
+            redeemResultText = configuredResultText
+                ?? throw new ArgumentNullException(
+                    nameof(configuredResultText));
+
+            ResetRedeemUi();
             if (isActiveAndEnabled)
                 Subscribe();
         }
@@ -112,7 +169,8 @@ namespace ValorChronicle.UI.Settings
                     ? KoreanOptionIndex
                     : EnglishOptionIndex);
             languageDropdown.RefreshShownValue();
-            speedUpToggle.SetIsOnWithoutNotify(settings.BattleSpeed == 2);
+            speedUp2XToggle.SetIsOnWithoutNotify(settings.BattleSpeed == 2);
+            speedUp3XToggle.SetIsOnWithoutNotify(settings.BattleSpeed == 3);
         }
 
         public void Open()
@@ -124,6 +182,47 @@ namespace ValorChronicle.UI.Settings
         public void Close()
         {
             gameObject.SetActive(false);
+        }
+
+        public void SetRedeemPlaceholder(string text)
+        {
+            if (redeemCodeInputField?.placeholder is TMP_Text placeholder)
+                placeholder.text = text ?? string.Empty;
+        }
+
+        public void SetRedeemBusy(bool busy)
+        {
+            if (redeemCodeInputField != null)
+                redeemCodeInputField.interactable = !busy;
+            if (redeemConfirmButton != null)
+                redeemConfirmButton.interactable = !busy;
+        }
+
+        public void ShowRedeemResult(string message)
+        {
+            if (!IsRedeemConfigured)
+                return;
+
+            redeemResultText.text = message ?? string.Empty;
+            SetRedeemBusy(true);
+            redeemResultOverlay.transform.SetAsLastSibling();
+            redeemResultOverlay.SetActive(true);
+        }
+
+        public void HideRedeemResult()
+        {
+            if (redeemResultOverlay != null)
+                redeemResultOverlay.SetActive(false);
+            SetRedeemBusy(false);
+        }
+
+        public void ResetRedeemUi()
+        {
+            if (!IsRedeemConfigured)
+                return;
+
+            redeemResultText.text = string.Empty;
+            HideRedeemResult();
         }
 
         private void NormalizeControls()
@@ -159,8 +258,18 @@ namespace ValorChronicle.UI.Settings
             bgmVolumeSlider.onValueChanged.AddListener(HandleBgmVolumeChanged);
             sfxVolumeSlider.onValueChanged.AddListener(HandleSfxVolumeChanged);
             languageDropdown.onValueChanged.AddListener(HandleLocaleChanged);
-            speedUpToggle.onValueChanged.AddListener(HandleBattleSpeedChanged);
+            speedUp2XToggle.onValueChanged.AddListener(
+                HandleTwoTimesBattleSpeedChanged);
+            speedUp3XToggle.onValueChanged.AddListener(
+                HandleThreeTimesBattleSpeedChanged);
             closeButton.onClick.AddListener(HandleCloseRequested);
+            if (IsRedeemConfigured)
+            {
+                redeemConfirmButton.onClick.AddListener(
+                    HandleRedeemCodeRequested);
+                redeemResultDismissButton.onClick.AddListener(
+                    HandleRedeemResultDismissed);
+            }
             subscribed = true;
         }
 
@@ -173,8 +282,21 @@ namespace ValorChronicle.UI.Settings
             bgmVolumeSlider.onValueChanged.RemoveListener(HandleBgmVolumeChanged);
             sfxVolumeSlider.onValueChanged.RemoveListener(HandleSfxVolumeChanged);
             languageDropdown.onValueChanged.RemoveListener(HandleLocaleChanged);
-            speedUpToggle.onValueChanged.RemoveListener(HandleBattleSpeedChanged);
+            speedUp2XToggle.onValueChanged.RemoveListener(
+                HandleTwoTimesBattleSpeedChanged);
+            speedUp3XToggle.onValueChanged.RemoveListener(
+                HandleThreeTimesBattleSpeedChanged);
             closeButton.onClick.RemoveListener(HandleCloseRequested);
+            if (redeemConfirmButton != null)
+            {
+                redeemConfirmButton.onClick.RemoveListener(
+                    HandleRedeemCodeRequested);
+            }
+            if (redeemResultDismissButton != null)
+            {
+                redeemResultDismissButton.onClick.RemoveListener(
+                    HandleRedeemResultDismissed);
+            }
             subscribed = false;
         }
 
@@ -206,14 +328,48 @@ namespace ValorChronicle.UI.Settings
                 : LocalizationService.EnglishLocale);
         }
 
-        private void HandleBattleSpeedChanged(bool isOn)
+        private void HandleTwoTimesBattleSpeedChanged(bool isOn)
         {
-            BattleSpeedChanged?.Invoke(isOn ? 2 : 1);
+            if (isOn)
+                speedUp3XToggle.SetIsOnWithoutNotify(false);
+
+            PublishBattleSpeedSelection();
+        }
+
+        private void HandleThreeTimesBattleSpeedChanged(bool isOn)
+        {
+            if (isOn)
+                speedUp2XToggle.SetIsOnWithoutNotify(false);
+
+            PublishBattleSpeedSelection();
+        }
+
+        private void PublishBattleSpeedSelection()
+        {
+            BattleSpeedChanged?.Invoke(speedUp3XToggle.isOn
+                ? 3
+                : speedUp2XToggle.isOn
+                    ? 2
+                    : 1);
         }
 
         private void HandleCloseRequested()
         {
             CloseRequested?.Invoke();
+        }
+
+        private void HandleRedeemCodeRequested()
+        {
+            if (!IsRedeemConfigured || IsRedeemResultVisible)
+                return;
+
+            RedeemCodeRequested?.Invoke(redeemCodeInputField.text);
+        }
+
+        private void HandleRedeemResultDismissed()
+        {
+            HideRedeemResult();
+            RedeemResultDismissed?.Invoke();
         }
     }
 }

@@ -42,6 +42,54 @@ namespace ValorChronicle.Tests.EditMode.Settings
         }
 
         [Test]
+        public void Prefab_ConfiguresRedeemControlsAndFullPanelDismissOverlay()
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                PrefabPath);
+            Assert.That(prefab, Is.Not.Null);
+            SettingsPanelView view = prefab.GetComponent<SettingsPanelView>();
+            Assert.That(view, Is.Not.Null);
+            Assert.That(view.IsRedeemConfigured, Is.True);
+            Assert.That(view.RedeemCodeInputField, Is.Not.Null);
+            Assert.That(view.RedeemConfirmButton, Is.Not.Null);
+            Assert.That(view.RedeemResultOverlay.activeSelf, Is.False);
+            Assert.That(view.RedeemResultOverlay.transform.parent,
+                Is.SameAs(prefab.transform));
+            Assert.That(view.RedeemResultOverlay.transform.GetSiblingIndex(),
+                Is.EqualTo(prefab.transform.childCount - 1));
+
+            var overlayRect = (RectTransform)view.RedeemResultOverlay.transform;
+            Assert.That(overlayRect.anchorMin, Is.EqualTo(Vector2.zero));
+            Assert.That(overlayRect.anchorMax, Is.EqualTo(Vector2.one));
+            Assert.That(overlayRect.sizeDelta, Is.EqualTo(Vector2.zero));
+
+            Transform touch = view.RedeemResultOverlay.transform.Find(
+                "TouchPanel");
+            Assert.That(touch, Is.Not.Null);
+            Assert.That(touch.GetComponent<Button>(), Is.Not.Null);
+            Assert.That(touch.GetComponent<Image>().raycastTarget, Is.True);
+            Assert.That(view.RedeemResultOverlay.transform.Find(
+                "CodeSuccessPanel").GetComponent<Image>().raycastTarget,
+                Is.False);
+            Assert.That(view.RedeemResultText.raycastTarget, Is.False);
+
+            LocalizedTMPText redeemLabel = null;
+            foreach (LocalizedTMPText localized in
+                prefab.GetComponentsInChildren<LocalizedTMPText>(true))
+            {
+                if (localized.gameObject.name == "RedeemCodeText")
+                {
+                    redeemLabel = localized;
+                    break;
+                }
+            }
+
+            Assert.That(redeemLabel, Is.Not.Null);
+            Assert.That(redeemLabel.LocalizationKey,
+                Is.EqualTo("ui.settings.redeem_code"));
+        }
+
+        [Test]
         public void Open_DisplaysCurrentSettingsWithoutCreatingChanges()
         {
             SettingsService service = SettingsService.CreateInMemoryDefaults();
@@ -65,7 +113,8 @@ namespace ValorChronicle.Tests.EditMode.Settings
             Assert.That(fixture.BgmText.text, Is.EqualTo("62"));
             Assert.That(fixture.SfxText.text, Is.EqualTo("51"));
             Assert.That(fixture.Language.value, Is.EqualTo(1));
-            Assert.That(fixture.Speed.isOn, Is.True);
+            Assert.That(fixture.Speed2X.isOn, Is.True);
+            Assert.That(fixture.Speed3X.isOn, Is.False);
             Assert.That(changes, Is.Zero);
         }
 
@@ -82,7 +131,7 @@ namespace ValorChronicle.Tests.EditMode.Settings
             fixture.Bgm.value = 32f;
             fixture.Sfx.value = 23f;
             fixture.Language.value = 1;
-            fixture.Speed.isOn = true;
+            fixture.Speed2X.isOn = true;
 
             Assert.That(service.Current.MasterVolume, Is.EqualTo(41));
             Assert.That(service.Current.BgmVolume, Is.EqualTo(32));
@@ -96,6 +145,35 @@ namespace ValorChronicle.Tests.EditMode.Settings
 
             Assert.That(fixture.Master.value, Is.EqualTo(87));
             Assert.That(fixture.MasterText.text, Is.EqualTo("87"));
+
+            fixture.Speed3X.isOn = true;
+            Assert.That(fixture.Speed2X.isOn, Is.False);
+            Assert.That(service.Current.BattleSpeed, Is.EqualTo(3));
+
+            fixture.Speed2X.isOn = true;
+            Assert.That(fixture.Speed3X.isOn, Is.False);
+            Assert.That(service.Current.BattleSpeed, Is.EqualTo(2));
+
+            fixture.Speed2X.isOn = false;
+            Assert.That(service.Current.BattleSpeed, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Reopen_DisplaysPersistedThreeTimesSelection()
+        {
+            SettingsService service = SettingsService.CreateInMemoryDefaults();
+            service.LoadOrCreate();
+            ViewFixture fixture = CreateView();
+            using var presenter = new SettingsPanelPresenter(service, fixture.View);
+            presenter.Open();
+            fixture.Speed3X.isOn = true;
+
+            fixture.Close.onClick.Invoke();
+            presenter.Open();
+
+            Assert.That(service.Current.BattleSpeed, Is.EqualTo(3));
+            Assert.That(fixture.Speed2X.isOn, Is.False);
+            Assert.That(fixture.Speed3X.isOn, Is.True);
         }
 
         [Test]
@@ -157,6 +235,16 @@ namespace ValorChronicle.Tests.EditMode.Settings
             SettingsPanelView view = prefab.GetComponent<SettingsPanelView>();
             Assert.That(view, Is.Not.Null);
             Assert.That(view.IsConfigured, Is.True);
+            var serializedView = new SerializedObject(view);
+            Toggle speed2X = (Toggle)serializedView
+                .FindProperty("speedUp2XToggle").objectReferenceValue;
+            Toggle speed3X = (Toggle)serializedView
+                .FindProperty("speedUp3XToggle").objectReferenceValue;
+            Assert.That(speed2X, Is.Not.Null);
+            Assert.That(speed3X, Is.Not.Null);
+            Assert.That(speed2X, Is.Not.SameAs(speed3X));
+            Assert.That(speed2X.isOn, Is.False);
+            Assert.That(speed3X.isOn, Is.False);
 
             RectTransform root = prefab.GetComponent<RectTransform>();
             Assert.That(root.anchorMin, Is.EqualTo(Vector2.zero));
@@ -340,6 +428,12 @@ namespace ValorChronicle.Tests.EditMode.Settings
                 InvokeLifecycle(host, "Start");
                 Assert.That(button.interactable, Is.True);
 
+                BattleSettingsPanelBinding binding =
+                    FindComponents<BattleSettingsPanelBinding>(scene)[0];
+                InvokeLifecycle(binding, "OnEnable");
+                InvokeLifecycle(binding, "Start");
+                Assert.That(timeScale, Is.EqualTo(0.5f));
+
                 externalPause = pauseService.RequestPause();
                 button.onClick.Invoke();
                 SettingsPanelView[] panels =
@@ -348,6 +442,9 @@ namespace ValorChronicle.Tests.EditMode.Settings
                 SettingsPanelView panel = panels[0];
                 Assert.That(panel.IsOpen, Is.True);
                 Assert.That(pauseService.ActiveRequestCount, Is.EqualTo(2));
+                Assert.That(timeScale, Is.Zero);
+
+                settingsService.SetBattleSpeed(3);
                 Assert.That(timeScale, Is.Zero);
 
                 button.onClick.Invoke();
@@ -375,7 +472,7 @@ namespace ValorChronicle.Tests.EditMode.Settings
                 externalPause.Dispose();
                 externalPause = null;
                 Assert.That(pauseService.IsPaused, Is.False);
-                Assert.That(timeScale, Is.EqualTo(1.25f));
+                Assert.That(timeScale, Is.EqualTo(1.5f));
 
                 button.onClick.Invoke();
                 Assert.That(panel.IsOpen, Is.True);
@@ -383,14 +480,12 @@ namespace ValorChronicle.Tests.EditMode.Settings
                 InvokeLifecycle(host, "OnDisable");
                 Assert.That(panel.IsOpen, Is.False);
                 Assert.That(pauseService.IsPaused, Is.False);
-                Assert.That(timeScale, Is.EqualTo(1.25f));
+                Assert.That(timeScale, Is.EqualTo(1.5f));
 
                 InvokeLifecycle(host, "OnEnable");
                 button.onClick.Invoke();
                 Assert.That(panel.IsOpen, Is.True);
                 Assert.That(pauseService.ActiveRequestCount, Is.EqualTo(1));
-                BattleSettingsPanelBinding binding =
-                    FindComponents<BattleSettingsPanelBinding>(scene)[0];
                 InvokePrivate(
                     binding,
                     "HandleBattleResultReached",
@@ -399,6 +494,10 @@ namespace ValorChronicle.Tests.EditMode.Settings
                 Assert.That(panel.IsOpen, Is.False);
                 Assert.That(pauseService.IsPaused, Is.False);
                 Assert.That(button.interactable, Is.False);
+                Assert.That(timeScale, Is.EqualTo(1f));
+
+                settingsService.SetBattleSpeed(2);
+                Assert.That(timeScale, Is.EqualTo(1f));
 
                 button.onClick.Invoke();
                 Assert.That(panel.IsOpen, Is.False);
@@ -443,7 +542,8 @@ namespace ValorChronicle.Tests.EditMode.Settings
                 new TMP_Dropdown.OptionData("English"),
                 new TMP_Dropdown.OptionData("한국어")
             };
-            Toggle speed = CreateChild<Toggle>(root, "Speed");
+            Toggle speed2X = CreateChild<Toggle>(root, "Speed2X");
+            Toggle speed3X = CreateChild<Toggle>(root, "Speed3X");
             Button close = CreateChild<Button>(root, "Close");
             view.Configure(
                 master,
@@ -453,12 +553,13 @@ namespace ValorChronicle.Tests.EditMode.Settings
                 bgmText,
                 sfxText,
                 language,
-                speed,
+                speed2X,
+                speed3X,
                 close);
 
             return new ViewFixture(
                 view, master, bgm, sfx, masterText, bgmText, sfxText,
-                language, speed, close);
+                language, speed2X, speed3X, close);
         }
 
         private static T CreateChild<T>(GameObject parent, string name)
@@ -552,7 +653,8 @@ namespace ValorChronicle.Tests.EditMode.Settings
                 TMP_Text bgmText,
                 TMP_Text sfxText,
                 TMP_Dropdown language,
-                Toggle speed,
+                Toggle speed2X,
+                Toggle speed3X,
                 Button close)
             {
                 View = view;
@@ -563,7 +665,8 @@ namespace ValorChronicle.Tests.EditMode.Settings
                 BgmText = bgmText;
                 SfxText = sfxText;
                 Language = language;
-                Speed = speed;
+                Speed2X = speed2X;
+                Speed3X = speed3X;
                 Close = close;
             }
 
@@ -575,7 +678,8 @@ namespace ValorChronicle.Tests.EditMode.Settings
             public TMP_Text BgmText { get; }
             public TMP_Text SfxText { get; }
             public TMP_Dropdown Language { get; }
-            public Toggle Speed { get; }
+            public Toggle Speed2X { get; }
+            public Toggle Speed3X { get; }
             public Button Close { get; }
         }
     }

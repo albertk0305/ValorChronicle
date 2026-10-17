@@ -85,9 +85,10 @@ namespace ValorChronicle.Tests.EditMode.Settings
 
         [TestCase(1, 1)]
         [TestCase(2, 2)]
+        [TestCase(3, 3)]
         [TestCase(0, 1)]
-        [TestCase(3, 1)]
-        public void BattleSpeedNormalization_AllowsOnlyOneAndTwo(
+        [TestCase(4, 1)]
+        public void BattleSpeedNormalization_AllowsOneTwoAndThree(
             int source,
             int expected)
         {
@@ -120,6 +121,21 @@ namespace ValorChronicle.Tests.EditMode.Settings
             Assert.That(data.SfxVolume, Is.EqualTo(100));
             Assert.That(data.LocaleId, Is.EqualTo("ko"));
             Assert.That(data.BattleSpeed, Is.EqualTo(1));
+        }
+
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public void Serializer_RoundTripsSupportedBattleSpeed(int speed)
+        {
+            var serializer = new NewtonsoftJsonSettingsSerializer();
+            var source = GameSettingsData.CreateDefault();
+            source.BattleSpeed = speed;
+
+            GameSettingsData data = serializer.Deserialize(
+                serializer.Serialize(source));
+
+            Assert.That(data.BattleSpeed, Is.EqualTo(speed));
         }
     }
 }

@@ -214,6 +214,73 @@ namespace ValorChronicle.Tests.EditMode
             }
         }
 
+        [Test]
+        public void ActiveController_RefreshesGoldAfterExternalTransaction()
+        {
+            var root = new GameObject("MainScreenControllerTest");
+            root.SetActive(false);
+            MainScreenController controller =
+                root.AddComponent<MainScreenController>();
+            TMP_Text goldText = new GameObject(
+                "GoldText",
+                typeof(RectTransform),
+                typeof(TextMeshProUGUI)).GetComponent<TMP_Text>();
+            goldText.transform.SetParent(root.transform, false);
+            SetField(controller, "goldText", goldText);
+
+            ProfileSaveData profile = SaveTestDataBuilder.Valid();
+            profile.Currencies.GachaCurrency = 100L;
+            var repository = new FakeSaveRepository
+            {
+                MainText = SaveTestDataBuilder.Json(profile)
+            };
+            SaveService saveService = SaveServiceTestFactory.Create(
+                repository);
+            Assert.That(saveService.LoadOrCreate("ignored").CanUseProfile,
+                Is.True);
+
+            var bootstrapRoot = new GameObject("GameBootstrapperTest");
+            bootstrapRoot.SetActive(false);
+            GameBootstrapper bootstrapper =
+                bootstrapRoot.AddComponent<GameBootstrapper>();
+            SetProperty(
+                typeof(GameBootstrapper),
+                bootstrapper,
+                nameof(GameBootstrapper.SaveService),
+                saveService);
+            GameBootstrapper previous = GameBootstrapper.Instance;
+            SetProperty(
+                typeof(GameBootstrapper),
+                null,
+                nameof(GameBootstrapper.Instance),
+                bootstrapper);
+
+            try
+            {
+                InvokeLifecycle(controller, "OnEnable");
+                Assert.That(saveService.ExecuteTransaction(
+                    current => current.Currencies.GachaCurrency += 10000L)
+                    .IsSuccess, Is.True);
+                Assert.That(goldText.text, Is.EqualTo("10,100"));
+
+                InvokeLifecycle(controller, "OnDisable");
+                Assert.That(saveService.ExecuteTransaction(
+                    current => current.Currencies.GachaCurrency += 1L)
+                    .IsSuccess, Is.True);
+                Assert.That(goldText.text, Is.EqualTo("10,100"));
+            }
+            finally
+            {
+                SetProperty(
+                    typeof(GameBootstrapper),
+                    null,
+                    nameof(GameBootstrapper.Instance),
+                    previous);
+                Object.DestroyImmediate(bootstrapRoot);
+                Object.DestroyImmediate(root);
+            }
+        }
+
         private static void SetField(
             object target,
             string fieldName,
@@ -240,6 +307,18 @@ namespace ValorChronicle.Tests.EditMode
                     | System.Reflection.BindingFlags.Public);
             Assert.That(property, Is.Not.Null, propertyName);
             property.SetValue(target, value);
+        }
+
+        private static void InvokeLifecycle(
+            MonoBehaviour target,
+            string methodName)
+        {
+            var method = target.GetType().GetMethod(
+                methodName,
+                System.Reflection.BindingFlags.Instance
+                    | System.Reflection.BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, methodName);
+            method.Invoke(target, null);
         }
     }
 }

@@ -2,6 +2,13 @@ key	en	ko
 ui.settings.master_volume	Master Volume	전체 음량
 ui.settings.bgm_volume	BGM	배경 음악
 ui.settings.sfx_volume	SFX	효과음
+ui.settings.redeem_code	Redeem Code	리딤코드
+ui.settings.redeem_code_placeholder	Enter a redeem code	리딤코드를 입력해 주세요
+ui.settings.redeem_success	Code redeemed successfully!	코드 교환 성공!
+ui.settings.redeem_reward_gacha_currency	Gold +{amount}	골드 +{amount}
+ui.settings.redeem_invalid	Invalid redeem code.	유효하지 않은 코드입니다.
+ui.settings.redeem_empty	Please enter a redeem code.	리딤코드를 입력해 주세요.
+ui.settings.redeem_save_failed	Failed to save your reward. Please try again.	보상 저장에 실패했습니다. 다시 시도해 주세요.
 ui.init.press_to_start	Press to Start	시작하려면 누르세요
 ui.init.initialization_failed	Game initialization failed. Please restart the game.	게임 초기화에 실패했습니다. 게임을 다시 실행해 주세요.
 ui.character.stats	Stats	능력치

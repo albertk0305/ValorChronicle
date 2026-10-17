@@ -428,6 +428,117 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
         }
 
         [Test]
+        public void InitialDrop_UsesSameUnscaledDurationAtEveryBattleSpeed()
+        {
+            BoardState board = CreateFullBoard();
+            int? expectedFrames = null;
+            float[] timeScales = { 0.5f, 1f, 1.5f };
+            for (int index = 0; index < timeScales.Length; index++)
+            {
+                Time.timeScale = timeScales[index];
+                boardView.ConfigureBlockAnimationTimeSources(
+                    () => false,
+                    () => 0.25f);
+                IEnumerator animation = boardView.RenderInitialDrop(
+                    board,
+                    1f,
+                    0f);
+
+                int frames = Drain(animation);
+
+                expectedFrames ??= frames;
+                Assert.That(frames, Is.EqualTo(expectedFrames.Value));
+                AssertViewsMatchBoard(board);
+            }
+        }
+
+        [Test]
+        public void InitialDrop_PauseFreezesAndResumeContinuesRemainingMotion()
+        {
+            BoardState board = CreateFullBoard();
+            bool paused = true;
+            boardView.ConfigureBlockAnimationTimeSources(
+                () => paused,
+                () => 0.25f);
+            IEnumerator animation = boardView.RenderInitialDrop(
+                board,
+                1f,
+                0f);
+            BlockView view = boardView.ActiveViews[
+                board.Get(new BoardPosition(0, 0)).RuntimeId];
+            Vector2 pausedPosition = view.RectTransform.anchoredPosition;
+
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(view.RectTransform.anchoredPosition,
+                Is.EqualTo(pausedPosition));
+
+            paused = false;
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(view.RectTransform.anchoredPosition,
+                Is.Not.EqualTo(pausedPosition));
+            Drain(animation);
+
+            AssertViewsMatchBoard(board);
+            Assert.That(boardView.IsAnimating, Is.False);
+        }
+
+        [Test]
+        public void CascadeCollapseAndRefillIgnoreBattleSpeedAndKeepFinalBoard()
+        {
+            BoardCascadeStep step =
+                BoardCascadeStepPresentationPlannerTests
+                    .CreateSingleMatchStep(out BoardState board);
+            int? expectedFrames = null;
+            float[] timeScales = { 0.5f, 1f, 1.5f };
+            for (int index = 0; index < timeScales.Length; index++)
+            {
+                Time.timeScale = timeScales[index];
+                boardView.ConfigureBlockAnimationTimeSources(
+                    () => false,
+                    () => 0.25f);
+                boardView.Render(board);
+                IEnumerator animation = boardView.PlayCascadeStep(
+                    board,
+                    step,
+                    0f,
+                    1f,
+                    1f);
+
+                int frames = Drain(animation);
+
+                expectedFrames ??= frames;
+                Assert.That(frames, Is.EqualTo(expectedFrames.Value));
+                AssertViewsMatchBoard(step.Board);
+                Assert.That(boardView.ActiveViewCount,
+                    Is.EqualTo(BoardConstants.CellCount));
+            }
+        }
+
+        [Test]
+        public void ChangingBattleSpeedDuringDropDoesNotChangeProgressStep()
+        {
+            BoardState board = CreateFullBoard();
+            boardView.ConfigureBlockAnimationTimeSources(
+                () => false,
+                () => 0.25f);
+            Time.timeScale = 0.5f;
+            IEnumerator animation = boardView.RenderInitialDrop(
+                board,
+                1f,
+                0f);
+
+            Assert.That(animation.MoveNext(), Is.True);
+            Time.timeScale = 1.5f;
+            int remainingFrames = Drain(animation);
+
+            Assert.That(remainingFrames, Is.EqualTo(3));
+            AssertViewsMatchBoard(board);
+        }
+
+        [Test]
         public void RenderInitialDrop_ReusesRuntimeIdViewsWithoutDuplication()
         {
             BoardState board = CreateFullBoard();
@@ -553,6 +664,109 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(pool.TotalCreatedCount, Is.EqualTo(totalCreatedCount));
             Assert.That(boardView.IsAnimating, Is.False);
             AssertAllViewsInputEnabled();
+        }
+
+        [TestCase(false, 4)]
+        [TestCase(true, 8)]
+        public void SwapAnimation_UsesSameUnscaledDurationAtEveryBattleSpeed(
+            bool requiresSwapBack,
+            int expectedFrames)
+        {
+            int? baselineFrames = null;
+            float[] timeScales = { 0.5f, 1f, 1.5f };
+            for (int index = 0; index < timeScales.Length; index++)
+            {
+                BoardState beforeBoard;
+                BoardSwapActionResult result;
+                if (requiresSwapBack)
+                {
+                    result = BoardSwapPresentationTestSupport.CreateNoMatch(
+                        out beforeBoard);
+                }
+                else
+                {
+                    result = BoardSwapPresentationTestSupport.CreateResolved(
+                        out beforeBoard);
+                }
+                Time.timeScale = timeScales[index];
+                boardView.ConfigureBlockAnimationTimeSources(
+                    () => false,
+                    () => 0.25f);
+                boardView.Render(beforeBoard);
+
+                int frames = Drain(boardView.PlaySwapTransition(
+                    beforeBoard,
+                    result,
+                    1f));
+
+                baselineFrames ??= frames;
+                Assert.That(frames, Is.EqualTo(expectedFrames));
+                Assert.That(frames, Is.EqualTo(baselineFrames.Value));
+                AssertViewsMatchBoard(
+                    requiresSwapBack ? beforeBoard : result.SwappedBoard);
+                Assert.That(pool.ActiveCount,
+                    Is.EqualTo(BoardConstants.CellCount));
+                Assert.That(pool.TotalCreatedCount,
+                    Is.EqualTo(BoardConstants.CellCount));
+            }
+        }
+
+        [Test]
+        public void SwapAnimation_PauseFreezesAndResumeContinuesInPlace()
+        {
+            BoardSwapActionResult result =
+                BoardSwapPresentationTestSupport.CreateResolved(
+                    out BoardState beforeBoard);
+            bool paused = true;
+            boardView.ConfigureBlockAnimationTimeSources(
+                () => paused,
+                () => 0.25f);
+            boardView.Render(beforeBoard);
+            BlockView movingView = boardView.ActiveViews[
+                beforeBoard.Get(result.Swap.First).RuntimeId];
+            Vector2 start = movingView.RectTransform.anchoredPosition;
+            IEnumerator animation = boardView.PlaySwapTransition(
+                beforeBoard,
+                result,
+                1f);
+
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(movingView.RectTransform.anchoredPosition,
+                Is.EqualTo(start));
+
+            paused = false;
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(movingView.RectTransform.anchoredPosition,
+                Is.Not.EqualTo(start));
+            Drain(animation);
+
+            AssertViewsMatchBoard(result.SwappedBoard);
+        }
+
+        [Test]
+        public void SwapAnimation_BattleSpeedChangeDoesNotChangeProgress()
+        {
+            BoardSwapActionResult result =
+                BoardSwapPresentationTestSupport.CreateResolved(
+                    out BoardState beforeBoard);
+            boardView.ConfigureBlockAnimationTimeSources(
+                () => false,
+                () => 0.25f);
+            boardView.Render(beforeBoard);
+            Time.timeScale = 0.5f;
+            IEnumerator animation = boardView.PlaySwapTransition(
+                beforeBoard,
+                result,
+                1f);
+
+            Assert.That(animation.MoveNext(), Is.True);
+            Time.timeScale = 1.5f;
+            int remainingFrames = Drain(animation);
+
+            Assert.That(remainingFrames, Is.EqualTo(3));
+            AssertViewsMatchBoard(result.SwappedBoard);
         }
 
         [Test]
@@ -731,6 +945,151 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(animation.MoveNext(), Is.True);
             Dispose(animation);
             AssertViewsMatchBoard(step.Board);
+        }
+
+        [Test]
+        public void RemovalAnimation_UsesSameUnscaledDurationAndRecyclesOnce()
+        {
+            BoardCascadeStep step =
+                BoardCascadeStepPresentationPlannerTests
+                    .CreateSingleMatchStep(out BoardState beforeBoard);
+            var removedIds = new HashSet<long>();
+            foreach (BoardBlockRemoval removal in step.Collapse.Removals)
+            {
+                removedIds.Add(removal.RuntimeId);
+            }
+
+            int? baselineFrames = null;
+            float[] timeScales = { 0.5f, 1f, 1.5f };
+            for (int index = 0; index < timeScales.Length; index++)
+            {
+                Time.timeScale = timeScales[index];
+                boardView.ConfigureBlockAnimationTimeSources(
+                    () => false,
+                    () => 0.25f);
+                boardView.Render(beforeBoard);
+
+                int frames = Drain(boardView.PlayCascadeStep(
+                    beforeBoard,
+                    step,
+                    1f,
+                    0f,
+                    0f));
+
+                baselineFrames ??= frames;
+                Assert.That(frames, Is.EqualTo(4));
+                Assert.That(frames, Is.EqualTo(baselineFrames.Value));
+                AssertViewsMatchBoard(step.Board);
+                Assert.That(boardView.ActiveViewCount,
+                    Is.EqualTo(BoardConstants.CellCount));
+                Assert.That(pool.ActiveCount,
+                    Is.EqualTo(BoardConstants.CellCount));
+                Assert.That(pool.TotalCreatedCount,
+                    Is.EqualTo(BoardConstants.CellCount));
+                Assert.That(boardView.IsAnimating, Is.False);
+                foreach (long removedId in removedIds)
+                {
+                    Assert.That(boardView.ActiveViews.ContainsKey(removedId),
+                        Is.False);
+                }
+            }
+        }
+
+        [Test]
+        public void RemovalAnimation_PauseFreezesAndResumeContinuesInPlace()
+        {
+            BoardCascadeStep step =
+                BoardCascadeStepPresentationPlannerTests
+                    .CreateSingleMatchStep(out BoardState beforeBoard);
+            bool paused = true;
+            boardView.ConfigureBlockAnimationTimeSources(
+                () => paused,
+                () => 0.25f);
+            boardView.Render(beforeBoard);
+            long removedId = step.Collapse.Removals[0].RuntimeId;
+            BlockView removedView = boardView.ActiveViews[removedId];
+            IEnumerator animation = boardView.PlayCascadeStep(
+                beforeBoard,
+                step,
+                1f,
+                0f,
+                0f);
+
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(removedView.RectTransform.localScale,
+                Is.EqualTo(Vector3.one));
+
+            paused = false;
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(removedView.RectTransform.localScale,
+                Is.Not.EqualTo(Vector3.one));
+            Drain(animation);
+
+            AssertViewsMatchBoard(step.Board);
+            Assert.That(boardView.ActiveViews.ContainsKey(removedId),
+                Is.False);
+        }
+
+        [Test]
+        public void RemovalAnimation_BattleSpeedChangeDoesNotChangeProgress()
+        {
+            BoardCascadeStep step =
+                BoardCascadeStepPresentationPlannerTests
+                    .CreateSingleMatchStep(out BoardState beforeBoard);
+            boardView.ConfigureBlockAnimationTimeSources(
+                () => false,
+                () => 0.25f);
+            boardView.Render(beforeBoard);
+            Time.timeScale = 0.5f;
+            IEnumerator animation = boardView.PlayCascadeStep(
+                beforeBoard,
+                step,
+                1f,
+                0f,
+                0f);
+
+            Assert.That(animation.MoveNext(), Is.True);
+            Time.timeScale = 1.5f;
+            int remainingFrames = Drain(animation);
+
+            Assert.That(remainingFrames, Is.EqualTo(3));
+            AssertViewsMatchBoard(step.Board);
+        }
+
+        [Test]
+        public void ShuffleAnimation_UsesSameUnscaledDurationAtEveryBattleSpeed()
+        {
+            BoardShuffleResult result =
+                BoardShufflePresentationTestSupport.CreateChanged(
+                    BoardShuffleKind.Permutation,
+                    out BoardState beforeBoard);
+            int? baselineFrames = null;
+            float[] timeScales = { 0.5f, 1f, 1.5f };
+            for (int index = 0; index < timeScales.Length; index++)
+            {
+                Time.timeScale = timeScales[index];
+                boardView.ConfigureBlockAnimationTimeSources(
+                    () => false,
+                    () => 0.25f);
+                boardView.Render(beforeBoard);
+
+                int frames = Drain(boardView.PlayShuffleTransition(
+                    beforeBoard,
+                    result,
+                    1f));
+
+                baselineFrames ??= frames;
+                Assert.That(frames, Is.EqualTo(4));
+                Assert.That(frames, Is.EqualTo(baselineFrames.Value));
+                AssertViewsMatchBoard(result.Board);
+                foreach (BlockView view in boardView.ActiveViews.Values)
+                {
+                    Assert.That(view.RectTransform.localScale,
+                        Is.EqualTo(Vector3.one));
+                }
+            }
         }
 
         [Test]
@@ -1305,6 +1664,26 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             if (animation is IDisposable disposable)
             {
                 disposable.Dispose();
+            }
+        }
+
+        private static int Drain(IEnumerator animation)
+        {
+            int frames = 0;
+            try
+            {
+                while (animation.MoveNext())
+                {
+                    frames++;
+                    Assert.That(frames, Is.LessThan(1000),
+                        "Animation did not complete.");
+                }
+
+                return frames;
+            }
+            finally
+            {
+                Dispose(animation);
             }
         }
 
