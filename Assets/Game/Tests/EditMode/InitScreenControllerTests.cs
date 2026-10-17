@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
 using ValorChronicle.Core.Bootstrap;
+using ValorChronicle.Localization;
 using ValorChronicle.Save.Services;
 using ValorChronicle.UI;
 
@@ -72,6 +73,21 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
+        public async Task LocaleChange_RefreshesVisibleReadyPromptImmediately()
+        {
+            LocalizationService localization = CreateLocalization();
+            Invoke(controller, "BindLocalization", localization);
+            Present(await CreateResult(validContent: true));
+
+            Assert.That(initText.text, Is.EqualTo("Press to Start"));
+
+            localization.SetLocale("ko");
+
+            Assert.That(initText.text, Is.EqualTo("시작하려면 누르세요"));
+            Assert.That(startButton.interactable, Is.True);
+        }
+
+        [Test]
         public async Task FailedInitialization_ShowsFailureAndBlocksInput()
         {
             BootstrapInitializationResult result =
@@ -87,6 +103,41 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(initText.text,
                 Is.EqualTo(InitScreenController.FailureText));
             Assert.That(startButton.interactable, Is.False);
+        }
+
+        [Test]
+        public async Task FailedInitialization_LocalizesWhenServiceIsReady()
+        {
+            LocalizationService localization = CreateLocalization();
+            localization.SetLocale("ko");
+            Invoke(controller, "BindLocalization", localization);
+            BootstrapInitializationResult result =
+                await CreateResult(validContent: false);
+            LogAssert.Expect(
+                LogType.Error,
+                new System.Text.RegularExpressions.Regex(
+                    "\\[InitScreenController\\] Game initialization failed"));
+
+            Present(result);
+
+            Assert.That(initText.text, Is.EqualTo(
+                "게임 초기화에 실패했습니다. 게임을 다시 실행해 주세요."));
+            Assert.That(startButton.interactable, Is.False);
+        }
+
+        [Test]
+        public async Task LocalizationBinding_DoesNotDuplicateAndUnsubscribes()
+        {
+            LocalizationService localization = CreateLocalization();
+            Invoke(controller, "BindLocalization", localization);
+            Invoke(controller, "BindLocalization", localization);
+            Present(await CreateResult(validContent: true));
+
+            Assert.That(GetLocaleSubscriberCount(localization), Is.EqualTo(1));
+
+            Invoke(controller, "OnDisable");
+
+            Assert.That(GetLocaleSubscriberCount(localization), Is.Zero);
         }
 
         [Test]
@@ -171,6 +222,29 @@ namespace ValorChronicle.Tests.EditMode
                     new FakeSaveRepository()),
                 new FixedProfileIdProvider());
             return await coordinator.InitializeAsync();
+        }
+
+        private static LocalizationService CreateLocalization()
+        {
+            LocalizationTable table = LocalizationTableParser.Parse(
+                "init_screen_test",
+                "key\ten\tko\n"
+                    + $"{InitScreenController.ReadyTextKey}\t"
+                    + "Press to Start\t시작하려면 누르세요\n"
+                    + $"{InitScreenController.FailureTextKey}\t"
+                    + "Game initialization failed. Please restart the game.\t"
+                    + "게임 초기화에 실패했습니다. 게임을 다시 실행해 주세요.");
+            return new LocalizationService(new[] { table });
+        }
+
+        private static int GetLocaleSubscriberCount(
+            LocalizationService localization)
+        {
+            var field = typeof(LocalizationService).GetField(
+                "LocaleChanged",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var listeners = (System.Delegate)field?.GetValue(localization);
+            return listeners?.GetInvocationList().Length ?? 0;
         }
 
         private static void SetField(

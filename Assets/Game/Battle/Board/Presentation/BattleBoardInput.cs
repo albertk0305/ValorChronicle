@@ -24,6 +24,7 @@ namespace ValorChronicle.Battle.Board.Presentation
         private long startRuntimeId;
         private BlockView startView;
         private Vector2 startLocalPoint;
+        private BattleBoardController subscribedController;
 
         public bool IsTrackingPointer => isTrackingPointer;
         public int TrackedPointerId => trackedPointerId;
@@ -44,10 +45,20 @@ namespace ValorChronicle.Battle.Board.Presentation
             }
 
             ValidateMinimumDragDistance(dragDistance);
+            UnsubscribeController();
             controller = targetController;
             boardRect = targetBoardRect;
             minimumDragDistance = dragDistance;
             ResetGesture();
+            if (isActiveAndEnabled)
+            {
+                SubscribeController();
+            }
+        }
+
+        private void OnEnable()
+        {
+            SubscribeController();
         }
 
         public void OnBeginDrag(PointerEventData eventData)
@@ -143,6 +154,38 @@ namespace ValorChronicle.Battle.Board.Presentation
         }
 
         private void OnDisable()
+        {
+            UnsubscribeController();
+            ResetGesture();
+        }
+
+        private void SubscribeController()
+        {
+            if (controller == null
+                || ReferenceEquals(subscribedController, controller))
+            {
+                return;
+            }
+
+            UnsubscribeController();
+            subscribedController = controller;
+            subscribedController.ExternalInputDisabled +=
+                HandleExternalInputDisabled;
+        }
+
+        private void UnsubscribeController()
+        {
+            if (subscribedController == null)
+            {
+                return;
+            }
+
+            subscribedController.ExternalInputDisabled -=
+                HandleExternalInputDisabled;
+            subscribedController = null;
+        }
+
+        private void HandleExternalInputDisabled()
         {
             ResetGesture();
         }

@@ -67,6 +67,7 @@ namespace ValorChronicle.Battle.Board.Presentation
         public event Action<BoardCascadeStepPresentation>
             CascadeStepPresented;
         public event Action<BoardActionCompletion> BoardActionFinished;
+        public event Action ExternalInputDisabled;
 
         public BoardState CurrentBoard { get; private set; }
         public BoardSwapActionResult LastSwapActionResult { get; private set; }
@@ -78,7 +79,25 @@ namespace ValorChronicle.Battle.Board.Presentation
         public bool IsInitialized => initialized;
         public bool IsBoardReady { get; private set; }
         public bool HasInitialBoardReady => initialBoardReadyPublished;
-        public bool IsExternalInputEnabled { get; set; } = true;
+        private bool isExternalInputEnabled = true;
+
+        public bool IsExternalInputEnabled
+        {
+            get => isExternalInputEnabled;
+            set
+            {
+                if (isExternalInputEnabled == value)
+                {
+                    return;
+                }
+
+                isExternalInputEnabled = value;
+                if (!value)
+                {
+                    ExternalInputDisabled?.Invoke();
+                }
+            }
+        }
         public bool CanAcceptBoardInput => IsExternalInputEnabled
             && initialized
             && IsBoardReady

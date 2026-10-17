@@ -21,10 +21,11 @@ namespace ValorChronicle.Tests.EditMode
             }
         }
 
-        [TestCase("en")]
-        [TestCase("ko")]
-        public void ShowEmptyParty_DisplaysLocalizedEnglishMessage(
-            string locale)
+        [TestCase("en", UnvalidPartyView.EmptyPartyMessage)]
+        [TestCase("ko", "파티에 캐릭터가 한 명 이상 필요합니다.")]
+        public void ShowEmptyParty_DisplaysLocalizedMessage(
+            string locale,
+            string expected)
         {
             UnvalidPartyView view = CreateView(
                 out TMP_Text message,
@@ -33,8 +34,7 @@ namespace ValorChronicle.Tests.EditMode
             view.ShowEmptyParty(CreateLocalization(locale));
 
             Assert.That(root.activeSelf, Is.True);
-            Assert.That(message.text,
-                Is.EqualTo(UnvalidPartyView.EmptyPartyMessage));
+            Assert.That(message.text, Is.EqualTo(expected));
         }
 
         [Test]
@@ -88,7 +88,7 @@ namespace ValorChronicle.Tests.EditMode
                 "key\ten\tko\n"
                     + $"{UnvalidPartyView.EmptyPartyMessageKey}\t"
                     + $"{UnvalidPartyView.EmptyPartyMessage}\t"
-                    + UnvalidPartyView.EmptyPartyMessage);
+                    + "파티에 캐릭터가 한 명 이상 필요합니다.");
             var localization = new LocalizationService(
                 new[] { table });
             localization.SetLocale(locale);

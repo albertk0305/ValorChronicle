@@ -516,7 +516,6 @@ namespace ValorChronicle.Gacha.Presentation
                 "HeroesPickup/10RunButton",
                 "ArtifactPickup/1RunButton",
                 "ArtifactPickup/10RunButton",
-                "SettingButton",
                 "ExchangeButton"
             };
             for (int index = 0; index < paths.Length; index++)

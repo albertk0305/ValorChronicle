@@ -9,7 +9,9 @@ using ValorChronicle.Battle.Results;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Logging;
 using ValorChronicle.Core.Scene;
+using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Localization;
 using ValorChronicle.Party.Battle;
 using ValorChronicle.Save.DTO;
 
@@ -29,6 +31,8 @@ namespace ValorChronicle.Main.Presentation
 
         private bool battleEntryInProgress;
         private SceneService subscribedSceneService;
+        private GameBootstrapper subscribedLocalizationBootstrapper;
+        private LocalizationService subscribedLocalizationService;
 
         public event Action<string> BossSelected;
 
@@ -69,11 +73,13 @@ namespace ValorChronicle.Main.Presentation
         {
             RefreshGoldDisplay();
             BindSceneLoadingState();
+            BindLocalizationState();
         }
 
         private void OnDisable()
         {
             UnbindSceneLoadingState();
+            UnbindLocalizationState();
         }
 
         private void InitializeMainEntryState()
@@ -149,6 +155,7 @@ namespace ValorChronicle.Main.Presentation
         private void OnDestroy()
         {
             UnbindSceneLoadingState();
+            UnbindLocalizationState();
             if (battleButton != null)
             {
                 battleButton.onClick.RemoveListener(
@@ -510,6 +517,138 @@ namespace ValorChronicle.Main.Presentation
             }
 
             SetInputLocked(isLoading);
+        }
+
+        private void BindLocalizationState()
+        {
+            GameBootstrapper bootstrapper = GameBootstrapper.Instance;
+            if (!ReferenceEquals(
+                    subscribedLocalizationBootstrapper,
+                    bootstrapper))
+            {
+                UnbindLocalizationState();
+                subscribedLocalizationBootstrapper = bootstrapper;
+                if (subscribedLocalizationBootstrapper != null
+                    && subscribedLocalizationBootstrapper
+                        .LocalizationService == null)
+                {
+                    subscribedLocalizationBootstrapper
+                        .InitializationCompleted +=
+                        HandleLocalizationInitializationCompleted;
+                }
+            }
+
+            BindLocalizationService(bootstrapper?.LocalizationService);
+        }
+
+        private void UnbindLocalizationState()
+        {
+            if (subscribedLocalizationBootstrapper != null)
+            {
+                subscribedLocalizationBootstrapper
+                    .InitializationCompleted -=
+                    HandleLocalizationInitializationCompleted;
+                subscribedLocalizationBootstrapper = null;
+            }
+
+            BindLocalizationService(null);
+        }
+
+        private void BindLocalizationService(
+            LocalizationService localization)
+        {
+            if (ReferenceEquals(
+                    subscribedLocalizationService,
+                    localization))
+            {
+                return;
+            }
+
+            if (subscribedLocalizationService != null)
+            {
+                subscribedLocalizationService.LocaleChanged -=
+                    HandleLocaleChanged;
+            }
+
+            subscribedLocalizationService = localization;
+            if (subscribedLocalizationService != null)
+            {
+                subscribedLocalizationService.LocaleChanged +=
+                    HandleLocaleChanged;
+            }
+        }
+
+        private void HandleLocalizationInitializationCompleted(
+            BootstrapInitializationResult _)
+        {
+            subscribedLocalizationBootstrapper.InitializationCompleted -=
+                HandleLocalizationInitializationCompleted;
+            BindLocalizationService(
+                subscribedLocalizationBootstrapper?.LocalizationService);
+            RefreshLocalizedContent();
+        }
+
+        private void HandleLocaleChanged(string _)
+        {
+            RefreshLocalizedContent();
+        }
+
+        private void RefreshLocalizedContent()
+        {
+            GameBootstrapper bootstrapper = GameBootstrapper.Instance;
+            if (bootstrapper?.DefinitionDatabase == null
+                || subscribedLocalizationService == null)
+            {
+                return;
+            }
+
+            ProfileSaveData profile = GetCurrentProfileSnapshot(
+                bootstrapper);
+            if (BossScrollPanel?.activeInHierarchy == true)
+            {
+                bossSelectionList.Refresh(
+                    bootstrapper.DefinitionDatabase,
+                    subscribedLocalizationService,
+                    profile);
+            }
+
+            if (levelSelect?.activeInHierarchy == true
+                && !string.IsNullOrEmpty(SelectedBossId))
+            {
+                RefreshSelectedBoss(
+                    bootstrapper.DefinitionDatabase,
+                    subscribedLocalizationService,
+                    profile);
+            }
+
+            if (unvalidParty?.activeInHierarchy == true)
+            {
+                unvalidPartyView.ShowEmptyParty(
+                    subscribedLocalizationService);
+            }
+        }
+
+        private void RefreshSelectedBoss(
+            DefinitionDatabase database,
+            LocalizationService localization,
+            ProfileSaveData profile)
+        {
+            IReadOnlyList<BossSelectionItem> items =
+                bossSelectionList.BuildItems(
+                    database,
+                    localization,
+                    profile);
+            for (int index = 0; index < items.Count; index++)
+            {
+                if (string.Equals(
+                        items[index].BossId,
+                        SelectedBossId,
+                        StringComparison.Ordinal))
+                {
+                    levelSelectView.Bind(items[index], profile);
+                    return;
+                }
+            }
         }
 
         private void SetBossListVisible(bool visible)

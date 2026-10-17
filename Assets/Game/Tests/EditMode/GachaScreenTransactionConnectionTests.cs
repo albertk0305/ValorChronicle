@@ -58,7 +58,7 @@ namespace ValorChronicle.Tests.EditMode
                     context.View.RelicTenButton.interactable,
                     Is.EqualTo(expectedTen));
                 Assert.That(context.View.SettingButton.interactable,
-                    Is.False);
+                    Is.True);
                 Assert.That(context.View.ExchangeButton.interactable,
                     Is.True);
             });
@@ -673,6 +673,40 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
+        public void InfoLocaleChangeDoesNotMutateProfileOrStartPull()
+        {
+            WithContext(2000L, context =>
+            {
+                ProfileSaveData before = context.SaveService
+                    .GetCurrentProfileSnapshot();
+                int writesBefore = context.Repository.Count(
+                    nameof(FakeSaveRepository.WriteTemp));
+                context.Content.Find("HeroesPickup/InfoButton")
+                    .GetComponent<Button>().onClick.Invoke();
+
+                context.Localization.SetLocale("ko");
+
+                ProfileSaveData after = context.SaveService
+                    .GetCurrentProfileSnapshot();
+                Assert.That(context.Installer.InfoPresenter.IsOpen,
+                    Is.True);
+                Assert.That(context.Content.Find("InfoPanel/InfoText")
+                    .GetComponent<TMPro.TMP_Text>().text,
+                    Does.Contain("일반 캐릭터 소환"));
+                Assert.That(context.Controller.IsTransactionInProgress,
+                    Is.False);
+                Assert.That(context.Presentation.IsPresenting, Is.False);
+                Assert.That(context.ResultView.IsOpen, Is.False);
+                Assert.That(context.Repository.Count(
+                    nameof(FakeSaveRepository.WriteTemp)),
+                    Is.EqualTo(writesBefore));
+                Assert.That(
+                    new SaveDataValueComparer().Equals(before, after),
+                    Is.True);
+            });
+        }
+
+        [Test]
         public void UnavailableIndividualPresentationUsesDirectFinalSummary()
         {
             WithContext(100L, context =>
@@ -691,6 +725,29 @@ namespace ValorChronicle.Tests.EditMode
                     slot.gameObject.activeSelf), Is.EqualTo(1));
                 Assert.That(context.Controller.IsTransactionInProgress,
                     Is.True);
+                GachaResultSlotView slot = context.ResultView.Slots
+                    .Single(item => item.gameObject.activeSelf);
+                Sprite contentSprite = slot.ContentImage.sprite;
+                Sprite itemSprite = slot.ItemImage.sprite;
+                Sprite awakeningSprite = slot.AwakeningImage.sprite;
+                string itemText = slot.ItemText.text;
+                int writesBefore = context.Repository.Count(
+                    nameof(FakeSaveRepository.WriteTemp));
+
+                context.Localization.SetLocale("ko");
+
+                Assert.That(context.ResultView.IsOpen, Is.True);
+                Assert.That(context.Controller.IsTransactionInProgress,
+                    Is.True);
+                Assert.That(slot.ContentImage.sprite,
+                    Is.SameAs(contentSprite));
+                Assert.That(slot.ItemImage.sprite, Is.SameAs(itemSprite));
+                Assert.That(slot.AwakeningImage.sprite,
+                    Is.SameAs(awakeningSprite));
+                Assert.That(slot.ItemText.text, Is.EqualTo(itemText));
+                Assert.That(context.Repository.Count(
+                    nameof(FakeSaveRepository.WriteTemp)),
+                    Is.EqualTo(writesBefore));
                 CloseResult(context);
                 Assert.That(context.Controller.IsTransactionInProgress,
                     Is.False);

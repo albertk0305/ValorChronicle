@@ -6572,6 +6572,7 @@ GameObject:
   - component: {fileID: 287251135}
   - component: {fileID: 287251137}
   - component: {fileID: 287251136}
+  - component: {fileID: 872540000000000001}
   m_Layer: 5
   m_Name: Text
   m_TagString: Untagged
@@ -6702,6 +6703,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 287251134}
   m_CullTransparentMesh: 1
+--- !u!114 &872540000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 287251134}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7f51a3c97e14e248f94d67aab0e53c1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  targetText: {fileID: 287251136}
+  localizationKey: ui.character.stats
 --- !u!1 &292292306
 GameObject:
   m_ObjectHideFlags: 0
@@ -36754,6 +36769,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1747010638}
+  - component: {fileID: 920000004}
   m_Layer: 5
   m_Name: GameContent
   m_TagString: Untagged
@@ -36785,6 +36801,21 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &920000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1747010637}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3e39a3e1f6547229015792e43718752, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Settings.SettingsPanelHost
+  settingButton: {fileID: 627460056}
+  settingsPanelPrefab: {fileID: 1179796918045929915, guid: e542fb8655907f54b81e3c16a0277064, type: 3}
+  panelParent: {fileID: 1747010638}
 --- !u!1 &1747774270
 GameObject:
   m_ObjectHideFlags: 0

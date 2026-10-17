@@ -1,0 +1,19 @@
+key	en	ko
+ui.settings.master_volume	Master Volume	전체 음량
+ui.settings.bgm_volume	BGM	배경 음악
+ui.settings.sfx_volume	SFX	효과음
+ui.init.press_to_start	Press to Start	시작하려면 누르세요
+ui.init.initialization_failed	Game initialization failed. Please restart the game.	게임 초기화에 실패했습니다. 게임을 다시 실행해 주세요.
+ui.character.stats	Stats	능력치
+ui.gacha.skip	Skip	건너뛰기
+ui.battle.turn_format	Turn\n{current} / {limit}	턴\n{current} / {limit}
+ui.battle.combo_format	Combo {count}	콤보 {count}
+ui.battle.score_format	Score {score}	점수 {score}
+ui.battle.result.best_score_format	Best: {score}	최고 기록: {score}
+ui.battle.result.score_format	Score: {score}	점수: {score}
+ui.battle.result.turn_format	Turn: {current}/{limit}	턴: {current}/{limit}
+ui.battle.result.damage_format	Damage: {score}	피해 점수: {score}
+ui.battle.result.turn_bonus_format	Turn Bonus: {score}	잔여 턴 보너스: {score}
+ui.battle.result.reward	Reward	보상
+ui.battle.result.first_grade_bonus	First Grade Bonus	최초 등급 달성 보상
+ui.battle.pause.paused	Game Paused	일시정지

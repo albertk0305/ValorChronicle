@@ -7,6 +7,7 @@ using ValorChronicle.Characters.Marea;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Logging;
+using ValorChronicle.Core.Pause;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Party.Battle;
@@ -207,6 +208,15 @@ namespace ValorChronicle.Battle.Flow.Presentation
             BattleSceneCombatComposition composition = null;
             try
             {
+                GamePauseService pauseService =
+                    bootstrapper.GamePauseService;
+                if (pauseService == null)
+                {
+                    throw new InvalidOperationException(
+                        "GamePauseService is not available.");
+                }
+
+                battleFlowController.InitializePauseService(pauseService);
                 var characterRegistrars =
                     new CharacterCombatProviderRegistrarCatalog(
                         new ICharacterCombatProviderRegistrar[]

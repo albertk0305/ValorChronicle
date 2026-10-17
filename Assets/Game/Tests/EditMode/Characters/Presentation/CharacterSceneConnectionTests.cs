@@ -126,6 +126,21 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 Assert.That(upgrade.Find("ReturnButton"), Is.Not.Null);
                 Assert.That(upgrade.Find("AwakeningButton"), Is.Not.Null);
                 Assert.That(upgrade.Find("SkillsButton"), Is.Not.Null);
+                Transform statsText = upgrade.Find("StatsLookUpPanel/Text");
+                Assert.That(statsText, Is.Not.Null);
+                MonoBehaviour[] statsBindings = statsText
+                    .GetComponents<MonoBehaviour>()
+                    .Where(component => component.GetType().FullName
+                        == "ValorChronicle.Localization.LocalizedTMPText")
+                    .ToArray();
+                Assert.That(statsBindings, Has.Length.EqualTo(1));
+                var statsBinding = new SerializedObject(statsBindings[0]);
+                Assert.That(statsBinding.FindProperty("targetText")
+                    .objectReferenceValue,
+                    Is.SameAs(statsText.GetComponent<TMP_Text>()));
+                Assert.That(statsBinding.FindProperty("localizationKey")
+                    .stringValue,
+                    Is.EqualTo("ui.character.stats"));
                 Transform relicSlots = upgrade.Find("Artifacts");
                 Assert.That(relicSlots, Is.Not.Null);
                 foreach (string slotName in new[]

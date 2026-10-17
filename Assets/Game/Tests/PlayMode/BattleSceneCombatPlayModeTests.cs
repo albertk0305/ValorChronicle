@@ -21,6 +21,7 @@ using ValorChronicle.Battle.Results;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Bootstrap;
+using ValorChronicle.Core.Pause;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
@@ -46,6 +47,7 @@ namespace ValorChronicle.Tests.PlayMode
         private KragmorCombatConfig testKragmorConfig;
         private string saveRoot;
         private float previousTimeScale;
+        private GamePauseService gamePauseService;
 
         [UnitySetUp]
         public IEnumerator LoadBattleScene()
@@ -110,6 +112,8 @@ namespace ValorChronicle.Tests.PlayMode
                 "Instance",
                 null,
                 null);
+            gamePauseService?.Dispose();
+            gamePauseService = null;
             if (bootstrapRoot != null)
             {
                 UnityEngine.Object.Destroy(bootstrapRoot);
@@ -1027,6 +1031,12 @@ namespace ValorChronicle.Tests.PlayMode
                 "RandomSource",
                 bootstrapper,
                 new SeededRandomSource(54321));
+            gamePauseService = new GamePauseService();
+            SetAutoProperty(
+                typeof(GameBootstrapper),
+                "GamePauseService",
+                bootstrapper,
+                gamePauseService);
             var battleEntryService = new BattleEntryService();
             Assert.That(
                 battleEntryService.TryRegister(

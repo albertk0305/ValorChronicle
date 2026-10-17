@@ -5,14 +5,18 @@ using UnityEngine.UI;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Logging;
 using ValorChronicle.Core.Scene;
+using ValorChronicle.Localization;
 
 namespace ValorChronicle.UI
 {
     public sealed class InitScreenController : MonoBehaviour
     {
+        public const string ReadyTextKey = "ui.init.press_to_start";
+        public const string FailureTextKey =
+            "ui.init.initialization_failed";
         public const string ReadyText = "Press to Start";
         public const string FailureText =
-            "게임 초기화에 실패했습니다. 게임을 다시 실행해 주세요.";
+            "Game initialization failed. Please restart the game.";
 
         [SerializeField]
         private Button startButton = null;
@@ -21,8 +25,17 @@ namespace ValorChronicle.UI
         private TMP_Text initText = null;
 
         private GameBootstrapper subscribedBootstrapper;
+        private LocalizationService subscribedLocalizationService;
         private BootstrapInitializationResult presentedResult;
         private bool isTransitioning;
+        private PromptState promptState;
+
+        private enum PromptState
+        {
+            Initializing,
+            Ready,
+            Failure
+        }
 
         public Button StartButton => startButton;
         public TMP_Text InitText => initText;
@@ -57,6 +70,7 @@ namespace ValorChronicle.UI
             }
 
             UnsubscribeBootstrapper();
+            UnsubscribeLocalization();
         }
 
         private void TryBindBootstrapper(bool logIfMissing)
@@ -83,6 +97,8 @@ namespace ValorChronicle.UI
                     HandleInitializationCompleted;
             }
 
+            BindLocalization(bootstrapper.LocalizationService);
+
             PresentInitializationResult(
                 subscribedBootstrapper.InitializationResult);
         }
@@ -103,7 +119,59 @@ namespace ValorChronicle.UI
         private void HandleInitializationCompleted(
             BootstrapInitializationResult result)
         {
+            BindLocalization(subscribedBootstrapper?.LocalizationService);
             PresentInitializationResult(result);
+        }
+
+        private void BindLocalization(LocalizationService localization)
+        {
+            if (ReferenceEquals(
+                    subscribedLocalizationService,
+                    localization))
+            {
+                return;
+            }
+
+            UnsubscribeLocalization();
+            subscribedLocalizationService = localization;
+            if (subscribedLocalizationService == null)
+            {
+                return;
+            }
+
+            subscribedLocalizationService.LocaleChanged +=
+                HandleLocaleChanged;
+            RefreshLocalizedPrompt();
+        }
+
+        private void UnsubscribeLocalization()
+        {
+            if (subscribedLocalizationService == null)
+            {
+                return;
+            }
+
+            subscribedLocalizationService.LocaleChanged -=
+                HandleLocaleChanged;
+            subscribedLocalizationService = null;
+        }
+
+        private void HandleLocaleChanged(string _)
+        {
+            RefreshLocalizedPrompt();
+        }
+
+        private void RefreshLocalizedPrompt()
+        {
+            switch (promptState)
+            {
+                case PromptState.Ready:
+                    ShowReady();
+                    break;
+                case PromptState.Failure:
+                    ShowFailure();
+                    break;
+            }
         }
 
         private void PresentInitializationResult(
@@ -183,6 +251,7 @@ namespace ValorChronicle.UI
 
         private void ShowInitializing()
         {
+            promptState = PromptState.Initializing;
             isTransitioning = false;
             if (initText != null)
             {
@@ -197,9 +266,12 @@ namespace ValorChronicle.UI
 
         private void ShowReady()
         {
+            promptState = PromptState.Ready;
             if (initText != null)
             {
-                initText.text = ReadyText;
+                initText.text = ResolveLocalizedText(
+                    ReadyTextKey,
+                    ReadyText);
                 initText.gameObject.SetActive(true);
             }
 
@@ -211,10 +283,13 @@ namespace ValorChronicle.UI
 
         private void ShowFailure()
         {
+            promptState = PromptState.Failure;
             isTransitioning = false;
             if (initText != null)
             {
-                initText.text = FailureText;
+                initText.text = ResolveLocalizedText(
+                    FailureTextKey,
+                    FailureText);
                 initText.gameObject.SetActive(true);
             }
 
@@ -222,6 +297,22 @@ namespace ValorChronicle.UI
             {
                 startButton.interactable = false;
             }
+        }
+
+        private string ResolveLocalizedText(string key, string fallback)
+        {
+            if (subscribedLocalizationService == null)
+            {
+                return fallback;
+            }
+
+            string localized = subscribedLocalizationService.GetText(key);
+            return string.Equals(
+                    localized,
+                    LocalizationService.MissingKey(key),
+                    StringComparison.Ordinal)
+                ? fallback
+                : localized;
         }
 
         private void OnValidate()

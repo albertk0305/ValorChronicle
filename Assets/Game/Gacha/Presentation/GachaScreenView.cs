@@ -178,7 +178,6 @@ namespace ValorChronicle.Gacha.Presentation
             SetInteractable(characterTenButton, characterTen);
             SetInteractable(relicSingleButton, relicSingle);
             SetInteractable(relicTenButton, relicTen);
-            SetInteractable(settingButton, false);
             SetInteractable(exchangeButton, exchange);
         }
 

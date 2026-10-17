@@ -89,6 +89,24 @@ namespace ValorChronicle.Gacha.Presentation
             panelRoot.SetActive(true);
         }
 
+        public void RefreshOpenText(string text)
+        {
+            if (!IsConfigured || !IsOpen)
+            {
+                throw new InvalidOperationException(
+                    "Gacha info panel must be open before refreshing text.");
+            }
+
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                throw new ArgumentException(
+                    "Info text cannot be empty.",
+                    nameof(text));
+            }
+
+            infoText.text = text;
+        }
+
         public void Close()
         {
             if (infoText != null)

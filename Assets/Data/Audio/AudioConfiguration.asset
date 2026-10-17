@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53ab3500ae7c4ae28f179d21f6c2d796, type: 3}
+  m_Name: AudioConfiguration
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Audio.Configuration.AudioConfiguration
+  audioMixer: {fileID: 24100000, guid: cf4991a3cb12f3346a3e4879effb408c, type: 2}
+  bgmMixerGroup: {fileID: 645692549301575139, guid: cf4991a3cb12f3346a3e4879effb408c, type: 2}
+  sfxMixerGroup: {fileID: 7266138085344024215, guid: cf4991a3cb12f3346a3e4879effb408c, type: 2}
+  uiMixerGroup: {fileID: 19397189210448637, guid: cf4991a3cb12f3346a3e4879effb408c, type: 2}
+  initBgm: {fileID: 8300000, guid: c6a7dd97621786d4782ebdd31ef9c457, type: 3}
+  normalBgm: {fileID: 8300000, guid: 13ed4e3dd5d37ed4d9ec8d21de0170a1, type: 3}
+  battleBgm: {fileID: 8300000, guid: 1a1ed7837e619ec4e8149aff5d553fb5, type: 3}

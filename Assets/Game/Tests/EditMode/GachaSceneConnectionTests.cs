@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 using TMPro;
 using UnityEditor;
@@ -10,6 +11,7 @@ using UnityEngine.UI;
 using ValorChronicle.Core.Scene;
 using ValorChronicle.Exchange.Presentation;
 using ValorChronicle.Gacha.Presentation;
+using ValorChronicle.Localization;
 using ValorChronicle.UI.Navigation;
 using Object = UnityEngine.Object;
 
@@ -172,7 +174,7 @@ namespace ValorChronicle.Tests.EditMode
                     Is.False);
                 Assert.That(view.RelicSingleButton.interactable, Is.False);
                 Assert.That(view.RelicTenButton.interactable, Is.False);
-                Assert.That(view.SettingButton.interactable, Is.False);
+                Assert.That(view.SettingButton.interactable, Is.True);
                 Assert.That(view.ExchangeButton.interactable, Is.False);
                 Assert.That(view.CharacterSingleButton.onClick
                     .GetPersistentEventCount(), Is.Zero);
@@ -201,6 +203,45 @@ namespace ValorChronicle.Tests.EditMode
                     .GetComponent<Image>().raycastTarget, Is.True);
                 Assert.That(content.Find("GachaPresentation/TouchPanel")
                     .GetComponent<Button>(), Is.Not.Null);
+                Transform skipText = content.Find(
+                    "GachaPresentation/SkipButton/Text (TMP)");
+                Assert.That(skipText, Is.Not.Null);
+                MonoBehaviour[] skipBindings = skipText
+                    .GetComponents<MonoBehaviour>()
+                    .Where(component => component.GetType().FullName
+                        == "ValorChronicle.Localization.LocalizedTMPText")
+                    .ToArray();
+                Assert.That(skipBindings, Has.Length.EqualTo(1));
+                var skipBinding = new SerializedObject(skipBindings[0]);
+                Assert.That(skipBinding.FindProperty("targetText")
+                    .objectReferenceValue,
+                    Is.SameAs(skipText.GetComponent<TMP_Text>()));
+                Assert.That(skipBinding.FindProperty("localizationKey")
+                    .stringValue,
+                    Is.EqualTo("ui.gacha.skip"));
+                LocalizationCatalog localizationCatalog = AssetDatabase
+                    .LoadAssetAtPath<LocalizationCatalog>(
+                        "Assets/Data/Localization/LocalizationCatalog.asset");
+                LocalizationService localization =
+                    localizationCatalog.CreateService();
+                MethodInfo initializeBinding = skipBindings[0].GetType()
+                    .GetMethod("Initialize", BindingFlags.Instance
+                        | BindingFlags.Public);
+                Assert.That(initializeBinding, Is.Not.Null);
+                initializeBinding.Invoke(
+                    skipBindings[0],
+                    new object[] { localization });
+                GameObject presentation = content.Find(
+                    "GachaPresentation").gameObject;
+                presentation.SetActive(true);
+                InvokeLifecycle(skipBindings[0], "OnEnable");
+                Assert.That(skipText.GetComponent<TMP_Text>().text,
+                    Is.EqualTo("Skip"));
+                localization.SetLocale("ko");
+                Assert.That(skipText.GetComponent<TMP_Text>().text,
+                    Is.EqualTo("건너뛰기"));
+                presentation.SetActive(false);
+                InvokeLifecycle(skipBindings[0], "OnDisable");
 
                 installer.Install();
                 Assert.That(content.Find("CurrencyDisplay"), Is.Null);
@@ -271,6 +312,17 @@ namespace ValorChronicle.Tests.EditMode
                 "SafeAreaRoot/GamaeViewport/GameContent");
             Assert.That(content, Is.Not.Null);
             return content;
+        }
+
+        private static void InvokeLifecycle(
+            MonoBehaviour target,
+            string methodName)
+        {
+            MethodInfo method = target.GetType().GetMethod(
+                methodName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, methodName);
+            method.Invoke(target, null);
         }
 
         private static void Restore(SceneSetup[] setup)

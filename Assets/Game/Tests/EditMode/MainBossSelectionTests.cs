@@ -1,14 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using TMPro;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
 using ValorChronicle.Battle.Results;
+using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Localization;
@@ -125,10 +129,11 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(item.BestGradeSprite, Is.Null);
         }
 
-        [TestCase("en")]
-        [TestCase("ko")]
-        public void Builder_NoMasterAttempt_UsesLocalizedEnglishPrompt(
-            string locale)
+        [TestCase("en", "Try Master Mode")]
+        [TestCase("ko", "마스터 모드 도전")]
+        public void Builder_NoMasterAttempt_UsesLocalizedPrompt(
+            string locale,
+            string expected)
         {
             LocalizationCatalog catalog = AssetDatabase.LoadAssetAtPath<
                 LocalizationCatalog>(LocalizationPath);
@@ -141,7 +146,7 @@ namespace ValorChronicle.Tests.EditMode
                 localization: localization)[0];
 
             Assert.That(item.BestScoreText,
-                Is.EqualTo(BossSelectionListBuilder.MasterChallengePrompt));
+                Is.EqualTo(expected));
             Assert.That(item.BestScoreText, Does.Not.StartWith("[["));
         }
 
@@ -291,6 +296,148 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(view.Content.rect.height,
                 Is.EqualTo(view.ScrollRect.viewport.rect.height)
                     .Within(0.001f));
+        }
+
+        [Test]
+        public void ListView_RefreshRebindsTextAndPreservesScrollAndPool()
+        {
+            BossSelectionListView view = CreateListView(3);
+            IReadOnlyList<BossSelectionItem> initial = CreateItems(4);
+            view.Show(initial);
+            view.ScrollRect.verticalNormalizedPosition = 0.35f;
+            int initialPoolCount = view.PoolCount;
+
+            var localized = new List<BossSelectionItem>(initial.Count);
+            for (int index = 0; index < initial.Count; index++)
+            {
+                BossSelectionItem item = initial[index];
+                localized.Add(new BossSelectionItem(
+                    item.BossId,
+                    $"현지화 {index}",
+                    item.FaceSprite,
+                    item.ElementSprite,
+                    item.BestScoreText,
+                    item.BestGradeSprite));
+            }
+
+            view.Refresh(localized);
+
+            Assert.That(view.PoolCount, Is.EqualTo(initialPoolCount));
+            Assert.That(view.ScrollRect.verticalNormalizedPosition,
+                Is.EqualTo(0.35f).Within(0.001f));
+            Assert.That(view.Slots[0].BossNameText.text,
+                Is.EqualTo("현지화 0"));
+            Assert.That(GetBoundIds(view),
+                Is.EqualTo(new[] { "boss_a", "boss_b", "boss_c", "boss_d" }));
+        }
+
+        [Test]
+        public void Controller_LocaleChangeRefreshesVisibleStateWithoutChangingSelection()
+        {
+            SceneSetup[] previousSetup =
+                EditorSceneManager.GetSceneManagerSetup();
+            GameBootstrapper previousBootstrapper =
+                GameBootstrapper.Instance;
+            GameObject bootstrapObject = null;
+
+            try
+            {
+                EditorSceneManager.OpenScene(
+                    "Assets/Scenes/Main.unity",
+                    OpenSceneMode.Single);
+                MainScreenController controller =
+                    UnityEngine.Object.FindFirstObjectByType<
+                        MainScreenController>(FindObjectsInactive.Include);
+                Assert.That(controller, Is.Not.Null);
+
+                DefinitionDatabase database = LoadCanonicalDatabase();
+                LocalizationCatalog catalog = AssetDatabase.LoadAssetAtPath<
+                    LocalizationCatalog>(LocalizationPath);
+                LocalizationService localization = catalog.CreateService();
+                Assert.That(database.TryGetBoss(
+                    "kragmor",
+                    out BossDefinition boss), Is.True);
+                string originalDisplayNameKey = boss.DisplayNameKey;
+
+                bootstrapObject = new GameObject("Localization Bootstrap");
+                bootstrapObject.SetActive(false);
+                GameBootstrapper bootstrapper =
+                    bootstrapObject.AddComponent<GameBootstrapper>();
+                SetField(bootstrapper, "definitionDatabase", database);
+                SetProperty(
+                    bootstrapper,
+                    "LocalizationService",
+                    localization);
+                SetStaticProperty(
+                    typeof(GameBootstrapper),
+                    "Instance",
+                    bootstrapper);
+
+                Invoke(controller, "Awake");
+                Invoke(controller, "BindLocalizationService", localization);
+                controller.BattleButton.onClick.Invoke();
+                Invoke(controller, "HandleBossSelected", "kragmor");
+                controller.UnvalidPartyView.ShowEmptyParty(localization);
+
+                Assert.That(controller.SelectedBossId,
+                    Is.EqualTo("kragmor"));
+                Assert.That(controller.LevelSelectView.BossNameText.text,
+                    Is.EqualTo("Kragmor"));
+                Assert.That(controller.LevelSelectView.BestScoreText.text,
+                    Is.EqualTo("Try Master Mode"));
+
+                localization.SetLocale("ko");
+
+                Assert.That(controller.SelectedBossId,
+                    Is.EqualTo("kragmor"));
+                Assert.That(controller.LevelSelectView.BossId,
+                    Is.EqualTo("kragmor"));
+                Assert.That(controller.LevelSelectView.BossNameText.text,
+                    Is.EqualTo("용광거신 크라그모르"));
+                Assert.That(controller.LevelSelectView.BestScoreText.text,
+                    Is.EqualTo("마스터 모드 도전"));
+                Assert.That(controller.UnvalidPartyView.MessageText.text,
+                    Is.EqualTo("파티에 캐릭터가 한 명 이상 필요합니다."));
+                Assert.That(boss.DisplayNameKey,
+                    Is.EqualTo(originalDisplayNameKey));
+            }
+            finally
+            {
+                SetStaticProperty(
+                    typeof(GameBootstrapper),
+                    "Instance",
+                    previousBootstrapper);
+                if (bootstrapObject != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(bootstrapObject);
+                }
+
+                RestoreSceneSetup(previousSetup);
+            }
+        }
+
+        [Test]
+        public void Controller_LocalizationSubscriptionIsUniqueAndRemovedOnDisable()
+        {
+            var controllerObject = new GameObject(
+                "Main Localization Controller");
+            controllerObject.SetActive(false);
+            createdObjects.Add(controllerObject);
+            MainScreenController controller =
+                controllerObject.AddComponent<MainScreenController>();
+            LocalizationService localization =
+                AssetDatabase.LoadAssetAtPath<LocalizationCatalog>(
+                        LocalizationPath)
+                    .CreateService();
+
+            Invoke(controller, "BindLocalizationService", localization);
+            Invoke(controller, "BindLocalizationService", localization);
+
+            Assert.That(GetLocaleSubscriberCount(localization), Is.EqualTo(1));
+
+            Invoke(controller, "OnDisable");
+
+            Assert.That(GetLocaleSubscriberCount(localization), Is.Zero);
         }
 
         [Test]
@@ -512,6 +659,77 @@ namespace ValorChronicle.Tests.EditMode
             var serialized = new SerializedObject(target);
             serialized.FindProperty(name).stringValue = value;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void Invoke(
+            object target,
+            string methodName,
+            params object[] arguments)
+        {
+            target.GetType().GetMethod(
+                methodName,
+                BindingFlags.Instance | BindingFlags.NonPublic)?.Invoke(
+                    target,
+                    arguments);
+        }
+
+        private static void SetField(
+            object target,
+            string fieldName,
+            object value)
+        {
+            target.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(
+                    target,
+                    value);
+        }
+
+        private static void SetProperty(
+            object target,
+            string propertyName,
+            object value)
+        {
+            target.GetType().GetProperty(
+                propertyName,
+                BindingFlags.Instance
+                    | BindingFlags.Public
+                    | BindingFlags.NonPublic)?.SetValue(target, value);
+        }
+
+        private static void SetStaticProperty(
+            Type type,
+            string propertyName,
+            object value)
+        {
+            type.GetProperty(
+                propertyName,
+                BindingFlags.Static
+                    | BindingFlags.Public
+                    | BindingFlags.NonPublic)?.SetValue(null, value);
+        }
+
+        private static int GetLocaleSubscriberCount(
+            LocalizationService localization)
+        {
+            var field = typeof(LocalizationService).GetField(
+                "LocaleChanged",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var listeners = (Delegate)field?.GetValue(localization);
+            return listeners?.GetInvocationList().Length ?? 0;
+        }
+
+        private static void RestoreSceneSetup(SceneSetup[] previousSetup)
+        {
+            if (previousSetup != null && previousSetup.Length > 0)
+            {
+                EditorSceneManager.RestoreSceneManagerSetup(previousSetup);
+                return;
+            }
+
+            EditorSceneManager.NewScene(
+                NewSceneSetup.EmptyScene,
+                NewSceneMode.Single);
         }
     }
 }

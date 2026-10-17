@@ -148,7 +148,7 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
-        public void LocaleChange_RequeriesInventoryWithoutChangingPreviewId()
+        public void LocaleChange_RefreshesRelicTextAndPreservesPreview()
         {
             Fixture fixture = CreateFixture(Profile(
                 new[] { "sword", "", "", "" }));
@@ -159,6 +159,8 @@ namespace ValorChronicle.Tests.EditMode
             string[] englishNames = fixture.InventoryGrid.Items
                 .Select(entry => entry.DisplayName)
                 .ToArray();
+            string englishDescription =
+                fixture.Selection.DescriptionText.text;
 
             fixture.Localization.SetLocale("ko");
 
@@ -169,7 +171,19 @@ namespace ValorChronicle.Tests.EditMode
                 fixture.InventoryGrid.Items
                     .Select(entry => entry.DisplayName),
                 Is.Not.EqualTo(englishNames));
+            Assert.That(fixture.Selection.DescriptionText.text,
+                Is.EqualTo(
+                    "승전자의 부러진 검\n\n"
+                        + "장착한 캐릭터의 공격력이 5% 증가합니다."));
             Assert.That(fixture.InventoryGrid.IsAtTop, Is.True);
+
+            fixture.Localization.SetLocale("en");
+
+            Assert.That(
+                fixture.Controller.EditSession.PreviewInstanceId,
+                Is.EqualTo(previewId));
+            Assert.That(fixture.Selection.DescriptionText.text,
+                Is.EqualTo(englishDescription));
         }
 
         [Test]

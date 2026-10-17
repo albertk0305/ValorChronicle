@@ -11,13 +11,19 @@ using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Bosses.Kragmor;
+using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Localization;
 
 namespace ValorChronicle.Battle.Flow.Presentation
 {
     public sealed class BattleHudController : MonoBehaviour
     {
+        private const string TurnFormatKey = "ui.battle.turn_format";
+        private const string ComboFormatKey = "ui.battle.combo_format";
+        private const string ScoreFormatKey = "ui.battle.score_format";
+
         [SerializeField]
         private BattleFlowController battleFlowController = null;
 
@@ -104,6 +110,9 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private float partyShieldPivotX;
         private Sprite defaultBossSprite;
         private bool defaultBossSpriteCached;
+        private LocalizationService localizationService;
+        private GameBootstrapper subscribedLocalizationBootstrapper;
+        private bool localeSubscribed;
         public BattleFlowController BattleFlowController =>
             battleFlowController;
         public BattleSceneCombatBootstrap BattleSceneCombatBootstrap =>
@@ -141,25 +150,49 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private void OnEnable()
         {
             InitializeSafeDisplay();
+            TryResolveLocalizationService();
+            SubscribeLocalization();
             AttachActiveButtonListeners();
             TryConnectRuntime();
         }
 
         private void Start()
         {
+            TryResolveLocalizationService();
+            SubscribeLocalization();
             TryConnectRuntime();
         }
 
         private void OnDisable()
         {
+            UnsubscribeLocalization();
+            UnsubscribeLocalizationBootstrapper();
             DetachActiveButtonListeners();
             DisconnectRuntime();
         }
 
         private void OnDestroy()
         {
+            UnsubscribeLocalization();
+            UnsubscribeLocalizationBootstrapper();
             DetachActiveButtonListeners();
             DisconnectRuntime();
+        }
+
+        public void InitializeLocalization(LocalizationService service)
+        {
+            UnsubscribeLocalization();
+            UnsubscribeLocalizationBootstrapper();
+            localizationService = service
+                ?? throw new ArgumentNullException(nameof(service));
+
+            if (!isActiveAndEnabled)
+            {
+                return;
+            }
+
+            SubscribeLocalization();
+            RefreshLocalizedHud();
         }
 
         public BattleBossIntentSlotView GetBossIntentSlot(int index)
@@ -691,11 +724,21 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return;
             }
 
-            turnText.text = string.Concat(
-                "Turn\n",
-                context.CurrentTurn.ToString(CultureInfo.InvariantCulture),
-                " / ",
-                context.TurnLimit.ToString(CultureInfo.InvariantCulture));
+            var arguments = new Dictionary<string, object>
+            {
+                ["current"] = context.CurrentTurn,
+                ["limit"] = context.TurnLimit
+            };
+            turnText.text = FormatLocalized(
+                TurnFormatKey,
+                string.Concat(
+                    "Turn\n",
+                    context.CurrentTurn.ToString(
+                        CultureInfo.InvariantCulture),
+                    " / ",
+                    context.TurnLimit.ToString(
+                        CultureInfo.InvariantCulture)),
+                arguments);
         }
 
         private void RefreshCombatState()
@@ -849,10 +892,15 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 displayedFinalComboCount = execution.FinalComboCount;
             }
 
-            comboText.text = string.Concat(
-                "Combo ",
-                displayedFinalComboCount.ToString(
-                    CultureInfo.InvariantCulture));
+            string count = displayedFinalComboCount.ToString(
+                CultureInfo.InvariantCulture);
+            comboText.text = FormatLocalized(
+                ComboFormatKey,
+                "Combo " + count,
+                new Dictionary<string, object>
+                {
+                    ["count"] = count
+                });
         }
 
         private bool TryResolveElementSprite(
@@ -885,10 +933,127 @@ namespace ValorChronicle.Battle.Flow.Presentation
             if (scoreText != null)
             {
                 long damageScore = subscribedBridge?.DamageScore ?? 0L;
-                scoreText.text = "Score " + damageScore.ToString(
+                string score = damageScore.ToString(
                     "N0",
                     CultureInfo.InvariantCulture);
+                scoreText.text = FormatLocalized(
+                    ScoreFormatKey,
+                    "Score " + score,
+                    new Dictionary<string, object>
+                    {
+                        ["score"] = score
+                    });
             }
+        }
+
+        private void TryResolveLocalizationService()
+        {
+            if (localizationService != null)
+            {
+                return;
+            }
+
+            GameBootstrapper bootstrapper = GameBootstrapper.Instance;
+            if (bootstrapper == null)
+            {
+                return;
+            }
+
+            if (bootstrapper.LocalizationService != null)
+            {
+                localizationService = bootstrapper.LocalizationService;
+                UnsubscribeLocalizationBootstrapper();
+                return;
+            }
+
+            if (ReferenceEquals(
+                    subscribedLocalizationBootstrapper,
+                    bootstrapper))
+            {
+                return;
+            }
+
+            UnsubscribeLocalizationBootstrapper();
+            subscribedLocalizationBootstrapper = bootstrapper;
+            subscribedLocalizationBootstrapper.InitializationCompleted +=
+                HandleBootstrapInitializationCompleted;
+        }
+
+        private void HandleBootstrapInitializationCompleted(
+            BootstrapInitializationResult _)
+        {
+            GameBootstrapper bootstrapper =
+                subscribedLocalizationBootstrapper;
+            UnsubscribeLocalizationBootstrapper();
+            if (bootstrapper?.LocalizationService == null)
+            {
+                return;
+            }
+
+            localizationService = bootstrapper.LocalizationService;
+            SubscribeLocalization();
+            RefreshLocalizedHud();
+        }
+
+        private void SubscribeLocalization()
+        {
+            if (localeSubscribed || localizationService == null)
+            {
+                return;
+            }
+
+            localizationService.LocaleChanged += HandleLocaleChanged;
+            localeSubscribed = true;
+        }
+
+        private void UnsubscribeLocalization()
+        {
+            if (!localeSubscribed || localizationService == null)
+            {
+                return;
+            }
+
+            localizationService.LocaleChanged -= HandleLocaleChanged;
+            localeSubscribed = false;
+        }
+
+        private void UnsubscribeLocalizationBootstrapper()
+        {
+            if (subscribedLocalizationBootstrapper == null)
+            {
+                return;
+            }
+
+            subscribedLocalizationBootstrapper.InitializationCompleted -=
+                HandleBootstrapInitializationCompleted;
+            subscribedLocalizationBootstrapper = null;
+        }
+
+        private void HandleLocaleChanged(string _)
+        {
+            RefreshLocalizedHud();
+        }
+
+        private void RefreshLocalizedHud()
+        {
+            if (!IsRuntimeConnected || resultHudFrozen)
+            {
+                return;
+            }
+
+            RefreshTurnAndPhase();
+            RefreshCombo();
+            RefreshScore();
+        }
+
+        private string FormatLocalized(
+            string key,
+            string fallback,
+            IReadOnlyDictionary<string, object> arguments)
+        {
+            return localizationService != null
+                ? localizationService.Format(key, arguments)
+                : fallback;
         }
 
         private void RefreshStatusSnapshot()

@@ -8,6 +8,7 @@ using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Core.Logging;
+using ValorChronicle.Core.Pause;
 
 namespace ValorChronicle.Battle.Flow.Presentation
 {
@@ -54,6 +55,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private BattleFlowSetup setup;
         private BattleFlowCoordinator coordinator;
         private BattleFlowCombatBridge combatBridge;
+        private GamePauseService pauseService;
+        private bool pauseEventsSubscribed;
         private IMatchDamageProjectilePresenter projectilePresenterOverride =
             null;
         private IActiveDamageProjectilePresenter
@@ -66,6 +69,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         public event Action PresentationMatchQueueChanged;
         public event Action ActivePresentationStateChanged;
+        public event Action<BattleResultKind> BattleResultReached;
 
         public BattleFlowSetup Setup => setup;
         public BattleFlowCoordinator Coordinator => coordinator;
@@ -80,6 +84,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             matchQueuePresentation;
         public bool IsResolvingActivePresentation =>
             isResolvingActivePresentation;
+        public bool IsPaused => pauseService?.IsPaused == true;
 
         private void OnEnable()
         {
@@ -87,6 +92,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             isCleaningUp = false;
             UpdateInitialBoardPresentationState();
             SetBoardInputGate(false);
+            SubscribePauseEvents();
             SubscribeBoardEvents();
             SubscribeCoordinatorEvents();
             TryStartBattleFromReadyBoard();
@@ -97,6 +103,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
             isCleaningUp = true;
             connectionEnabled = false;
             SetBoardInputGate(false);
+            UnsubscribePauseEvents();
+            pauseService?.ReleaseAll();
             UnsubscribeBoardEvents();
             StopFlowProgression();
             ClearPresentationMatchQueue();
@@ -113,7 +121,27 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void OnDestroy()
         {
+            UnsubscribePauseEvents();
+            pauseService?.ReleaseAll();
             ClearPresentationMatchQueue();
+        }
+
+        public void InitializePauseService(GamePauseService service)
+        {
+            if (service == null)
+            {
+                throw new ArgumentNullException(nameof(service));
+            }
+
+            if (ReferenceEquals(pauseService, service))
+            {
+                return;
+            }
+
+            UnsubscribePauseEvents();
+            pauseService = service;
+            SubscribePauseEvents();
+            UpdateBoardInputGate();
         }
 
         public void Initialize(BattleFlowSetup battleSetup)
@@ -213,7 +241,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         {
             if (coordinator == null
                 || waitingActionId != 0
-                || isResolvingActivePresentation)
+                || isResolvingActivePresentation
+                || IsPaused)
             {
                 return false;
             }
@@ -245,7 +274,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         {
             if (coordinator == null
                 || waitingActionId != 0
-                || isResolvingActivePresentation)
+                || isResolvingActivePresentation
+                || IsPaused)
             {
                 return false;
             }
@@ -259,11 +289,24 @@ namespace ValorChronicle.Battle.Flow.Presentation
         {
             try
             {
-                while (IsActivePresentationCurrent(version)
-                    && combatBridge.TryGetNextActiveCombatAction(
+                while (IsActivePresentationCurrent(version))
+                {
+                    if (IsPaused)
+                    {
+                        yield return WaitWhilePaused();
+                    }
+                    if (!IsActivePresentationCurrent(version))
+                    {
+                        yield break;
+                    }
+
+                    if (!combatBridge.TryGetNextActiveCombatAction(
                         out CharacterBattleState actingCharacter,
                         out CombatAction nextAction))
-                {
+                    {
+                        break;
+                    }
+
                     if (nextAction is DamageAction damageAction)
                     {
                         var request = new ActiveDamageProjectileRequest(
@@ -340,6 +383,15 @@ namespace ValorChronicle.Battle.Flow.Presentation
                         }
                     }
 
+                    if (IsPaused)
+                    {
+                        yield return WaitWhilePaused();
+                    }
+                    if (!IsActivePresentationCurrent(version))
+                    {
+                        yield break;
+                    }
+
                     bool actionApplied;
                     isExecutingFlowStep = true;
                     try
@@ -363,6 +415,15 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     }
                 }
 
+                if (!IsActivePresentationCurrent(version))
+                {
+                    yield break;
+                }
+
+                if (IsPaused)
+                {
+                    yield return WaitWhilePaused();
+                }
                 if (!IsActivePresentationCurrent(version))
                 {
                     yield break;
@@ -460,6 +521,36 @@ namespace ValorChronicle.Battle.Flow.Presentation
             coordinator.BossActionStarted += HandleBossActionStarted;
             coordinator.ResultReached += HandleResultReached;
             coordinatorEventsSubscribed = true;
+        }
+
+        private void SubscribePauseEvents()
+        {
+            if (!connectionEnabled
+                || pauseEventsSubscribed
+                || pauseService == null)
+            {
+                return;
+            }
+
+            pauseService.PauseStateChanged += HandlePauseStateChanged;
+            pauseEventsSubscribed = true;
+        }
+
+        private void UnsubscribePauseEvents()
+        {
+            if (!pauseEventsSubscribed || pauseService == null)
+            {
+                return;
+            }
+
+            pauseService.PauseStateChanged -= HandlePauseStateChanged;
+            pauseEventsSubscribed = false;
+        }
+
+        private void HandlePauseStateChanged(bool isPaused)
+        {
+            UpdateBoardInputGate();
+            ActivePresentationStateChanged?.Invoke();
         }
 
         private void UnsubscribeCoordinatorEvents()
@@ -777,6 +868,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     version,
                     BattlePhase.MatchEventResolving))
                 {
+                    if (IsPaused)
+                    {
+                        yield return WaitWhilePaused();
+                    }
+                    if (!IsFlowProgressionCurrent(
+                        version,
+                        BattlePhase.MatchEventResolving))
+                    {
+                        yield break;
+                    }
+
                     MatchEventExecution execution;
                     isExecutingFlowStep = true;
                     try
@@ -790,6 +892,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
                     UpdateBoardInputGate();
                     if (!IsFlowProgressionCurrent(version))
+                    {
+                        yield break;
+                    }
+
+                    if (IsPaused)
+                    {
+                        yield return WaitWhilePaused();
+                    }
+                    if (!IsFlowProgressionCurrent(
+                        version,
+                        BattlePhase.MatchEventResolving))
                     {
                         yield break;
                     }
@@ -833,10 +946,28 @@ namespace ValorChronicle.Battle.Flow.Presentation
                                 }
                             }
 
-                            while (combatBridge.TryGetNextMatchCombatAction(
-                                out CharacterBattleState actingCharacter,
-                                out CombatAction nextAction))
+                            while (true)
                             {
+                                if (IsPaused)
+                                {
+                                    yield return WaitWhilePaused();
+                                }
+                                if (!IsFlowProgressionCurrent(
+                                    version,
+                                    BattlePhase.MatchEventResolving))
+                                {
+                                    yield break;
+                                }
+
+                                if (!combatBridge
+                                    .TryGetNextMatchCombatAction(
+                                        out CharacterBattleState
+                                            actingCharacter,
+                                        out CombatAction nextAction))
+                                {
+                                    break;
+                                }
+
                                 if (nextAction is DamageAction damageAction)
                                 {
                                     var request =
@@ -929,6 +1060,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
                                     }
                                 }
 
+                                if (IsPaused)
+                                {
+                                    yield return WaitWhilePaused();
+                                }
+                                if (!IsFlowProgressionCurrent(
+                                    version,
+                                    BattlePhase.MatchEventResolving))
+                                {
+                                    yield break;
+                                }
+
                                 bool actionApplied;
                                 isExecutingFlowStep = true;
                                 try
@@ -968,6 +1110,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
                                 }
                             }
 
+                            if (IsPaused)
+                            {
+                                yield return WaitWhilePaused();
+                            }
+                            if (!IsFlowProgressionCurrent(
+                                version,
+                                BattlePhase.MatchEventResolving))
+                            {
+                                yield break;
+                            }
+
                             isExecutingFlowStep = true;
                             try
                             {
@@ -997,6 +1150,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
                                 {
                                     yield break;
                                 }
+                            }
+
+                            if (IsPaused)
+                            {
+                                yield return WaitWhilePaused();
+                            }
+                            if (!IsFlowProgressionCurrent(
+                                version,
+                                BattlePhase.MatchEventResolving))
+                            {
+                                yield break;
                             }
 
                             isExecutingFlowStep = true;
@@ -1045,6 +1209,11 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
                 yield return null;
 
+                if (IsPaused)
+                {
+                    yield return WaitWhilePaused();
+                }
+
                 if (!IsFlowProgressionCurrent(
                     version,
                     BattlePhase.BossActing))
@@ -1081,10 +1250,25 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     }
 
                     completed = bossCombatBegan;
-                    while (completed
-                        && combatBridge.TryGetNextBossCombatAction(
-                            out CombatAction nextBossAction))
+                    while (completed)
                     {
+                        if (IsPaused)
+                        {
+                            yield return WaitWhilePaused();
+                        }
+                        if (!IsFlowProgressionCurrent(
+                            version,
+                            BattlePhase.BossActing))
+                        {
+                            yield break;
+                        }
+
+                        if (!combatBridge.TryGetNextBossCombatAction(
+                            out CombatAction nextBossAction))
+                        {
+                            break;
+                        }
+
                         if (nextBossAction is BossDamageAction)
                         {
                             var request = new BossDamageProjectileRequest(
@@ -1164,6 +1348,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
                             }
                         }
 
+                        if (IsPaused)
+                        {
+                            yield return WaitWhilePaused();
+                        }
+                        if (!IsFlowProgressionCurrent(
+                            version,
+                            BattlePhase.BossActing))
+                        {
+                            yield break;
+                        }
+
                         isExecutingFlowStep = true;
                         try
                         {
@@ -1178,6 +1373,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
                     if (completed)
                     {
+                        if (IsPaused)
+                        {
+                            yield return WaitWhilePaused();
+                        }
+                        if (!IsFlowProgressionCurrent(
+                            version,
+                            BattlePhase.BossActing))
+                        {
+                            yield break;
+                        }
+
                         isExecutingFlowStep = true;
                         try
                         {
@@ -1238,6 +1444,14 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 && coordinator != null
                 && coordinator.Context.Result == BattleResultKind.None
                 && coordinator.Context.Phase == BattlePhase.PlayerInput;
+        }
+
+        private IEnumerator WaitWhilePaused()
+        {
+            while (connectionEnabled && IsPaused)
+            {
+                yield return null;
+            }
         }
 
         private void StopFlowProgression()
@@ -1371,14 +1585,39 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void HandleResultReached(BattleResultKind result)
         {
+            pauseService?.ReleaseAll();
             waitingActionId = 0;
             StopFlowProgression();
             ClearPresentationMatchQueue();
             SetBoardInputGate(false);
+            PublishBattleResultReached(result);
             GameLogger.Log(
                 $"[BattleFlow] Result reached. " +
                 $"Turn={coordinator.Context.CurrentTurn}; Result={result}.",
                 this);
+        }
+
+        private void PublishBattleResultReached(BattleResultKind result)
+        {
+            Action<BattleResultKind> observers = BattleResultReached;
+            if (observers == null)
+                return;
+
+            foreach (Action<BattleResultKind> observer
+                in observers.GetInvocationList())
+            {
+                try
+                {
+                    observer(result);
+                }
+                catch (Exception exception)
+                {
+                    GameLogger.Exception(exception, this);
+                    GameLogger.Error(
+                        "[BattleFlow] Battle result UI observer failed.",
+                        this);
+                }
+            }
         }
 
         internal void ReconcilePresentationMatchQueueForCurrentRuntime()
@@ -1459,7 +1698,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 && coordinator != null
                 && coordinator.Context.Result == BattleResultKind.None
                 && coordinator.Context.Phase == BattlePhase.PlayerInput
-                && !isResolvingActivePresentation;
+                && !isResolvingActivePresentation
+                && !IsPaused;
             SetBoardInputGate(enabled);
         }
 

@@ -184,7 +184,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
         }
 
         [Test]
-        public void AwakeningNameFallsBackToEnglishForEmptyLocaleValue()
+        public void AwakeningDescriptionUsesKoreanProductionTranslation()
         {
             localization.SetLocale("ko");
 
@@ -195,7 +195,9 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
 
             Assert.That(result.IsSuccess, Is.True, result.Error);
             Assert.That(result.Text,
-                Does.StartWith("Awakening 4 — Razor Cuts\n\n"));
+                Does.StartWith("각성 4 — 예리한 상처\n\n"));
+            Assert.That(result.Text,
+                Does.Contain("3매치 공격력 계수"));
         }
 
         [Test]

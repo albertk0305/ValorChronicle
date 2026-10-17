@@ -19,6 +19,9 @@ namespace ValorChronicle.Gacha.Presentation
         private DefinitionDatabase database;
         private LocalizationService localization;
         private bool subscribed;
+        private bool localizationSubscribed;
+        private string openGachaId = string.Empty;
+        private string openLocalizationKey = string.Empty;
 
         public bool IsConfigured => view != null && view.IsConfigured;
         public bool IsInitialized =>
@@ -28,11 +31,14 @@ namespace ValorChronicle.Gacha.Presentation
         private void OnEnable()
         {
             Subscribe();
+            SubscribeLocalization();
+            RefreshOpenContent();
         }
 
         private void OnDisable()
         {
             Unsubscribe();
+            UnsubscribeLocalization();
         }
 
         public void Configure(GachaInfoPanelView configuredView)
@@ -41,6 +47,7 @@ namespace ValorChronicle.Gacha.Presentation
             view = configuredView
                 ?? throw new ArgumentNullException(nameof(configuredView));
             view.Close();
+            ClearOpenContent();
             if (isActiveAndEnabled)
             {
                 Subscribe();
@@ -51,12 +58,17 @@ namespace ValorChronicle.Gacha.Presentation
             DefinitionDatabase initializedDatabase,
             LocalizationService initializedLocalization)
         {
+            UnsubscribeLocalization();
             database = initializedDatabase
                 ?? throw new ArgumentNullException(
                     nameof(initializedDatabase));
             localization = initializedLocalization
                 ?? throw new ArgumentNullException(
                     nameof(initializedLocalization));
+            if (isActiveAndEnabled)
+            {
+                SubscribeLocalization();
+            }
         }
 
         public bool Open(string gachaId)
@@ -87,6 +99,8 @@ namespace ValorChronicle.Gacha.Presentation
             }
 
             view.Open(text);
+            openGachaId = gachaId;
+            openLocalizationKey = string.Empty;
             Opened?.Invoke();
             return true;
         }
@@ -101,6 +115,8 @@ namespace ValorChronicle.Gacha.Presentation
             }
 
             view.Open(localization.GetText(localizationKey));
+            openGachaId = string.Empty;
+            openLocalizationKey = localizationKey;
             Opened?.Invoke();
             return true;
         }
@@ -115,6 +131,7 @@ namespace ValorChronicle.Gacha.Presentation
             }
 
             view.Open(message);
+            ClearOpenContent();
             Opened?.Invoke();
             return true;
         }
@@ -278,12 +295,92 @@ namespace ValorChronicle.Gacha.Presentation
         private void HandleCloseRequested()
         {
             view.Close();
+            ClearOpenContent();
             Closed?.Invoke();
+        }
+
+        private void SubscribeLocalization()
+        {
+            if (localizationSubscribed || localization == null)
+            {
+                return;
+            }
+
+            localization.LocaleChanged += HandleLocaleChanged;
+            localizationSubscribed = true;
+        }
+
+        private void UnsubscribeLocalization()
+        {
+            if (!localizationSubscribed)
+            {
+                return;
+            }
+
+            localization.LocaleChanged -= HandleLocaleChanged;
+            localizationSubscribed = false;
+        }
+
+        private void HandleLocaleChanged(string _)
+        {
+            RefreshOpenContent();
+        }
+
+        private void RefreshOpenContent()
+        {
+            if (view == null || !view.IsOpen)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(openGachaId))
+            {
+                RefreshOpenGachaInfo();
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(openLocalizationKey))
+            {
+                view.RefreshOpenText(localization.GetText(
+                    openLocalizationKey));
+            }
+        }
+
+        private void RefreshOpenGachaInfo()
+        {
+            string error = string.Empty;
+            if (database == null
+                || !database.IsInitialized
+                || !database.TryGetGacha(
+                    openGachaId,
+                    out GachaDefinition definition)
+                || !TryBuildText(
+                    definition,
+                    localization,
+                    out string text,
+                    out error))
+            {
+                GameLogger.Error(
+                    "[GachaInfoPanelPresenter] Open Gacha information "
+                        + "could not be relocalized. "
+                        + (error ?? string.Empty),
+                    this);
+                return;
+            }
+
+            view.RefreshOpenText(text);
+        }
+
+        private void ClearOpenContent()
+        {
+            openGachaId = string.Empty;
+            openLocalizationKey = string.Empty;
         }
 
         private void Fail(string message)
         {
             view?.Close();
+            ClearOpenContent();
             GameLogger.Error("[GachaInfoPanelPresenter] " + message, this);
         }
 

@@ -18,6 +18,7 @@ using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
+using ValorChronicle.Core.Pause;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
 
@@ -120,6 +121,151 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Does.Contain("requires a combat bridge"));
             Assert.That(flowController.Context, Is.Null);
             Assert.That(flowController.CombatBridge, Is.Null);
+        }
+
+        [Test]
+        public void PauseBlocksBattleInputAndResumePreservesRuntimeState()
+        {
+            float timeScale = 1.5f;
+            var pauseService = new GamePauseService(
+                () => timeScale,
+                value => timeScale = value);
+            flowController.InitializePauseService(pauseService);
+            InitializeStarted(new[] { 0 });
+            BattlePhase phase = flowController.Context.Phase;
+            int turn = flowController.Context.CurrentTurn;
+            int pendingMatchCount =
+                flowController.Coordinator.PendingMatchEventCount;
+
+            IDisposable pause = pauseService.RequestPause();
+
+            Assert.That(flowController.IsPaused, Is.True);
+            Assert.That(timeScale, Is.Zero);
+            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+            Assert.That(flowController.CanUseActive(0), Is.False);
+            Assert.That(flowController.TryUseActive(0), Is.False);
+            Assert.That(flowController.Context.Phase, Is.EqualTo(phase));
+            Assert.That(flowController.Context.CurrentTurn, Is.EqualTo(turn));
+            Assert.That(
+                flowController.Coordinator.PendingMatchEventCount,
+                Is.EqualTo(pendingMatchCount));
+
+            pause.Dispose();
+
+            Assert.That(flowController.IsPaused, Is.False);
+            Assert.That(timeScale, Is.EqualTo(1.5f));
+            Assert.That(boardController.IsExternalInputEnabled, Is.True);
+            Assert.That(flowController.CanUseActive(0), Is.True);
+            Assert.That(flowController.Context.Phase, Is.EqualTo(phase));
+            Assert.That(flowController.Context.CurrentTurn, Is.EqualTo(turn));
+        }
+
+        [Test]
+        public void RepeatedPauseServiceInitializationDoesNotDuplicateCallbacks()
+        {
+            float timeScale = 1f;
+            var pauseService = new GamePauseService(
+                () => timeScale,
+                value => timeScale = value);
+            flowController.InitializePauseService(pauseService);
+            flowController.InitializePauseService(pauseService);
+            InitializeStarted(new[] { 0 });
+            int refreshCount = 0;
+            flowController.ActivePresentationStateChanged +=
+                () => refreshCount++;
+
+            IDisposable pause = pauseService.RequestPause();
+            pause.Dispose();
+
+            Assert.That(refreshCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void BattleDisableReleasesOutstandingPauseRequests()
+        {
+            float timeScale = 2f;
+            var pauseService = new GamePauseService(
+                () => timeScale,
+                value => timeScale = value);
+            flowController.InitializePauseService(pauseService);
+            InitializeStarted(Array.Empty<int>());
+            pauseService.RequestPause();
+
+            DeactivateFixture();
+
+            Assert.That(pauseService.IsPaused, Is.False);
+            Assert.That(pauseService.ActiveRequestCount, Is.Zero);
+            Assert.That(timeScale, Is.EqualTo(2f));
+        }
+
+        [Test]
+        public void ResultEntryReleasesPauseAndKeepsResultInputLocked()
+        {
+            float timeScale = 0.75f;
+            var pauseService = new GamePauseService(
+                () => timeScale,
+                value => timeScale = value);
+            flowController.InitializePauseService(pauseService);
+            InitializeStarted(Array.Empty<int>());
+            pauseService.RequestPause();
+            int resultEventCount = 0;
+            BattleResultKind publishedResult = BattleResultKind.None;
+            flowController.BattleResultReached += result =>
+            {
+                resultEventCount++;
+                publishedResult = result;
+            };
+
+            Assert.That(flowController.NotifyPartyDefeated(), Is.True);
+
+            Assert.That(pauseService.IsPaused, Is.False);
+            Assert.That(timeScale, Is.EqualTo(0.75f));
+            Assert.That(flowController.Context.Result,
+                Is.EqualTo(BattleResultKind.Defeat));
+            Assert.That(boardController.IsExternalInputEnabled, Is.False);
+            Assert.That(resultEventCount, Is.EqualTo(1));
+            Assert.That(publishedResult, Is.EqualTo(BattleResultKind.Defeat));
+        }
+
+        [UnityTest]
+        public IEnumerator PausedMatchFlowWaitsWithoutConsumingRuntimeState()
+        {
+            var pauseService = new GamePauseService();
+            flowController.InitializePauseService(pauseService);
+            SetField(flowController, "preAttackDelaySeconds", 0.02f);
+            InitializeStarted(Array.Empty<int>());
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.MatchEventResolving));
+            int turn = flowController.Context.CurrentTurn;
+            int pendingMatchCount =
+                flowController.Coordinator.PendingMatchEventCount;
+
+            IDisposable pause = pauseService.RequestPause();
+            yield return new WaitForSecondsRealtime(0.05f);
+
+            Assert.That(Time.timeScale, Is.Zero);
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.MatchEventResolving));
+            Assert.That(flowController.Context.CurrentTurn, Is.EqualTo(turn));
+            Assert.That(
+                flowController.Coordinator.PendingMatchEventCount,
+                Is.EqualTo(pendingMatchCount));
+
+            pause.Dispose();
+            yield return WaitUntil(
+                () => flowController.Context.Phase
+                    == BattlePhase.PlayerInput,
+                "Battle flow did not resume after pause release.");
+
+            Assert.That(Time.timeScale, Is.EqualTo(1f));
+            Assert.That(flowController.Context.CurrentTurn,
+                Is.EqualTo(turn + 1));
+            Assert.That(
+                flowController.Coordinator.PendingMatchEventCount,
+                Is.Zero);
         }
 
         [Test]

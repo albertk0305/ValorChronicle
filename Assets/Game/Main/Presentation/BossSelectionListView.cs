@@ -82,6 +82,23 @@ namespace ValorChronicle.Main.Presentation
             Show(BuildItems(database, localization, profile));
         }
 
+        public void Refresh(
+            DefinitionDatabase database,
+            LocalizationService localization,
+            ProfileSaveData profile)
+        {
+            Refresh(BuildItems(database, localization, profile));
+        }
+
+        public void Refresh(IReadOnlyList<BossSelectionItem> items)
+        {
+            float scrollPosition = scrollRect.verticalNormalizedPosition;
+            ShowItems(items, resetScroll: false);
+            Canvas.ForceUpdateCanvases();
+            scrollRect.StopMovement();
+            scrollRect.verticalNormalizedPosition = scrollPosition;
+        }
+
         public IReadOnlyList<BossSelectionItem> BuildItems(
             DefinitionDatabase database,
             LocalizationService localization,
@@ -97,6 +114,13 @@ namespace ValorChronicle.Main.Presentation
         }
 
         public void Show(IReadOnlyList<BossSelectionItem> items)
+        {
+            ShowItems(items, resetScroll: true);
+        }
+
+        private void ShowItems(
+            IReadOnlyList<BossSelectionItem> items,
+            bool resetScroll)
         {
             if (items == null)
             {
@@ -121,7 +145,10 @@ namespace ValorChronicle.Main.Presentation
 
             ActiveSlotCount = Mathf.Min(items.Count, slots.Count);
             ResizeContent(items.Count);
-            ResetScrollToTop();
+            if (resetScroll)
+            {
+                ResetScrollToTop();
+            }
         }
 
         public Sprite ResolveGradeSprite(string gradeId)

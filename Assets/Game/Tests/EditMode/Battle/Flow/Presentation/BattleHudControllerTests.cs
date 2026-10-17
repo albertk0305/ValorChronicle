@@ -22,6 +22,7 @@ using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Localization;
 using ValorChronicle.Party.Battle;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
@@ -209,6 +210,123 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(hudController.ScoreText.text, Is.EqualTo("Score 0"));
             Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
             Assert.That(emptySlot.ActiveButton.interactable, Is.False);
+        }
+
+        [Test]
+        public void LocaleChangedRefreshesHudWithoutChangingBattleState()
+        {
+            LocalizationService localization =
+                CreateBattleLocalizationService();
+            hudController.InitializeLocalization(localization);
+            InvokePrivate(hudController, "OnEnable");
+
+            BattleSceneCombatComposition composition =
+                CreateProductionComposition();
+            SetProperty(combatBootstrap, "CombatComposition", composition);
+            flowController.Initialize(
+                composition.FlowSetup,
+                coordinator => composition.CreateBridge(coordinator));
+            bridge = composition.Bridge;
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+            EnterMatchResolving(3);
+
+            BattlePhase phaseBefore = flowController.Context.Phase;
+            int turnBefore = flowController.Context.CurrentTurn;
+            int pendingBefore =
+                flowController.Coordinator.PendingMatchEventCount;
+            int patternBefore = composition.KragmorRuntimeState.PatternIndex;
+            KragmorDefenseState defenseBefore =
+                composition.KragmorRuntimeState.CurrentDefenseState;
+            int bossEffectCountBefore =
+                bridge.Boss.Effects.GetActiveEffects().Count;
+            string intentTurnsBefore =
+                bossIntentSlots[0].RemainingTurnText.text;
+
+            Assert.That(hudController.TurnText.text,
+                Is.EqualTo("Turn\n1 / 25"));
+            Assert.That(hudController.ComboText.text,
+                Is.EqualTo("Combo 0"));
+            Assert.That(hudController.ScoreText.text,
+                Is.EqualTo("Score 0"));
+            Assert.That(localization.SetLocale("ko"), Is.True);
+
+            Assert.That(hudController.TurnText.text,
+                Is.EqualTo("턴\n1 / 25"));
+            Assert.That(hudController.ComboText.text,
+                Is.EqualTo("콤보 0"));
+            Assert.That(hudController.ScoreText.text,
+                Is.EqualTo("점수 0"));
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(phaseBefore));
+            Assert.That(flowController.Context.CurrentTurn,
+                Is.EqualTo(turnBefore));
+            Assert.That(flowController.Coordinator.PendingMatchEventCount,
+                Is.EqualTo(pendingBefore));
+            Assert.That(composition.KragmorRuntimeState.PatternIndex,
+                Is.EqualTo(patternBefore));
+            Assert.That(composition.KragmorRuntimeState.CurrentDefenseState,
+                Is.EqualTo(defenseBefore));
+            Assert.That(bridge.Boss.Effects.GetActiveEffects().Count,
+                Is.EqualTo(bossEffectCountBefore));
+            Assert.That(bossIntentSlots[0].RemainingTurnText.text,
+                Is.EqualTo(intentTurnsBefore));
+
+            Assert.That(localization.SetLocale("en"), Is.True);
+            Assert.That(hudController.TurnText.text,
+                Is.EqualTo("Turn\n1 / 25"));
+            Assert.That(hudController.ComboText.text,
+                Is.EqualTo("Combo 0"));
+            Assert.That(hudController.ScoreText.text,
+                Is.EqualTo("Score 0"));
+        }
+
+        [Test]
+        public void LocalizationSubscriptionDoesNotDuplicateAndStopsWhenDisabled()
+        {
+            LocalizationService localization =
+                CreateBattleLocalizationService();
+            hudController.InitializeLocalization(localization);
+
+            InvokePrivate(hudController, "OnEnable");
+            InvokePrivate(hudController, "OnEnable");
+            Assert.That(
+                CountTargetSubscribers(
+                    localization,
+                    "LocaleChanged",
+                    hudController),
+                Is.EqualTo(1));
+
+            InitializeCombat();
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+            hudController.ScoreText.text = "unchanged";
+            Assert.That(localization.SetLocale("en"), Is.False);
+            Assert.That(hudController.ScoreText.text,
+                Is.EqualTo("unchanged"));
+
+            InvokePrivate(hudController, "OnDisable");
+            Assert.That(
+                CountTargetSubscribers(
+                    localization,
+                    "LocaleChanged",
+                    hudController),
+                Is.Zero);
+
+            InvokePrivate(hudController, "OnEnable");
+            Assert.That(
+                CountTargetSubscribers(
+                    localization,
+                    "LocaleChanged",
+                    hudController),
+                Is.EqualTo(1));
+            InvokePrivate(hudController, "OnDestroy");
+            Assert.That(
+                CountTargetSubscribers(
+                    localization,
+                    "LocaleChanged",
+                    hudController),
+                Is.Zero);
         }
 
         [TestCase(BattleResultKind.Victory)]
@@ -1994,6 +2112,23 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                         providers);
                     return bridge;
                 });
+        }
+
+        private static LocalizationService
+            CreateBattleLocalizationService()
+        {
+            const string tsv =
+                "key\ten\tko\n"
+                + "ui.battle.turn_format\tTurn\\n{current} / {limit}"
+                + "\t턴\\n{current} / {limit}\n"
+                + "ui.battle.combo_format\tCombo {count}"
+                + "\t콤보 {count}\n"
+                + "ui.battle.score_format\tScore {score}"
+                + "\t점수 {score}";
+            LocalizationTable table = LocalizationTableParser.Parse(
+                "battle_hud.tsv",
+                tsv);
+            return new LocalizationService(new[] { table });
         }
 
         private void InitializeCombatWithPartySlots(

@@ -19,6 +19,7 @@ using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Characters.Stats;
 using ValorChronicle.Core.Bootstrap;
+using ValorChronicle.Core.Pause;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
@@ -43,6 +44,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         private BattleResultBalanceDefinition resultBalanceDefinition;
         private BattleEntryService battleEntryService;
         private SaveService saveService;
+        private GamePauseService gamePauseService;
 
         [SetUp]
         public void SetUp()
@@ -158,6 +160,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 "RandomSource",
                 gameBootstrapper,
                 new SeededRandomSource(1));
+            gamePauseService = new GamePauseService();
+            SetAutoProperty(
+                typeof(GameBootstrapper),
+                "GamePauseService",
+                gameBootstrapper,
+                gamePauseService);
             battleEntryService = new BattleEntryService();
             SetAutoProperty(
                 typeof(GameBootstrapper),
@@ -183,6 +191,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         [TearDown]
         public void TearDown()
         {
+            gamePauseService?.Dispose();
+            gamePauseService = null;
             SetAutoProperty(
                 typeof(GameBootstrapper),
                 "Instance",

@@ -16708,7 +16708,6 @@ GameObject:
   - component: {fileID: 1299241392}
   - component: {fileID: 1299241391}
   - component: {fileID: 1299241390}
-  - component: {fileID: 1299241389}
   m_Layer: 5
   m_Name: SettingButton
   m_TagString: Untagged
@@ -16735,19 +16734,6 @@ RectTransform:
   m_AnchoredPosition: {x: 350, y: 900}
   m_SizeDelta: {x: 40, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1299241389
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1299241387}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b8f94fa2c1833854fa0b3ae7bbe7b8db, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ValorChronicle.UI.Navigation.SceneNavigationButton
-  destination: 2
 --- !u!114 &1299241390
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -21894,6 +21880,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1747010638}
+  - component: {fileID: 920000003}
   m_Layer: 5
   m_Name: GameContent
   m_TagString: Untagged
@@ -21925,6 +21912,21 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &920000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1747010637}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3e39a3e1f6547229015792e43718752, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Settings.SettingsPanelHost
+  settingButton: {fileID: 1299241390}
+  settingsPanelPrefab: {fileID: 1179796918045929915, guid: e542fb8655907f54b81e3c16a0277064, type: 3}
+  panelParent: {fileID: 1747010638}
 --- !u!1 &1756404796
 GameObject:
   m_ObjectHideFlags: 0

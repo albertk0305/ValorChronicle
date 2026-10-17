@@ -294,6 +294,29 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
         }
 
         [UnityTest]
+        public IEnumerator ExternalInputDisableCancelsGestureBeforeReenable()
+        {
+            yield return InitializeReadyBoard();
+            BlockView view = GetView(new BoardPosition(2, 2));
+            Vector2 point = GetScreenPoint(view);
+            PointerEventData eventData = CreatePointerEvent(
+                30,
+                view.gameObject,
+                point);
+            input.OnBeginDrag(eventData);
+            Assert.That(input.IsTrackingPointer, Is.True);
+
+            controller.IsExternalInputEnabled = false;
+
+            Assert.That(input.IsTrackingPointer, Is.False);
+            controller.IsExternalInputEnabled = true;
+            eventData.position = point + Vector2.right * 80f;
+            input.OnEndDrag(eventData);
+
+            Assert.That(controller.LastSwapActionResult, Is.Null);
+        }
+
+        [UnityTest]
         public IEnumerator EndDrag_RequestsExactAdjacentSwapOnlyOnce()
         {
             yield return InitializeReadyBoard();

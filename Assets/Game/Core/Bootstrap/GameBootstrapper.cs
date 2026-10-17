@@ -1,14 +1,21 @@
 using System;
 using System.Threading.Tasks;
 using UnityEngine;
+using ValorChronicle.Audio.Core;
+using ValorChronicle.Audio.Runtime;
 using ValorChronicle.Battle.Entry;
 using ValorChronicle.Core.Logging;
+using ValorChronicle.Core.Pause;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Core.Scene;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Validation;
 using ValorChronicle.Localization;
 using ValorChronicle.Save.Services;
+using ValorChronicle.Settings.Integration;
+using ValorChronicle.Settings.Services;
+using GameAudioConfiguration =
+    ValorChronicle.Audio.Configuration.AudioConfiguration;
 
 namespace ValorChronicle.Core.Bootstrap
 {
@@ -18,6 +25,8 @@ namespace ValorChronicle.Core.Bootstrap
         private DefinitionDatabase definitionDatabase;
         [SerializeField]
         private LocalizationCatalog localizationCatalog;
+        [SerializeField]
+        private GameAudioConfiguration audioConfiguration;
 
         public static GameBootstrapper Instance { get; private set; }
 
@@ -31,10 +40,16 @@ namespace ValorChronicle.Core.Bootstrap
         public IRandomSource RandomSource { get; private set; }
         /// <summary>Gets the initialized save service for persistent game-domain operations.</summary>
         public SaveService SaveService { get; private set; }
+        public SettingsService SettingsService { get; private set; }
+        public SettingsLoadResult SettingsLoadResult { get; private set; }
+        public AudioService AudioService { get; private set; }
+        public GamePauseService GamePauseService { get; private set; }
         /// <summary>Gets the most recent bootstrap result, or null while initialization is pending.</summary>
         public BootstrapInitializationResult InitializationResult { get; private set; }
 
-        private async void Awake()
+        private SettingsLocaleBinding settingsLocaleBinding;
+
+        private void Awake()
         {
             if (Instance != null && Instance != this)
             {
@@ -46,7 +61,16 @@ namespace ValorChronicle.Core.Bootstrap
             DontDestroyOnLoad(gameObject);
 
             InitializeRuntimeServices();
+        }
 
+        private async void Start()
+        {
+            if (Instance != this)
+                return;
+
+            // Audio initialization reaches AudioMixer.SetFloat, which Unity only
+            // guarantees from Start onward. Keep load, volume apply, and first
+            // playback in this lifecycle phase so playback cannot precede it.
             BootstrapInitializationResult result;
             try
             {
@@ -79,6 +103,11 @@ namespace ValorChronicle.Core.Bootstrap
             {
                 RandomSource = new UnityRandomSource();
             }
+
+            if (GamePauseService == null)
+            {
+                GamePauseService = new GamePauseService();
+            }
         }
 
         private async Task<BootstrapInitializationResult> InitializeAsync()
@@ -101,6 +130,8 @@ namespace ValorChronicle.Core.Bootstrap
                     }
 
                     LocalizationService = localizationCatalog.CreateService();
+                    InitializeSettingsAndLocalization();
+                    InitializeAudio();
                     definitionDatabase.Initialize();
                 },
                 validateContent: () =>
@@ -129,6 +160,103 @@ namespace ValorChronicle.Core.Bootstrap
             InitializationResult = result;
             HandleInitializationResult(result);
             InitializationCompleted?.Invoke(result);
+        }
+
+        private void InitializeSettingsAndLocalization()
+        {
+            try
+            {
+                SettingsService = SettingsSystemFactory.Create(
+                    Application.persistentDataPath);
+                SettingsLoadResult = SettingsService.LoadOrCreate();
+                settingsLocaleBinding = new SettingsLocaleBinding(
+                    SettingsService,
+                    LocalizationService);
+            }
+            catch (Exception exception)
+            {
+                GameLogger.Error(
+                    "[Settings] Persistent settings initialization failed; "
+                        + "using in-memory defaults for this session.",
+                    this);
+
+                settingsLocaleBinding?.Dispose();
+                SettingsService = ValorChronicle.Settings.Services.SettingsService
+                    .CreateInMemoryDefaults();
+                SettingsLoadResult = new SettingsLoadResult(
+                    SettingsLoadStatus.InMemoryFallback,
+                    message: "Persistent settings initialization failed.",
+                    exception: exception);
+                settingsLocaleBinding = new SettingsLocaleBinding(
+                    SettingsService,
+                    LocalizationService);
+            }
+
+            LogSettingsLoadResult(SettingsLoadResult);
+            if (SettingsLoadResult.Status != SettingsLoadStatus.InMemoryFallback)
+            {
+                gameObject.AddComponent<SettingsPersistenceDriver>()
+                    .Initialize(SettingsService);
+            }
+        }
+
+        private void LogSettingsLoadResult(SettingsLoadResult result)
+        {
+            if (result == null)
+            {
+                GameLogger.Error("[Settings] Load returned no result.", this);
+                return;
+            }
+
+            switch (result.Status)
+            {
+                case SettingsLoadStatus.LoadedMain:
+                case SettingsLoadStatus.CreatedDefaults:
+                    GameLogger.Log(
+                        $"[Settings] Initialization completed. Status={result.Status}.",
+                        this);
+                    break;
+                case SettingsLoadStatus.LoadedAndRepairedMain:
+                case SettingsLoadStatus.RecoveredFromBackup:
+                case SettingsLoadStatus.RecoveredDefaults:
+                    GameLogger.Warning(
+                        $"[Settings] Settings were recovered or normalized. "
+                            + $"Status={result.Status}.",
+                        this);
+                    break;
+                default:
+                    if (result.Exception != null)
+                        GameLogger.Exception(result.Exception, this);
+
+                    GameLogger.Error(
+                        $"[Settings] Persistence is degraded. "
+                            + $"Status={result.Status}. {result.Message}",
+                        this);
+                    break;
+            }
+        }
+
+        private void InitializeAudio()
+        {
+            try
+            {
+                AudioRuntime runtime = GetComponent<AudioRuntime>();
+                if (runtime == null)
+                    runtime = gameObject.AddComponent<AudioRuntime>();
+
+                AudioService = runtime.Initialize(
+                    SettingsService,
+                    audioConfiguration);
+            }
+            catch (Exception exception)
+            {
+                AudioService = null;
+                GameLogger.Exception(exception, this);
+                GameLogger.Error(
+                    "[Audio] Initialization failed. "
+                        + "Game initialization will continue without audio.",
+                    this);
+            }
         }
 
         private void HandleInitializationResult(BootstrapInitializationResult result)
@@ -213,8 +341,13 @@ namespace ValorChronicle.Core.Bootstrap
 
         private void OnDestroy()
         {
+            settingsLocaleBinding?.Dispose();
+            settingsLocaleBinding = null;
+
             if (Instance == this)
             {
+                GamePauseService?.Dispose();
+                GamePauseService = null;
                 Instance = null;
             }
         }

@@ -1,28 +1,28 @@
 key	en	ko
-marea	Marea Bluefang	
-character.lookup.description_unavailable	Description unavailable.	
-character.lookup.awakening.title	Awakening {stage} — {name}	
-marea.skill.match3.name	Wave Bullet - 3 Match	
-marea.skill.match3.description	Deals {coefficient}% ATK as Water damage.	
-marea.skill.match4.name	Opening Wounds - 4 Match	
-marea.skill.match4.description	Deals {base_coefficient}% ATK as Water damage. If Water Element is present at attack start, adds {conditional_coefficient}% ATK.	
-marea.skill.match5.name	Time of Devouring - 5 Match	
-marea.skill.match5.description	Deals {base_coefficient}% ATK as Water damage, plus {per_water_coefficient}% ATK for each Water Element consumed.	
-marea.skill.passive.name	Predator's Instinct	
-marea.skill.passive.description	If Water Element is present at attack start, increases damage dealt by {damage_increase}%.	
-marea.skill.active.name	Charge Order	
-marea.skill.active.description	Increases this character's Water damage by {damage_increase}% for {duration} turns. Cooldown: {cooldown} turns.	
-marea.skill.lingering_surge.use	If Lingering Surge is held, this 3 or 4 Match attack deals {damage_increase}% more final damage and consumes Lingering Surge after the attack.	
-marea.skill.lingering_surge.grant	Consuming {required_water} Water Elements at once grants one Lingering Surge. A 5 Match attack neither uses nor consumes it. The next 3 or 4 Match attack deals {damage_increase}% more final damage.	
-marea.awakening.1.name	Sharpened Edge	
-marea.awakening.2.name	Tough Mariner	
-marea.awakening.3.name	Blood Banquet	
-marea.awakening.4.name	Razor Cuts	
-marea.awakening.5.name	Storm Devour	
-marea.awakening.6.name	Lingering Surge	
-marea.awakening.1.description	ATK multiplier increases from {multiplier_before}% to {multiplier_after}%.	
-marea.awakening.2.description	HP multiplier increases from {multiplier_before}% to {multiplier_after}%.	
-marea.awakening.3.description	Predator's Instinct damage increase changes from {passive_before}% to {passive_after}%.	
-marea.awakening.4.description	3 Match changes from {match3_before}% to {match3_after}% ATK. 4 Match base changes from {match4_base_before}% to {match4_base_after}% ATK, and its Water Element bonus changes from {match4_conditional_before}% to {match4_conditional_after}% ATK.	
-marea.awakening.5.description	Time of Devouring's coefficient per consumed Water Element changes from {per_water_before}% to {per_water_after}% ATK.	
-marea.awakening.6.description	Consuming {required_water} Water Elements at once grants one Lingering Surge. It persists until the next 3 or 4 Match attack, increases that attack's final damage by {damage_increase}%, and is then consumed. A 5 Match attack neither uses nor consumes it.	
+marea	Marea Bluefang	마레아 블루팽
+character.lookup.description_unavailable	Description unavailable.	설명을 표시할 수 없습니다.
+character.lookup.awakening.title	Awakening {stage} — {name}	각성 {stage} — {name}
+marea.skill.match3.name	Wave Bullet - 3 Match	파도 탄환 - 3매치
+marea.skill.match3.description	Deals {coefficient}% ATK as Water damage.	공격력의 {coefficient}%만큼 물속성 피해를 줍니다.
+marea.skill.match4.name	Opening Wounds - 4 Match	상처 벌리기 - 4매치
+marea.skill.match4.description	Deals {base_coefficient}% ATK as Water damage. If Water Element is present at attack start, adds {conditional_coefficient}% ATK.	공격력의 {base_coefficient}%만큼 물속성 피해를 줍니다. 공격 시작 시 물 원소가 있으면 공격력의 {conditional_coefficient}%만큼 추가 피해를 줍니다.
+marea.skill.match5.name	Time of Devouring - 5 Match	포식의 시간 - 5매치
+marea.skill.match5.description	Deals {base_coefficient}% ATK as Water damage, plus {per_water_coefficient}% ATK for each Water Element consumed.	공격력의 {base_coefficient}%만큼 물속성 피해를 주고, 소모한 물 원소 하나당 공격력의 {per_water_coefficient}%만큼 추가 피해를 줍니다.
+marea.skill.passive.name	Predator's Instinct	포식자의 본능
+marea.skill.passive.description	If Water Element is present at attack start, increases damage dealt by {damage_increase}%.	공격 시작 시 물 원소가 있으면 주는 피해가 {damage_increase}% 증가합니다.
+marea.skill.active.name	Charge Order	돌격 명령
+marea.skill.active.description	Increases this character's Water damage by {damage_increase}% for {duration} turns. Cooldown: {cooldown} turns.	이 캐릭터가 주는 물속성 피해가 {duration}턴 동안 {damage_increase}% 증가합니다. 재사용 대기시간: {cooldown}턴.
+marea.skill.lingering_surge.use	If Lingering Surge is held, this 3 or 4 Match attack deals {damage_increase}% more final damage and consumes Lingering Surge after the attack.	잔류 쇄도를 보유한 경우 이 3매치 또는 4매치 공격의 최종 피해가 {damage_increase}% 증가하며, 공격 후 잔류 쇄도를 소모합니다.
+marea.skill.lingering_surge.grant	Consuming {required_water} Water Elements at once grants one Lingering Surge. A 5 Match attack neither uses nor consumes it. The next 3 or 4 Match attack deals {damage_increase}% more final damage.	물 원소 {required_water}개를 한 번에 소모하면 잔류 쇄도 1개를 얻습니다. 5매치 공격은 잔류 쇄도를 사용하거나 소모하지 않습니다. 다음 3매치 또는 4매치 공격의 최종 피해가 {damage_increase}% 증가합니다.
+marea.awakening.1.name	Sharpened Edge	날카로운 칼날
+marea.awakening.2.name	Tough Mariner	강인한 항해자
+marea.awakening.3.name	Blood Banquet	피의 연회
+marea.awakening.4.name	Razor Cuts	예리한 상처
+marea.awakening.5.name	Storm Devour	폭풍 포식
+marea.awakening.6.name	Lingering Surge	잔류 쇄도
+marea.awakening.1.description	ATK multiplier increases from {multiplier_before}% to {multiplier_after}%.	공격력 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+marea.awakening.2.description	HP multiplier increases from {multiplier_before}% to {multiplier_after}%.	HP 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+marea.awakening.3.description	Predator's Instinct damage increase changes from {passive_before}% to {passive_after}%.	포식자의 본능 피해 증가량이 {passive_before}%에서 {passive_after}%로 변경됩니다.
+marea.awakening.4.description	3 Match changes from {match3_before}% to {match3_after}% ATK. 4 Match base changes from {match4_base_before}% to {match4_base_after}% ATK, and its Water Element bonus changes from {match4_conditional_before}% to {match4_conditional_after}% ATK.	3매치 공격력 계수가 {match3_before}%에서 {match3_after}%로 변경됩니다. 4매치 기본 공격력 계수가 {match4_base_before}%에서 {match4_base_after}%로, 물 원소 추가 공격력 계수가 {match4_conditional_before}%에서 {match4_conditional_after}%로 변경됩니다.
+marea.awakening.5.description	Time of Devouring's coefficient per consumed Water Element changes from {per_water_before}% to {per_water_after}% ATK.	포식의 시간의 소모한 물 원소당 공격력 계수가 {per_water_before}%에서 {per_water_after}%로 변경됩니다.
+marea.awakening.6.description	Consuming {required_water} Water Elements at once grants one Lingering Surge. It persists until the next 3 or 4 Match attack, increases that attack's final damage by {damage_increase}%, and is then consumed. A 5 Match attack neither uses nor consumes it.	물 원소 {required_water}개를 한 번에 소모하면 잔류 쇄도 1개를 얻습니다. 다음 3매치 또는 4매치 공격까지 유지되며, 해당 공격의 최종 피해를 {damage_increase}% 증가시킨 후 소모됩니다. 5매치 공격은 잔류 쇄도를 사용하거나 소모하지 않습니다.

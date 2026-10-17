@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -8,6 +9,7 @@ using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Core.Scene;
+using ValorChronicle.Localization;
 using ValorChronicle.UI.Navigation;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
@@ -110,6 +112,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     resultView,
                     hudController,
                     combatBootstrap);
+                AssertStaticLocalization(resultView, hudController);
 
                 var flowObject = new SerializedObject(flowController);
                 Assert.That(
@@ -491,6 +494,43 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(
                 navigationObject.FindProperty("destination").enumValueIndex,
                 Is.EqualTo((int)GameScene.Main));
+        }
+
+        private static void AssertStaticLocalization(
+            BattleResultView resultView,
+            BattleHudController hudController)
+        {
+            AssertLocalizedText(
+                resultView.transform.Find("RewardHead"),
+                "ui.battle.result.reward");
+            AssertLocalizedText(
+                resultView.transform.Find("InitialClearBonusHead"),
+                "ui.battle.result.first_grade_bonus");
+            AssertLocalizedText(
+                hudController.transform.Find("PausePanel/PauseText"),
+                "ui.battle.pause.paused");
+
+            Transform pauseButtonTransform =
+                hudController.transform.Find("PauseButton");
+            Assert.That(pauseButtonTransform, Is.Not.Null);
+            Button pauseButton = pauseButtonTransform.GetComponent<Button>();
+            Assert.That(pauseButton, Is.Not.Null);
+            Assert.That(pauseButton.onClick.GetPersistentEventCount(),
+                Is.Zero);
+        }
+
+        private static void AssertLocalizedText(
+            Transform transform,
+            string expectedKey)
+        {
+            Assert.That(transform, Is.Not.Null, expectedKey);
+            TMP_Text text = transform.GetComponent<TMP_Text>();
+            LocalizedTMPText localized =
+                transform.GetComponent<LocalizedTMPText>();
+            Assert.That(text, Is.Not.Null, expectedKey);
+            Assert.That(localized, Is.Not.Null, expectedKey);
+            Assert.That(localized.TargetText, Is.SameAs(text));
+            Assert.That(localized.LocalizationKey, Is.EqualTo(expectedKey));
         }
 
         private static void AssertHpFillHasNoHorizontalInset(Slider slider)

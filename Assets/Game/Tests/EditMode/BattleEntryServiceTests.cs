@@ -193,6 +193,7 @@ namespace ValorChronicle.Tests.EditMode
                     bootstrapper.BattleEntryService;
                 object firstSceneService = bootstrapper.SceneService;
                 object firstRandomSource = bootstrapper.RandomSource;
+                object firstPauseService = bootstrapper.GamePauseService;
 
                 InvokeInitializeRuntimeServices(bootstrapper);
 
@@ -203,6 +204,9 @@ namespace ValorChronicle.Tests.EditMode
                     Is.SameAs(firstSceneService));
                 Assert.That(bootstrapper.RandomSource,
                     Is.SameAs(firstRandomSource));
+                Assert.That(firstPauseService, Is.Not.Null);
+                Assert.That(bootstrapper.GamePauseService,
+                    Is.SameAs(firstPauseService));
             }
             finally
             {

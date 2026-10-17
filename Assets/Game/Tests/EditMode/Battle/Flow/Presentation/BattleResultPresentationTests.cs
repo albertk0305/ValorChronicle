@@ -12,6 +12,7 @@ using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Battle.Results.Persistence;
+using ValorChronicle.Localization;
 using ValorChronicle.Save.Services;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
@@ -92,6 +93,120 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(equalScore.IsNewHighScore, Is.False);
             Assert.That(view.BestScoreIcon.gameObject.activeSelf, Is.False);
             Assert.That(view.InitialRewardText.text, Is.EqualTo("0"));
+        }
+
+        [Test]
+        public void LocaleChanged_RerendersPersistedValuesWithoutChangingResult()
+        {
+            BattleResultView view = CreateView(out Sprite[] sprites);
+            LocalizationService localization = CreateLocalizationService();
+            view.InitializeLocalization(localization);
+            SaveService saveService = LoadedService(Repository());
+            BattlePersistedResult persisted = Persist(
+                saveService,
+                FinalResult(BattleResultKind.Victory, 100000L));
+
+            view.Render(persisted);
+            Sprite gradeBefore = view.ScoreGrade.sprite;
+            Assert.That(view.CurrentResult, Is.SameAs(persisted));
+            Assert.That(view.BestScoreText.text, Is.EqualTo("Best: 118,000"));
+            Assert.That(view.ResultText.text, Is.EqualTo("Score: 118,000"));
+            Assert.That(view.TurnText.text, Is.EqualTo("Turn: 10/25"));
+            Assert.That(view.DamageScoreText.text,
+                Is.EqualTo("Damage: 100,000"));
+            Assert.That(view.TurnLeftScoreText.text,
+                Is.EqualTo("Turn Bonus: 18,000"));
+
+            Assert.That(localization.SetLocale("ko"), Is.True);
+
+            Assert.That(view.CurrentResult, Is.SameAs(persisted));
+            Assert.That(view.BestScoreText.text,
+                Is.EqualTo("최고 기록: 118,000"));
+            Assert.That(view.ResultText.text, Is.EqualTo("점수: 118,000"));
+            Assert.That(view.TurnText.text, Is.EqualTo("턴: 10/25"));
+            Assert.That(view.DamageScoreText.text,
+                Is.EqualTo("피해 점수: 100,000"));
+            Assert.That(view.TurnLeftScoreText.text,
+                Is.EqualTo("잔여 턴 보너스: 18,000"));
+            Assert.That(view.RewardText.text, Is.EqualTo("420"));
+            Assert.That(view.InitialRewardText.text, Is.EqualTo("700"));
+            Assert.That(view.ScoreGrade.sprite, Is.SameAs(gradeBefore));
+            Assert.That(view.ScoreGrade.sprite, Is.SameAs(sprites[5]));
+            Assert.That(view.BestScoreIcon.gameObject.activeSelf, Is.True);
+
+            Assert.That(localization.SetLocale("en"), Is.True);
+            Assert.That(view.ResultText.text, Is.EqualTo("Score: 118,000"));
+        }
+
+        [Test]
+        public void DisabledView_ReopensWithLatestLocaleWithoutSubscriptionLeak()
+        {
+            BattleResultView view = CreateView(out _);
+            LocalizationService localization = CreateLocalizationService();
+            view.InitializeLocalization(localization);
+            BattlePersistedResult persisted = Persist(
+                LoadedService(Repository()),
+                FinalResult(BattleResultKind.Victory, 100000L));
+            view.Render(persisted);
+
+            Assert.That(CountTargetSubscribers(
+                    localization,
+                    "LocaleChanged",
+                    view),
+                Is.EqualTo(1));
+            view.gameObject.SetActive(false);
+            Assert.That(CountTargetSubscribers(
+                    localization,
+                    "LocaleChanged",
+                    view),
+                Is.Zero);
+
+            Assert.That(localization.SetLocale("ko"), Is.True);
+            Assert.That(view.ResultText.text, Is.EqualTo("Score: 118,000"));
+            view.gameObject.SetActive(true);
+
+            Assert.That(view.ResultText.text, Is.EqualTo("점수: 118,000"));
+            Assert.That(view.CurrentResult, Is.SameAs(persisted));
+            Assert.That(CountTargetSubscribers(
+                    localization,
+                    "LocaleChanged",
+                    view),
+                Is.EqualTo(1));
+
+            view.ResultText.text = "unchanged";
+            Assert.That(localization.SetLocale("ko"), Is.False);
+            Assert.That(view.ResultText.text, Is.EqualTo("unchanged"));
+        }
+
+        [Test]
+        public void OpenResult_LocaleChangeDoesNotPersistOrRestartPresentation()
+        {
+            var repository = Repository();
+            LocalizationService localization = CreateLocalizationService();
+            PresentationFixture fixture = CreatePresentation(
+                delay: 0f,
+                repository,
+                localization);
+            fixture.Source.Publish(
+                FinalResult(BattleResultKind.Victory, 100000L));
+            BattlePersistedResult presented =
+                fixture.Controller.LastPresentedResult;
+            int writesBefore = repository.Count(
+                nameof(FakeSaveRepository.WriteTemp));
+
+            Assert.That(fixture.View.gameObject.activeSelf, Is.True);
+            Assert.That(fixture.Controller.HasPendingPresentation, Is.False);
+            Assert.That(localization.SetLocale("ko"), Is.True);
+
+            Assert.That(fixture.Controller.LastPresentedResult,
+                Is.SameAs(presented));
+            Assert.That(fixture.View.CurrentResult, Is.SameAs(presented));
+            Assert.That(fixture.Controller.HasPendingPresentation, Is.False);
+            Assert.That(repository.Count(
+                    nameof(FakeSaveRepository.WriteTemp)),
+                Is.EqualTo(writesBefore));
+            Assert.That(fixture.View.ResultText.text,
+                Is.EqualTo("점수: 118,000"));
         }
 
         [Test]
@@ -235,7 +350,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 
         private PresentationFixture CreatePresentation(
             float delay,
-            FakeSaveRepository repository = null)
+            FakeSaveRepository repository = null,
+            LocalizationService localization = null)
         {
             var root = new GameObject("BattleResultPresentationTests");
             root.SetActive(false);
@@ -247,6 +363,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 typeof(RectTransform));
             overlay.transform.SetParent(root.transform, false);
             BattleResultView view = CreateViewOn(overlay, out _);
+            if (localization != null)
+            {
+                view.InitializeLocalization(localization);
+            }
             BattleResultPresentationController controller =
                 root.AddComponent<BattleResultPresentationController>();
             SetField(controller, "resultView", view);
@@ -363,6 +483,55 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             SaveLoadResult load = service.LoadOrCreate("ignored");
             Assert.That(load.CanUseProfile, Is.True, load.Message);
             return service;
+        }
+
+        private static LocalizationService CreateLocalizationService()
+        {
+            const string tsv =
+                "key\ten\tko\n"
+                + "ui.battle.result.best_score_format"
+                + "\tBest: {score}\t최고 기록: {score}\n"
+                + "ui.battle.result.score_format"
+                + "\tScore: {score}\t점수: {score}\n"
+                + "ui.battle.result.turn_format"
+                + "\tTurn: {current}/{limit}"
+                + "\t턴: {current}/{limit}\n"
+                + "ui.battle.result.damage_format"
+                + "\tDamage: {score}\t피해 점수: {score}\n"
+                + "ui.battle.result.turn_bonus_format"
+                + "\tTurn Bonus: {score}"
+                + "\t잔여 턴 보너스: {score}";
+            LocalizationTable table = LocalizationTableParser.Parse(
+                "battle_result.tsv",
+                tsv);
+            return new LocalizationService(new[] { table });
+        }
+
+        private static int CountTargetSubscribers(
+            object source,
+            string eventName,
+            object target)
+        {
+            FieldInfo field = source.GetType().GetField(
+                eventName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var callback = field?.GetValue(source) as Delegate;
+            if (callback == null)
+            {
+                return 0;
+            }
+
+            int count = 0;
+            Delegate[] callbacks = callback.GetInvocationList();
+            for (int index = 0; index < callbacks.Length; index++)
+            {
+                if (ReferenceEquals(callbacks[index].Target, target))
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         private static void SetField(object target, string name, object value)

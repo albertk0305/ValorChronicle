@@ -9723,6 +9723,7 @@ GameObject:
   - component: {fileID: 609770739}
   - component: {fileID: 609770741}
   - component: {fileID: 609770740}
+  - component: {fileID: 940000001}
   m_Layer: 5
   m_Name: RewardHead
   m_TagString: Untagged
@@ -14082,6 +14083,8 @@ GameObject:
   - component: {fileID: 910000007}
   - component: {fileID: 910000008}
   - component: {fileID: 910000009}
+  - component: {fileID: 910000010}
+  - component: {fileID: 910000011}
   m_Layer: 5
   m_Name: GameContent
   m_TagString: Untagged
@@ -14575,6 +14578,36 @@ MonoBehaviour:
   m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Flow.Presentation.BattleResultPresentationController
   resultView: {fileID: 920000011}
   battleHudController: {fileID: 910000008}
+--- !u!114 &910000010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 907370524}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3e39a3e1f6547229015792e43718752, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Settings.SettingsPanelHost
+  settingButton: {fileID: 1774000629}
+  settingsPanelPrefab: {fileID: 1179796918045929915, guid: e542fb8655907f54b81e3c16a0277064, type: 3}
+  panelParent: {fileID: 907370525}
+  pauseWhileOpen: 1
+--- !u!114 &910000011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 907370524}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 513aad1271cc41938ef9efbfaac3b04e, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Battle.Flow.Presentation.BattleSettingsPanelBinding
+  settingsPanelHost: {fileID: 910000010}
+  battleFlowController: {fileID: 910000005}
 --- !u!1 &914691423
 GameObject:
   m_ObjectHideFlags: 0
@@ -32054,6 +32087,7 @@ GameObject:
   - component: {fileID: 1764830338}
   - component: {fileID: 1764830340}
   - component: {fileID: 1764830339}
+  - component: {fileID: 940000003}
   m_Layer: 5
   m_Name: PauseText
   m_TagString: Untagged
@@ -32192,7 +32226,6 @@ GameObject:
   - component: {fileID: 1774000631}
   - component: {fileID: 1774000630}
   - component: {fileID: 1774000629}
-  - component: {fileID: 1774000628}
   m_Layer: 5
   m_Name: SettingButton
   m_TagString: Untagged
@@ -32219,19 +32252,6 @@ RectTransform:
   m_AnchoredPosition: {x: 430, y: 935}
   m_SizeDelta: {x: 18, y: 18}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1774000628
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1774000626}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b8f94fa2c1833854fa0b3ae7bbe7b8db, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ValorChronicle.UI.Navigation.SceneNavigationButton
-  destination: 1
 --- !u!114 &1774000629
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -35888,6 +35908,7 @@ GameObject:
   - component: {fileID: 2055906976}
   - component: {fileID: 2055906978}
   - component: {fileID: 2055906977}
+  - component: {fileID: 940000002}
   m_Layer: 5
   m_Name: InitialClearBonusHead
   m_TagString: Untagged
@@ -37330,6 +37351,48 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2141574397}
   m_CullTransparentMesh: 1
+--- !u!114 &940000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 609770738}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7f51a3c97e14e248f94d67aab0e53c1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Localization.LocalizedTMPText
+  targetText: {fileID: 609770740}
+  localizationKey: ui.battle.result.reward
+--- !u!114 &940000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2055906975}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7f51a3c97e14e248f94d67aab0e53c1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Localization.LocalizedTMPText
+  targetText: {fileID: 2055906977}
+  localizationKey: ui.battle.result.first_grade_bonus
+--- !u!114 &940000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1764830337}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7f51a3c97e14e248f94d67aab0e53c1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Localization.LocalizedTMPText
+  targetText: {fileID: 1764830339}
+  localizationKey: ui.battle.pause.paused
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

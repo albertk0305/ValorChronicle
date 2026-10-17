@@ -491,6 +491,12 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 Is.EqualTo(CharacterLookupSkillType.Active));
             Assert.That(fixture.LookupController.CurrentCharacterId,
                 Is.EqualTo(MareaId));
+
+            int localizationRefreshCount = 0;
+            fixture.LookupController.PresentationChanged += _ =>
+                localizationRefreshCount++;
+            fixture.LocalizationService.SetLocale("ko");
+            Assert.That(localizationRefreshCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -526,9 +532,9 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
             Assert.That(fixture.LookupController.SelectedSkillType,
                 Is.EqualTo(CharacterLookupSkillType.Match3));
             Assert.That(fixture.LookupView.DescriptionText.text,
-                Does.Contain("\n\nKO "));
+                Does.Contain("소모한 물 원소당 공격력 계수"));
             Assert.That(fixture.LookupView.DescriptionText.text,
-                Does.StartWith("Awakening 5 — Storm Devour\n\n"));
+                Does.StartWith("각성 5 — 폭풍 포식\n\n"));
             Assert.That(fixture.LookupView.DescriptionText.text,
                 Is.Not.EqualTo(englishDescription));
             Assert.That(after.Characters[0].Level,
@@ -537,6 +543,17 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 Is.EqualTo(before.Characters[0].Awakening));
             Assert.That(after.Currencies.BattleRecords,
                 Is.EqualTo(before.Currencies.BattleRecords));
+            Assert.That(fixture.Repository.Count("WriteTemp"), Is.Zero);
+
+            fixture.LocalizationService.SetLocale("en");
+
+            Assert.That(presentationCount, Is.EqualTo(2));
+            Assert.That(fixture.LookupController.CurrentCharacterId,
+                Is.EqualTo(MareaId));
+            Assert.That(fixture.LookupController.SelectedAwakeningStage,
+                Is.EqualTo(5));
+            Assert.That(fixture.LookupView.DescriptionText.text,
+                Does.StartWith("Awakening 5 — Storm Devour\n\n"));
             Assert.That(fixture.Repository.Count("WriteTemp"), Is.Zero);
         }
 
@@ -1148,25 +1165,12 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 AssetDatabase.LoadAssetAtPath<TextAsset>(
                     "Assets/Data/Localization/characters.tsv");
             Assert.That(localizationAsset, Is.Not.Null);
-            string localizationTsv = localizationAsset.text.Replace(
-                "marea\tMarea Bluefang\t",
-                "marea\tMarea Bluefang\t마레아 블루팽");
-            localizationTsv = localizationTsv.Replace(
-                "marea.awakening.5.description\tTime of Devouring's "
-                    + "coefficient per "
-                    + "consumed Water Element changes from "
-                    + "{per_water_before}% to {per_water_after}% ATK.\t",
-                "marea.awakening.5.description\tTime of Devouring's "
-                    + "coefficient per "
-                    + "consumed Water Element changes from "
-                    + "{per_water_before}% to {per_water_after}% ATK.\t"
-                    + "KO {per_water_before}% to {per_water_after}%");
             LocalizationService localizationService =
                 new LocalizationService(new[]
                 {
                     LocalizationTableParser.Parse(
                         "characters.tsv",
-                        localizationTsv)
+                        localizationAsset.text)
                 });
 
             GameObject container = Object("GameContent");

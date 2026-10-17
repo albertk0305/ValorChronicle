@@ -158,7 +158,7 @@ namespace ValorChronicle.Tests.EditMode.Localization
         }
 
         [Test]
-        public void ProductionCatalogResolvesMareaDisplayNameKey()
+        public void ProductionCatalogResolvesCharacterContentInBothLocales()
         {
             CharacterDefinition definition = AssetDatabase.LoadAssetAtPath<
                 CharacterDefinition>(
@@ -169,8 +169,210 @@ namespace ValorChronicle.Tests.EditMode.Localization
 
             Assert.That(definition, Is.Not.Null);
             Assert.That(catalog, Is.Not.Null);
-            Assert.That(catalog.CreateService().GetText(
-                definition.DisplayNameKey), Is.EqualTo("Marea Bluefang"));
+            LocalizationService service = catalog.CreateService();
+            Assert.That(service.GetText(definition.DisplayNameKey),
+                Is.EqualTo("Marea Bluefang"));
+            Assert.That(service.GetText("marea.skill.match3.name"),
+                Is.EqualTo("Wave Bullet - 3 Match"));
+            Assert.That(service.Format(
+                    "marea.skill.match3.description",
+                    new Dictionary<string, object>
+                    {
+                        ["coefficient"] = 90
+                    }),
+                Is.EqualTo("Deals 90% ATK as Water damage."));
+
+            service.SetLocale("ko");
+
+            Assert.That(service.GetText(definition.DisplayNameKey),
+                Is.EqualTo("마레아 블루팽"));
+            Assert.That(service.GetText("marea.skill.match3.name"),
+                Is.EqualTo("파도 탄환 - 3매치"));
+            Assert.That(service.Format(
+                    "marea.skill.match3.description",
+                    new Dictionary<string, object>
+                    {
+                        ["coefficient"] = 90
+                    }),
+                Is.EqualTo("공격력의 90%만큼 물속성 피해를 줍니다."));
+
+            service.SetLocale("en");
+            Assert.That(service.GetText(definition.DisplayNameKey),
+                Is.EqualTo("Marea Bluefang"));
+        }
+
+        [Test]
+        public void ProductionCatalogResolvesInitAndMainUiInBothLocales()
+        {
+            LocalizationCatalog catalog = AssetDatabase.LoadAssetAtPath<
+                LocalizationCatalog>(
+                "Assets/Data/Localization/LocalizationCatalog.asset");
+            LocalizationService service = catalog.CreateService();
+
+            Assert.That(service.GetText("ui.init.press_to_start"),
+                Is.EqualTo("Press to Start"));
+            Assert.That(service.GetText(
+                    "ui.init.initialization_failed"),
+                Is.EqualTo(
+                    "Game initialization failed. Please restart the game."));
+            Assert.That(service.GetText(
+                    "main.boss_selection.master_challenge_prompt"),
+                Is.EqualTo("Try Master Mode"));
+            Assert.That(service.GetText("main.party.empty_required"),
+                Is.EqualTo(
+                    "At least one character is required in your party."));
+            Assert.That(service.GetText("ui.character.stats"),
+                Is.EqualTo("Stats"));
+            Assert.That(service.GetText("ui.gacha.skip"),
+                Is.EqualTo("Skip"));
+            Assert.That(service.Format(
+                    "ui.battle.turn_format",
+                    new Dictionary<string, object>
+                    {
+                        ["current"] = 3,
+                        ["limit"] = 25
+                    }),
+                Is.EqualTo("Turn\n3 / 25"));
+            Assert.That(service.Format(
+                    "ui.battle.combo_format",
+                    new Dictionary<string, object>
+                    {
+                        ["count"] = 4
+                    }),
+                Is.EqualTo("Combo 4"));
+            Assert.That(service.Format(
+                    "ui.battle.score_format",
+                    new Dictionary<string, object>
+                    {
+                        ["score"] = "12,000"
+                    }),
+                Is.EqualTo("Score 12,000"));
+            Assert.That(service.Format(
+                    "ui.battle.result.best_score_format",
+                    new Dictionary<string, object>
+                    {
+                        ["score"] = "12,000"
+                    }),
+                Is.EqualTo("Best: 12,000"));
+            Assert.That(service.Format(
+                    "ui.battle.result.score_format",
+                    new Dictionary<string, object>
+                    {
+                        ["score"] = "12,000"
+                    }),
+                Is.EqualTo("Score: 12,000"));
+            Assert.That(service.Format(
+                    "ui.battle.result.turn_format",
+                    new Dictionary<string, object>
+                    {
+                        ["current"] = 10,
+                        ["limit"] = 25
+                    }),
+                Is.EqualTo("Turn: 10/25"));
+            Assert.That(service.Format(
+                    "ui.battle.result.damage_format",
+                    new Dictionary<string, object>
+                    {
+                        ["score"] = "10,000"
+                    }),
+                Is.EqualTo("Damage: 10,000"));
+            Assert.That(service.Format(
+                    "ui.battle.result.turn_bonus_format",
+                    new Dictionary<string, object>
+                    {
+                        ["score"] = "2,000"
+                    }),
+                Is.EqualTo("Turn Bonus: 2,000"));
+            Assert.That(service.GetText("ui.battle.result.reward"),
+                Is.EqualTo("Reward"));
+            Assert.That(service.GetText(
+                    "ui.battle.result.first_grade_bonus"),
+                Is.EqualTo("First Grade Bonus"));
+            Assert.That(service.GetText("ui.battle.pause.paused"),
+                Is.EqualTo("Game Paused"));
+
+            service.SetLocale("ko");
+
+            Assert.That(service.GetText("ui.init.press_to_start"),
+                Is.EqualTo("시작하려면 누르세요"));
+            Assert.That(service.GetText(
+                    "ui.init.initialization_failed"),
+                Is.EqualTo(
+                    "게임 초기화에 실패했습니다. 게임을 다시 실행해 주세요."));
+            Assert.That(service.GetText(
+                    "main.boss_selection.master_challenge_prompt"),
+                Is.EqualTo("마스터 모드 도전"));
+            Assert.That(service.GetText("main.party.empty_required"),
+                Is.EqualTo("파티에 캐릭터가 한 명 이상 필요합니다."));
+            Assert.That(service.GetText("ui.character.stats"),
+                Is.EqualTo("능력치"));
+            Assert.That(service.GetText("ui.gacha.skip"),
+                Is.EqualTo("건너뛰기"));
+            Assert.That(service.Format(
+                    "ui.battle.turn_format",
+                    new Dictionary<string, object>
+                    {
+                        ["current"] = 3,
+                        ["limit"] = 25
+                    }),
+                Is.EqualTo("턴\n3 / 25"));
+            Assert.That(service.Format(
+                    "ui.battle.combo_format",
+                    new Dictionary<string, object>
+                    {
+                        ["count"] = 4
+                    }),
+                Is.EqualTo("콤보 4"));
+            Assert.That(service.Format(
+                    "ui.battle.score_format",
+                    new Dictionary<string, object>
+                    {
+                        ["score"] = "12,000"
+                    }),
+                Is.EqualTo("점수 12,000"));
+            Assert.That(service.Format(
+                    "ui.battle.result.best_score_format",
+                    new Dictionary<string, object>
+                    {
+                        ["score"] = "12,000"
+                    }),
+                Is.EqualTo("최고 기록: 12,000"));
+            Assert.That(service.Format(
+                    "ui.battle.result.score_format",
+                    new Dictionary<string, object>
+                    {
+                        ["score"] = "12,000"
+                    }),
+                Is.EqualTo("점수: 12,000"));
+            Assert.That(service.Format(
+                    "ui.battle.result.turn_format",
+                    new Dictionary<string, object>
+                    {
+                        ["current"] = 10,
+                        ["limit"] = 25
+                    }),
+                Is.EqualTo("턴: 10/25"));
+            Assert.That(service.Format(
+                    "ui.battle.result.damage_format",
+                    new Dictionary<string, object>
+                    {
+                        ["score"] = "10,000"
+                    }),
+                Is.EqualTo("피해 점수: 10,000"));
+            Assert.That(service.Format(
+                    "ui.battle.result.turn_bonus_format",
+                    new Dictionary<string, object>
+                    {
+                        ["score"] = "2,000"
+                    }),
+                Is.EqualTo("잔여 턴 보너스: 2,000"));
+            Assert.That(service.GetText("ui.battle.result.reward"),
+                Is.EqualTo("보상"));
+            Assert.That(service.GetText(
+                    "ui.battle.result.first_grade_bonus"),
+                Is.EqualTo("최초 등급 달성 보상"));
+            Assert.That(service.GetText("ui.battle.pause.paused"),
+                Is.EqualTo("일시정지"));
         }
 
         private static LocalizationService Service(params string[] tables)
