@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Audio;
+using ValorChronicle.Audio.Core;
 
 namespace ValorChronicle.Audio.Configuration
 {
@@ -22,6 +23,41 @@ namespace ValorChronicle.Audio.Configuration
         private AudioClip normalBgm;
         [SerializeField]
         private AudioClip battleBgm;
+        [SerializeField]
+        [Min(0f)]
+        private float sceneCrossfadeSeconds =
+            BgmFadeSettings.DefaultSceneCrossfadeSeconds;
+        [SerializeField]
+        [Min(0f)]
+        private float resultFadeOutSeconds =
+            BgmFadeSettings.DefaultResultFadeOutSeconds;
+        [SerializeField] private bool initLoopFadeEnabled = true;
+        [SerializeField] private bool normalLoopFadeEnabled = true;
+        [SerializeField] private bool battleLoopFadeEnabled = true;
+        [SerializeField]
+        [Min(0f)]
+        private float initLoopFadeInSeconds =
+            BgmFadeSettings.DefaultLoopFadeSeconds;
+        [SerializeField]
+        [Min(0f)]
+        private float initLoopFadeOutSeconds =
+            BgmFadeSettings.DefaultLoopFadeSeconds;
+        [SerializeField]
+        [Min(0f)]
+        private float normalLoopFadeInSeconds =
+            BgmFadeSettings.DefaultLoopFadeSeconds;
+        [SerializeField]
+        [Min(0f)]
+        private float normalLoopFadeOutSeconds =
+            BgmFadeSettings.DefaultLoopFadeSeconds;
+        [SerializeField]
+        [Min(0f)]
+        private float battleLoopFadeInSeconds =
+            BgmFadeSettings.DefaultLoopFadeSeconds;
+        [SerializeField]
+        [Min(0f)]
+        private float battleLoopFadeOutSeconds =
+            BgmFadeSettings.DefaultLoopFadeSeconds;
 
         public AudioMixer AudioMixer => audioMixer;
         public AudioMixerGroup BgmMixerGroup => bgmMixerGroup;
@@ -30,5 +66,24 @@ namespace ValorChronicle.Audio.Configuration
         public AudioClip InitBgm => initBgm;
         public AudioClip NormalBgm => normalBgm;
         public AudioClip BattleBgm => battleBgm;
+
+        public BgmFadeSettings CreateFadeSettings()
+        {
+            return new BgmFadeSettings(
+                sceneCrossfadeSeconds,
+                resultFadeOutSeconds,
+                new BgmLoopFadeSettings(
+                    initLoopFadeEnabled,
+                    initLoopFadeInSeconds,
+                    initLoopFadeOutSeconds),
+                new BgmLoopFadeSettings(
+                    normalLoopFadeEnabled,
+                    normalLoopFadeInSeconds,
+                    normalLoopFadeOutSeconds),
+                new BgmLoopFadeSettings(
+                    battleLoopFadeEnabled,
+                    battleLoopFadeInSeconds,
+                    battleLoopFadeOutSeconds));
+        }
     }
 }

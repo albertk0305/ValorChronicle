@@ -279,6 +279,9 @@ namespace ValorChronicle.UI
             {
                 startButton.interactable = !isTransitioning;
             }
+
+            subscribedBootstrapper?.AudioService?
+                .NotifyInitialInitReady();
         }
 
         private void ShowFailure()

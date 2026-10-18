@@ -20,6 +20,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private Coroutine presentationCoroutine;
         private int presentationVersion;
 
+        public event Action<BattleResultKind> ResultPresented;
+
         public BattleResultView ResultView => resultView;
         public BattleHudController BattleHudController =>
             battleHudController;
@@ -156,6 +158,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
             pendingResult = null;
             lastPresentedResult = persistedResult;
             resultView.Show();
+            ResultPresented?.Invoke(
+                persistedResult.BattleFinalResult.EndReason);
         }
 
         private void CancelPresentation()

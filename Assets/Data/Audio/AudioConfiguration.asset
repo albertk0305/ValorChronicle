@@ -19,3 +19,14 @@ MonoBehaviour:
   initBgm: {fileID: 8300000, guid: c6a7dd97621786d4782ebdd31ef9c457, type: 3}
   normalBgm: {fileID: 8300000, guid: 13ed4e3dd5d37ed4d9ec8d21de0170a1, type: 3}
   battleBgm: {fileID: 8300000, guid: 1a1ed7837e619ec4e8149aff5d553fb5, type: 3}
+  sceneCrossfadeSeconds: 0.8
+  resultFadeOutSeconds: 1.2
+  initLoopFadeEnabled: 1
+  normalLoopFadeEnabled: 1
+  battleLoopFadeEnabled: 1
+  initLoopFadeInSeconds: 0.6
+  initLoopFadeOutSeconds: 0.6
+  normalLoopFadeInSeconds: 0.6
+  normalLoopFadeOutSeconds: 0.6
+  battleLoopFadeInSeconds: 0.6
+  battleLoopFadeOutSeconds: 0.6

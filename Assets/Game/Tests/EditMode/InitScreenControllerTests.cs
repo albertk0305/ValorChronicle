@@ -5,9 +5,12 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
+using ValorChronicle.Audio.Core;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Localization;
 using ValorChronicle.Save.Services;
+using ValorChronicle.Settings.Services;
+using ValorChronicle.Tests.EditMode.Audio;
 using ValorChronicle.UI;
 
 namespace ValorChronicle.Tests.EditMode
@@ -207,6 +210,54 @@ namespace ValorChronicle.Tests.EditMode
             }
         }
 
+        [Test]
+        public async Task SuccessfulInitialization_StartsPendingInitBgmOnce()
+        {
+            BootstrapInitializationResult result =
+                await CreateResult(validContent: true);
+            var bootstrapObject = new GameObject("Init Audio Ready Test");
+            bootstrapObject.SetActive(false);
+            GameBootstrapper bootstrapper =
+                bootstrapObject.AddComponent<GameBootstrapper>();
+            var output = new RecordingAudioOutput();
+            var audioService = new AudioService(
+                SettingsService.CreateInMemoryDefaults(),
+                output,
+                output,
+                output,
+                new FakeSceneChangeSource("Init"));
+            audioService.Initialize();
+            SetProperty(bootstrapper, "AudioService", audioService);
+            SetStaticProperty(
+                typeof(GameBootstrapper),
+                "Instance",
+                bootstrapper);
+
+            try
+            {
+                Invoke(controller, "TryBindBootstrapper", false);
+
+                Assert.That(output.PlaySpecialCount, Is.Zero);
+
+                Invoke(bootstrapper, "CompleteInitialization", result);
+                Invoke(bootstrapper, "CompleteInitialization", result);
+
+                Assert.That(initText.gameObject.activeSelf, Is.True);
+                Assert.That(output.PlaySpecialCount, Is.EqualTo(1));
+                Assert.That(output.LastSpecialTrack,
+                    Is.EqualTo(BgmTrackKind.Init));
+            }
+            finally
+            {
+                audioService.Dispose();
+                SetStaticProperty(
+                    typeof(GameBootstrapper),
+                    "Instance",
+                    null);
+                Object.DestroyImmediate(bootstrapObject);
+            }
+        }
+
         private void Present(BootstrapInitializationResult result)
         {
             Invoke(controller, "PresentInitializationResult", result);
@@ -281,6 +332,18 @@ namespace ValorChronicle.Tests.EditMode
                 BindingFlags.Static
                     | BindingFlags.Public
                     | BindingFlags.NonPublic)?.SetValue(null, value);
+        }
+
+        private static void SetProperty(
+            object target,
+            string propertyName,
+            object value)
+        {
+            target.GetType().GetProperty(
+                propertyName,
+                BindingFlags.Instance
+                    | BindingFlags.Public
+                    | BindingFlags.NonPublic)?.SetValue(target, value);
         }
 
         private sealed class FixedProfileIdProvider : IProfileIdProvider

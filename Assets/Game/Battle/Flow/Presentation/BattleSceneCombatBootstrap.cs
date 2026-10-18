@@ -26,6 +26,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             resultPresentationController = null;
 
         private bool initializationAttempted;
+        private bool resultAudioSubscribed;
 
         public bool HasInitializedFlow { get; private set; }
         public bool HasInitializedCombat => CombatComposition?.Bridge != null;
@@ -47,6 +48,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         private void OnDestroy()
         {
+            UnsubscribeResultAudio();
             CombatComposition?.Dispose();
         }
 
@@ -240,6 +242,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 if (composition.ResultPersistenceCoordinator != null
                     && resultPresentationController != null)
                 {
+                    SubscribeResultAudio();
                     resultPresentationController.Initialize(
                         composition.ResultPersistenceCoordinator);
                 }
@@ -255,6 +258,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
             catch (Exception exception)
             {
+                UnsubscribeResultAudio();
                 composition?.Dispose();
                 if (battleFlowController.Context != null)
                 {
@@ -267,6 +271,40 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     entryRequest,
                     exception);
             }
+        }
+
+        private void SubscribeResultAudio()
+        {
+            if (resultAudioSubscribed || resultPresentationController == null)
+                return;
+
+            resultPresentationController.ResultPresented +=
+                HandleResultPresented;
+            resultAudioSubscribed = true;
+        }
+
+        private void UnsubscribeResultAudio()
+        {
+            if (!resultAudioSubscribed || resultPresentationController == null)
+                return;
+
+            resultPresentationController.ResultPresented -=
+                HandleResultPresented;
+            resultAudioSubscribed = false;
+        }
+
+        private static void HandleResultPresented(BattleResultKind result)
+        {
+            if (result != BattleResultKind.Victory
+                && result != BattleResultKind.Defeat
+                && result != BattleResultKind.TurnLimitReached)
+            {
+                return;
+            }
+
+            GameBootstrapper bootstrapper = GameBootstrapper.Instance;
+            if (bootstrapper?.AudioService?.IsInitialized == true)
+                bootstrapper.AudioService.FadeOutBattleResultBgm();
         }
 
         private void FailInitialization(

@@ -1,9 +1,13 @@
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using UnityEditor;
 using ValorChronicle.Audio.Core;
 using ValorChronicle.Audio.Runtime;
 using ValorChronicle.Settings.Services;
+using GameAudioConfiguration =
+    ValorChronicle.Audio.Configuration.AudioConfiguration;
+using SettingsService = ValorChronicle.Settings.Services.SettingsService;
 
 namespace ValorChronicle.Tests.EditMode.Audio
 {
@@ -18,6 +22,36 @@ namespace ValorChronicle.Tests.EditMode.Audio
                 Is.EqualTo(0f).Within(0.0001f));
             Assert.That(AudioVolumeMath.PercentageToDecibels(50),
                 Is.EqualTo(-6.0206f).Within(0.0001f));
+        }
+
+        [Test]
+        public void AudioConfiguration_ProvidesRequestedFadeDefaultsForAllTracks()
+        {
+            GameAudioConfiguration configuration = AssetDatabase
+                .LoadAssetAtPath<GameAudioConfiguration>(
+                    "Assets/Data/Audio/AudioConfiguration.asset");
+            Assert.That(configuration, Is.Not.Null);
+
+            BgmFadeSettings settings = configuration.CreateFadeSettings();
+
+            Assert.That(settings.SceneCrossfadeSeconds,
+                Is.EqualTo(0.8f).Within(0.0001f));
+            Assert.That(settings.ResultFadeOutSeconds,
+                Is.EqualTo(1.2f).Within(0.0001f));
+            foreach (BgmTrackKind track in new[]
+            {
+                BgmTrackKind.Init,
+                BgmTrackKind.Normal,
+                BgmTrackKind.Battle
+            })
+            {
+                BgmLoopFadeSettings loop = settings.GetLoop(track);
+                Assert.That(loop.Enabled, Is.True, track.ToString());
+                Assert.That(loop.FadeInSeconds,
+                    Is.EqualTo(0.6f).Within(0.0001f));
+                Assert.That(loop.FadeOutSeconds,
+                    Is.EqualTo(0.6f).Within(0.0001f));
+            }
         }
 
         [Test]
@@ -77,6 +111,41 @@ namespace ValorChronicle.Tests.EditMode.Audio
                     .GetComponent<AudioSource>();
                 Assert.That(sfx.volume, Is.EqualTo(0.25f).Within(0.0001f));
                 Assert.That(ui.volume, Is.EqualTo(sfx.volume).Within(0.0001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(owner);
+            }
+        }
+
+        [Test]
+        public void MixerlessFallback_KeepsUserBgmVolumeAcrossFadeAdvance()
+        {
+            var owner = new GameObject("AudioBgmFallbackTest");
+            try
+            {
+                LogAssert.Expect(
+                    LogType.Warning,
+                    "[Audio] AudioConfiguration is not assigned. "
+                        + "Audio remains available without clips or mixer routing.");
+                var output = new UnityAudioOutput(owner, null);
+                output.ApplyVolume(
+                    AudioVolumeChannel.Master,
+                    AudioVolumeMath.PercentageToDecibels(50));
+                output.ApplyVolume(
+                    AudioVolumeChannel.Bgm,
+                    AudioVolumeMath.PercentageToDecibels(40));
+
+                output.Advance(0.8f);
+
+                AudioSource normal = owner.transform.Find("Audio_NormalBgm")
+                    .GetComponent<AudioSource>();
+                AudioSource special = owner.transform.Find("Audio_SpecialBgm")
+                    .GetComponent<AudioSource>();
+                Assert.That(normal.volume,
+                    Is.EqualTo(0.2f).Within(0.0001f));
+                Assert.That(special.volume,
+                    Is.EqualTo(0.2f).Within(0.0001f));
             }
             finally
             {

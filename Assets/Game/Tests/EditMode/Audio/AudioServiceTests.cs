@@ -60,6 +60,7 @@ namespace ValorChronicle.Tests.EditMode.Audio
                 service.Initialize();
 
                 Assert.That(output.Volumes.Count, Is.EqualTo(3));
+                Assert.That(output.PlaySpecialCount, Is.Zero);
                 Assert.That(
                     output.Volumes[0].Decibels,
                     Is.EqualTo(AudioVolumeMath.PercentageToDecibels(10))
@@ -75,15 +76,61 @@ namespace ValorChronicle.Tests.EditMode.Audio
                     {
                         "Volume:Master",
                         "Volume:Bgm",
-                        "Volume:Sfx",
-                        "Play:Init"
+                        "Volume:Sfx"
                     }));
+
+                Assert.That(service.NotifyInitialInitReady(), Is.True);
+                Assert.That(output.Operations[^1], Is.EqualTo("Play:Init"));
             }
             finally
             {
                 if (Directory.Exists(root))
                     Directory.Delete(root, true);
             }
+        }
+
+        [Test]
+        public void InitialInit_WaitsForReadyAndIgnoresDuplicateReady()
+        {
+            SettingsService settings = SettingsService.CreateInMemoryDefaults();
+            var output = new RecordingFadingAudioOutput();
+            var scenes = new FakeSceneChangeSource("Init");
+            var service = CreateService(settings, output, scenes);
+
+            service.Initialize();
+            service.Advance(4f);
+
+            Assert.That(service.CurrentBgm, Is.EqualTo(BgmTrackKind.None));
+            Assert.That(output.PlaySpecialCount, Is.Zero);
+            Assert.That(service.NotifyInitialInitReady(), Is.True);
+            Assert.That(service.NotifyInitialInitReady(), Is.False);
+            Assert.That(service.CurrentBgm, Is.EqualTo(BgmTrackKind.Init));
+            Assert.That(output.PlaySpecialCount, Is.Zero);
+            Assert.That(output.InitialInitCount, Is.EqualTo(1));
+            Assert.That(output.LastSpecialTrack, Is.EqualTo(BgmTrackKind.Init));
+            Assert.That(output.LastDuration, Is.EqualTo(0.6f).Within(0.0001f));
+        }
+
+        [Test]
+        public void InitialInit_SceneChangeCancelsPendingReadyAndReentryUsesPolicy()
+        {
+            SettingsService settings = SettingsService.CreateInMemoryDefaults();
+            var output = new RecordingFadingAudioOutput();
+            var scenes = new FakeSceneChangeSource("Init");
+            var service = CreateService(settings, output, scenes);
+
+            service.Initialize();
+            scenes.ChangeTo("Main");
+
+            Assert.That(output.PlaySpecialCount, Is.Zero);
+            Assert.That(output.PlayNormalCount, Is.EqualTo(1));
+            Assert.That(service.NotifyInitialInitReady(), Is.False);
+
+            scenes.ChangeTo("Init");
+
+            Assert.That(output.CrossfadeToSpecialCount, Is.EqualTo(1));
+            Assert.That(output.LastSpecialTrack, Is.EqualTo(BgmTrackKind.Init));
+            Assert.That(output.LastDuration, Is.EqualTo(0.8f).Within(0.0001f));
         }
 
         [Test]
@@ -108,6 +155,33 @@ namespace ValorChronicle.Tests.EditMode.Audio
             int volumeCount = output.Volumes.Count;
             settings.SetMasterVolume(20);
             Assert.That(output.Volumes.Count, Is.EqualTo(volumeCount));
+        }
+
+        [Test]
+        public void FadingBackend_UsesSceneGroupsResultFadeAndUnscaledAdvance()
+        {
+            SettingsService settings = SettingsService.CreateInMemoryDefaults();
+            var output = new RecordingFadingAudioOutput();
+            var scenes = new FakeSceneChangeSource("Main");
+            var service = CreateService(settings, output, scenes);
+            service.Initialize();
+
+            scenes.ChangeTo("Character");
+            Assert.That(output.CrossfadeToNormalCount, Is.Zero);
+
+            scenes.ChangeTo("Battle");
+            Assert.That(output.CrossfadeToSpecialCount, Is.EqualTo(1));
+            Assert.That(output.LastPreserveNormal, Is.True);
+            Assert.That(service.FadeOutBattleResultBgm(), Is.True);
+            Assert.That(service.FadeOutBattleResultBgm(), Is.False);
+            service.Advance(0.4f);
+
+            Assert.That(output.ResultFadeCount, Is.EqualTo(1));
+            Assert.That(output.AdvancedSeconds,
+                Is.EqualTo(0.4f).Within(0.0001f));
+
+            scenes.ChangeTo("Main");
+            Assert.That(output.CrossfadeToNormalCount, Is.EqualTo(1));
         }
 
         [Test]

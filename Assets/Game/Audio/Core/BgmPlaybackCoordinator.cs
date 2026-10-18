@@ -12,14 +12,21 @@ namespace ValorChronicle.Audio.Core
         }
 
         private readonly IBgmPlaybackBackend backend;
+        private readonly IBgmFadePlaybackBackend fadeBackend;
+        private readonly BgmFadeSettings fadeSettings;
         private PlaybackState normalState;
         private PlaybackState specialState;
         private BgmTrackKind specialTrack;
+        private bool battleResultFadeRequested;
 
-        public BgmPlaybackCoordinator(IBgmPlaybackBackend backend)
+        public BgmPlaybackCoordinator(
+            IBgmPlaybackBackend backend,
+            BgmFadeSettings fadeSettings = null)
         {
             this.backend = backend
                 ?? throw new ArgumentNullException(nameof(backend));
+            fadeBackend = backend as IBgmFadePlaybackBackend;
+            this.fadeSettings = fadeSettings ?? new BgmFadeSettings();
         }
 
         public SceneAudioContext CurrentContext { get; private set; }
@@ -51,6 +58,9 @@ namespace ValorChronicle.Audio.Core
                     EnterBattle();
                     break;
             }
+
+            if (context != SceneAudioContext.Battle)
+                battleResultFadeRequested = false;
         }
 
         public void Play(BgmTrackKind trackKind)
@@ -74,17 +84,77 @@ namespace ValorChronicle.Audio.Core
             }
         }
 
+        public bool StartInitialInit()
+        {
+            if (CurrentContext != SceneAudioContext.Unknown)
+                return false;
+
+            if (fadeBackend != null)
+            {
+                fadeBackend.PlayInitialInit(
+                    fadeSettings.InitLoop.FadeInSeconds);
+                specialTrack = BgmTrackKind.Init;
+                specialState = PlaybackState.Playing;
+                CurrentContext = SceneAudioContext.Init;
+                return true;
+            }
+
+            PlaySpecialIfNeeded(BgmTrackKind.Init);
+            CurrentContext = SceneAudioContext.Init;
+            return true;
+        }
+
         public void StopAll()
         {
-            if (normalState != PlaybackState.Stopped)
-                backend.StopNormal();
-            if (specialState != PlaybackState.Stopped)
-                backend.StopSpecial();
+            if (fadeBackend != null)
+            {
+                fadeBackend.StopAllImmediate();
+            }
+            else
+            {
+                if (normalState != PlaybackState.Stopped)
+                    backend.StopNormal();
+                if (specialState != PlaybackState.Stopped)
+                    backend.StopSpecial();
+            }
 
             normalState = PlaybackState.Stopped;
             specialState = PlaybackState.Stopped;
             specialTrack = BgmTrackKind.None;
             CurrentContext = SceneAudioContext.Unknown;
+            battleResultFadeRequested = false;
+        }
+
+        public bool FadeOutBattleResult()
+        {
+            if (CurrentContext != SceneAudioContext.Battle
+                || specialState == PlaybackState.Stopped
+                || battleResultFadeRequested)
+            {
+                return false;
+            }
+
+            battleResultFadeRequested = true;
+            if (fadeBackend != null)
+            {
+                fadeBackend.FadeOutSpecialAndStop(
+                    fadeSettings.ResultFadeOutSeconds);
+            }
+            else
+            {
+                backend.StopSpecial();
+            }
+
+            specialState = PlaybackState.Stopped;
+            return true;
+        }
+
+        public void Advance(float unscaledDeltaTime)
+        {
+            if (unscaledDeltaTime < 0f)
+                throw new ArgumentOutOfRangeException(nameof(unscaledDeltaTime));
+
+            fadeBackend?.Advance(unscaledDeltaTime);
         }
 
         public void PauseCurrent()
@@ -123,6 +193,20 @@ namespace ValorChronicle.Audio.Core
 
         private void EnterInit()
         {
+            if (fadeBackend != null
+                && CurrentContext != SceneAudioContext.Unknown)
+            {
+                fadeBackend.CrossfadeToSpecial(
+                    BgmTrackKind.Init,
+                    preserveNormalPosition: false,
+                    fadeSettings.SceneCrossfadeSeconds);
+                normalState = PlaybackState.Stopped;
+                specialTrack = BgmTrackKind.Init;
+                specialState = PlaybackState.Playing;
+                CurrentContext = SceneAudioContext.Init;
+                return;
+            }
+
             if (normalState != PlaybackState.Stopped)
             {
                 backend.StopNormal();
@@ -135,6 +219,18 @@ namespace ValorChronicle.Audio.Core
 
         private void EnterNormal()
         {
+            if (fadeBackend != null
+                && CurrentContext != SceneAudioContext.Unknown)
+            {
+                fadeBackend.CrossfadeToNormal(
+                    fadeSettings.SceneCrossfadeSeconds);
+                normalState = PlaybackState.Playing;
+                specialState = PlaybackState.Stopped;
+                specialTrack = BgmTrackKind.None;
+                CurrentContext = SceneAudioContext.Normal;
+                return;
+            }
+
             StopSpecialIfNeeded();
             if (normalState == PlaybackState.Paused)
             {
@@ -151,6 +247,23 @@ namespace ValorChronicle.Audio.Core
 
         private void EnterBattle()
         {
+            battleResultFadeRequested = false;
+            if (fadeBackend != null
+                && CurrentContext != SceneAudioContext.Unknown)
+            {
+                bool preserveNormal = normalState != PlaybackState.Stopped;
+                fadeBackend.CrossfadeToSpecial(
+                    BgmTrackKind.Battle,
+                    preserveNormal,
+                    fadeSettings.SceneCrossfadeSeconds);
+                if (preserveNormal)
+                    normalState = PlaybackState.Paused;
+                specialTrack = BgmTrackKind.Battle;
+                specialState = PlaybackState.Playing;
+                CurrentContext = SceneAudioContext.Battle;
+                return;
+            }
+
             if (normalState == PlaybackState.Playing)
             {
                 backend.PauseNormal();

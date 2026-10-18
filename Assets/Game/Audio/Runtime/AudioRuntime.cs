@@ -34,9 +34,15 @@ namespace ValorChronicle.Audio.Runtime
                 output,
                 output,
                 output,
-                sceneChangeSource);
+                sceneChangeSource,
+                bgmFadeSettings: configuration?.CreateFadeSettings());
             Service.Initialize();
             return Service;
+        }
+
+        private void Update()
+        {
+            Service?.Advance(Time.unscaledDeltaTime);
         }
 
         private void OnDestroy()

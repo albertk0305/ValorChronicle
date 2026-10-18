@@ -12,6 +12,7 @@ namespace ValorChronicle.Audio.Runtime
     public sealed class UnityAudioOutput :
         IAudioVolumeOutput,
         IBgmPlaybackBackend,
+        IBgmFadePlaybackBackend,
         IAudioEffectOutput
     {
         public const string MasterVolumeParameter = "MasterVolumeDb";
@@ -19,6 +20,7 @@ namespace ValorChronicle.Audio.Runtime
         public const string SfxVolumeParameter = "SfxVolumeDb";
 
         private readonly GameAudioConfiguration configuration;
+        private readonly BgmFadeSettings fadeSettings;
         private readonly AudioSource normalBgmSource;
         private readonly AudioSource specialBgmSource;
         private readonly AudioSource sfxSource;
@@ -29,6 +31,33 @@ namespace ValorChronicle.Audio.Runtime
         private float masterLinear = 1f;
         private float bgmLinear = 1f;
         private float sfxLinear = 1f;
+        private float normalTransitionGain = 1f;
+        private float specialTransitionGain = 1f;
+        private BgmTrackKind specialTrack = BgmTrackKind.None;
+        private readonly BgmStartupFadeClock initialInitFade =
+            new BgmStartupFadeClock();
+        private bool suppressInitialInitLoopFadeIn;
+        private FadeTransition transition;
+
+        private enum FadeCompletion
+        {
+            None,
+            PauseNormal,
+            StopNormal,
+            StopSpecial
+        }
+
+        private struct FadeTransition
+        {
+            public bool IsActive;
+            public float Elapsed;
+            public float Duration;
+            public float NormalStart;
+            public float NormalTarget;
+            public float SpecialStart;
+            public float SpecialTarget;
+            public FadeCompletion Completion;
+        }
 
         public UnityAudioOutput(
             GameObject owner,
@@ -38,6 +67,8 @@ namespace ValorChronicle.Audio.Runtime
                 throw new ArgumentNullException(nameof(owner));
 
             this.configuration = configuration;
+            fadeSettings = configuration?.CreateFadeSettings()
+                ?? new BgmFadeSettings();
             normalBgmSource = CreateSource(
                 owner.transform,
                 "Audio_NormalBgm",
@@ -108,7 +139,7 @@ namespace ValorChronicle.Audio.Runtime
                     throw new ArgumentOutOfRangeException(nameof(channel));
             }
 
-            RefreshFallbackVolumes();
+            RefreshSourceVolumes();
         }
 
         public void PlayNormalFromStart()
@@ -118,10 +149,30 @@ namespace ValorChronicle.Audio.Runtime
                 return;
 
             PlayFromStart(normalBgmSource, clip);
+            normalTransitionGain = 1f;
+            RefreshSourceVolumes();
+        }
+
+        public void PlayInitialInit(float durationSeconds)
+        {
+            AudioClip clip = configuration?.InitBgm;
+            if (clip == null)
+                return;
+
+            CancelTransition();
+            specialBgmSource.Stop();
+            specialBgmSource.clip = clip;
+            specialBgmSource.time = 0f;
+            specialTrack = BgmTrackKind.Init;
+            initialInitFade.Begin(durationSeconds);
+            suppressInitialInitLoopFadeIn = durationSeconds > 0f;
+            specialTransitionGain = initialInitFade.Gain;
+            RefreshSourceVolumes();
         }
 
         public void PauseNormal()
         {
+            CancelTransition();
             if (normalBgmSource.isPlaying)
                 normalBgmSource.Pause();
         }
@@ -134,7 +185,10 @@ namespace ValorChronicle.Audio.Runtime
 
         public void StopNormal()
         {
+            CancelTransition();
             StopAndClear(normalBgmSource);
+            normalTransitionGain = 0f;
+            RefreshSourceVolumes();
         }
 
         public void PlaySpecial(BgmTrackKind trackKind)
@@ -148,11 +202,16 @@ namespace ValorChronicle.Audio.Runtime
             if (clip == null)
                 return;
 
+            ResetInitialInitFade();
             PlayFromStart(specialBgmSource, clip);
+            specialTrack = trackKind;
+            specialTransitionGain = 1f;
+            RefreshSourceVolumes();
         }
 
         public void PauseSpecial()
         {
+            CancelTransition();
             if (specialBgmSource.isPlaying)
                 specialBgmSource.Pause();
         }
@@ -165,7 +224,117 @@ namespace ValorChronicle.Audio.Runtime
 
         public void StopSpecial()
         {
+            CancelTransition();
+            ResetInitialInitFade();
             StopAndClear(specialBgmSource);
+            specialTrack = BgmTrackKind.None;
+            specialTransitionGain = 0f;
+            RefreshSourceVolumes();
+        }
+
+        public void CrossfadeToNormal(float durationSeconds)
+        {
+            CancelInitialInitFadeForOutgoingTransition();
+            AudioClip normalClip = configuration?.NormalBgm;
+            if (normalClip != null)
+            {
+                if (normalBgmSource.clip == normalClip)
+                    normalBgmSource.UnPause();
+                else
+                {
+                    PlayFromStart(normalBgmSource, normalClip);
+                    normalTransitionGain = 0f;
+                }
+            }
+
+            BeginTransition(
+                normalTarget: 1f,
+                specialTarget: 0f,
+                durationSeconds,
+                FadeCompletion.StopSpecial);
+        }
+
+        public void CrossfadeToSpecial(
+            BgmTrackKind trackKind,
+            bool preserveNormalPosition,
+            float durationSeconds)
+        {
+            ResetInitialInitFade();
+            AudioClip clip = ResolveSpecialClip(trackKind);
+            if (clip != null)
+            {
+                if (specialBgmSource.clip == clip)
+                    specialBgmSource.UnPause();
+                else
+                {
+                    PlayFromStart(specialBgmSource, clip);
+                    specialTransitionGain = 0f;
+                }
+            }
+
+            specialTrack = trackKind;
+            BeginTransition(
+                normalTarget: 0f,
+                specialTarget: 1f,
+                durationSeconds,
+                preserveNormalPosition
+                    ? FadeCompletion.PauseNormal
+                    : FadeCompletion.StopNormal);
+        }
+
+        public void FadeOutSpecialAndStop(float durationSeconds)
+        {
+            if (specialBgmSource.clip == null)
+                return;
+
+            BeginTransition(
+                normalTransitionGain,
+                specialTarget: 0f,
+                durationSeconds,
+                FadeCompletion.StopSpecial);
+        }
+
+        public void StopAllImmediate()
+        {
+            CancelTransition();
+            ResetInitialInitFade();
+            StopAndClear(normalBgmSource);
+            StopAndClear(specialBgmSource);
+            normalTransitionGain = 0f;
+            specialTransitionGain = 0f;
+            specialTrack = BgmTrackKind.None;
+            RefreshSourceVolumes();
+        }
+
+        public void Advance(float unscaledDeltaTime)
+        {
+            if (unscaledDeltaTime < 0f)
+                throw new ArgumentOutOfRangeException(nameof(unscaledDeltaTime));
+
+            if (AdvanceInitialInitFade(unscaledDeltaTime))
+            {
+                RefreshSourceVolumes();
+                return;
+            }
+
+            if (transition.IsActive)
+            {
+                transition.Elapsed += unscaledDeltaTime;
+                normalTransitionGain = BgmFadeMath.EvaluateLinear(
+                    transition.NormalStart,
+                    transition.NormalTarget,
+                    transition.Elapsed,
+                    transition.Duration);
+                specialTransitionGain = BgmFadeMath.EvaluateLinear(
+                    transition.SpecialStart,
+                    transition.SpecialTarget,
+                    transition.Elapsed,
+                    transition.Duration);
+                if (transition.Elapsed >= transition.Duration)
+                    CompleteTransition();
+            }
+
+            RefreshSourceVolumes();
         }
 
         public void PlaySfx(AudioClip clip)
@@ -180,12 +349,166 @@ namespace ValorChronicle.Audio.Runtime
                 uiSfxSource.PlayOneShot(clip);
         }
 
-        private void RefreshFallbackVolumes()
+        private void RefreshSourceVolumes()
         {
-            normalBgmSource.volume = masterLinear * bgmLinear;
-            specialBgmSource.volume = masterLinear * bgmLinear;
+            float bgmBase = masterLinear * bgmLinear;
+            normalBgmSource.volume = bgmBase
+                * normalTransitionGain
+                * GetLoopGain(normalBgmSource, BgmTrackKind.Normal);
+            specialBgmSource.volume = bgmBase
+                * specialTransitionGain
+                * GetLoopGain(specialBgmSource, specialTrack);
             sfxSource.volume = masterLinear * sfxLinear;
             uiSfxSource.volume = masterLinear * sfxLinear;
+        }
+
+        private float GetLoopGain(AudioSource source, BgmTrackKind trackKind)
+        {
+            if (source.clip == null || configuration == null)
+                return 1f;
+
+            BgmLoopFadeSettings loopSettings = fadeSettings.GetLoop(trackKind);
+            if (ReferenceEquals(source, specialBgmSource)
+                && trackKind == BgmTrackKind.Init
+                && suppressInitialInitLoopFadeIn)
+            {
+                if (!initialInitFade.IsFading
+                    && !initialInitFade.IsWaitingForPlaybackStart
+                    && source.time >= loopSettings.FadeInSeconds)
+                {
+                    suppressInitialInitLoopFadeIn = false;
+                }
+                else
+                {
+                    loopSettings = new BgmLoopFadeSettings(
+                        loopSettings.Enabled,
+                        0f,
+                        loopSettings.FadeOutSeconds);
+                }
+            }
+
+            return BgmFadeMath.EvaluateLoopGain(
+                source.time,
+                source.clip.length,
+                loopSettings);
+        }
+
+        private bool AdvanceInitialInitFade(float unscaledDeltaTime)
+        {
+            if (initialInitFade.IsWaitingForPlaybackStart)
+            {
+                AudioClip clip = specialBgmSource.clip;
+                if (clip == null || clip.loadState == AudioDataLoadState.Failed)
+                {
+                    ResetInitialInitFade();
+                    return false;
+                }
+
+                if (clip.loadState == AudioDataLoadState.Unloaded)
+                {
+                    clip.LoadAudioData();
+                    return true;
+                }
+
+                if (clip.loadState != AudioDataLoadState.Loaded)
+                    return true;
+
+                if (initialInitFade.TryStartPlayback(isReady: true))
+                {
+                    specialBgmSource.Stop();
+                    specialBgmSource.time = 0f;
+                    specialBgmSource.Play();
+                    specialTransitionGain = initialInitFade.Gain;
+                }
+
+                return true;
+            }
+
+            if (!initialInitFade.IsFading)
+                return false;
+            if (!specialBgmSource.isPlaying)
+                return true;
+
+            initialInitFade.Advance(unscaledDeltaTime);
+            specialTransitionGain = initialInitFade.Gain;
+            return false;
+        }
+
+        private void CancelInitialInitFadeForOutgoingTransition()
+        {
+            bool wasPending = initialInitFade.IsWaitingForPlaybackStart;
+            initialInitFade.Reset();
+            if (wasPending)
+                suppressInitialInitLoopFadeIn = false;
+        }
+
+        private void ResetInitialInitFade()
+        {
+            initialInitFade.Reset();
+            suppressInitialInitLoopFadeIn = false;
+        }
+
+        private AudioClip ResolveSpecialClip(BgmTrackKind trackKind)
+        {
+            return trackKind switch
+            {
+                BgmTrackKind.Init => configuration?.InitBgm,
+                BgmTrackKind.Battle => configuration?.BattleBgm,
+                _ => null
+            };
+        }
+
+        private void BeginTransition(
+            float normalTarget,
+            float specialTarget,
+            float durationSeconds,
+            FadeCompletion completion)
+        {
+            transition = new FadeTransition
+            {
+                IsActive = durationSeconds > 0f,
+                Elapsed = 0f,
+                Duration = Math.Max(0f, durationSeconds),
+                NormalStart = normalTransitionGain,
+                NormalTarget = Mathf.Clamp01(normalTarget),
+                SpecialStart = specialTransitionGain,
+                SpecialTarget = Mathf.Clamp01(specialTarget),
+                Completion = completion
+            };
+            if (!transition.IsActive)
+            {
+                normalTransitionGain = transition.NormalTarget;
+                specialTransitionGain = transition.SpecialTarget;
+                CompleteTransition();
+            }
+
+            RefreshSourceVolumes();
+        }
+
+        private void CompleteTransition()
+        {
+            FadeCompletion completion = transition.Completion;
+            transition = default;
+            switch (completion)
+            {
+                case FadeCompletion.PauseNormal:
+                    if (normalBgmSource.isPlaying)
+                        normalBgmSource.Pause();
+                    break;
+                case FadeCompletion.StopNormal:
+                    StopAndClear(normalBgmSource);
+                    break;
+                case FadeCompletion.StopSpecial:
+                    StopAndClear(specialBgmSource);
+                    ResetInitialInitFade();
+                    specialTrack = BgmTrackKind.None;
+                    break;
+            }
+        }
+
+        private void CancelTransition()
+        {
+            transition = default;
         }
 
         private void LogConfigurationWarnings(GameObject context)

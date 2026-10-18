@@ -5,7 +5,7 @@ using ValorChronicle.Audio.Core;
 
 namespace ValorChronicle.Tests.EditMode.Audio
 {
-    internal sealed class RecordingAudioOutput :
+    internal class RecordingAudioOutput :
         IAudioVolumeOutput,
         IBgmPlaybackBackend,
         IAudioEffectOutput
@@ -24,7 +24,7 @@ namespace ValorChronicle.Tests.EditMode.Audio
         public int StopSpecialCount { get; private set; }
         public int SfxCount { get; private set; }
         public int UiSfxCount { get; private set; }
-        public BgmTrackKind LastSpecialTrack { get; private set; }
+        public BgmTrackKind LastSpecialTrack { get; protected set; }
 
         public void ApplyVolume(AudioVolumeChannel channel, float decibels)
         {
@@ -53,6 +53,65 @@ namespace ValorChronicle.Tests.EditMode.Audio
         public void StopSpecial() => StopSpecialCount++;
         public void PlaySfx(AudioClip clip) => SfxCount++;
         public void PlayUiSfx(AudioClip clip) => UiSfxCount++;
+    }
+
+    internal sealed class RecordingFadingAudioOutput :
+        RecordingAudioOutput,
+        IBgmFadePlaybackBackend
+    {
+        public int InitialInitCount { get; private set; }
+        public int CrossfadeToNormalCount { get; private set; }
+        public int CrossfadeToSpecialCount { get; private set; }
+        public int ResultFadeCount { get; private set; }
+        public int StopAllImmediateCount { get; private set; }
+        public float AdvancedSeconds { get; private set; }
+        public float LastDuration { get; private set; }
+        public bool LastPreserveNormal { get; private set; }
+
+        public void PlayInitialInit(float durationSeconds)
+        {
+            InitialInitCount++;
+            LastSpecialTrack = BgmTrackKind.Init;
+            LastDuration = durationSeconds;
+            Operations.Add("PlayInitial:Init");
+        }
+
+        public void CrossfadeToNormal(float durationSeconds)
+        {
+            CrossfadeToNormalCount++;
+            LastDuration = durationSeconds;
+            Operations.Add("Crossfade:Normal");
+        }
+
+        public void CrossfadeToSpecial(
+            BgmTrackKind trackKind,
+            bool preserveNormalPosition,
+            float durationSeconds)
+        {
+            CrossfadeToSpecialCount++;
+            LastSpecialTrack = trackKind;
+            LastPreserveNormal = preserveNormalPosition;
+            LastDuration = durationSeconds;
+            Operations.Add($"Crossfade:{trackKind}");
+        }
+
+        public void FadeOutSpecialAndStop(float durationSeconds)
+        {
+            ResultFadeCount++;
+            LastDuration = durationSeconds;
+            Operations.Add("FadeOut:Result");
+        }
+
+        public void StopAllImmediate()
+        {
+            StopAllImmediateCount++;
+            Operations.Add("Stop:AllImmediate");
+        }
+
+        public void Advance(float unscaledDeltaTime)
+        {
+            AdvancedSeconds += unscaledDeltaTime;
+        }
     }
 
     internal sealed class FakeSceneChangeSource : ISceneChangeSource

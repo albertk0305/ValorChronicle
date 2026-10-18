@@ -13,6 +13,7 @@ namespace ValorChronicle.Audio.Core
         private readonly SceneBgmPolicy sceneBgmPolicy;
         private readonly BgmPlaybackCoordinator bgmCoordinator;
         private AudioSettingsVolumeBinding volumeBinding;
+        private bool isInitialInitPlaybackPending;
 
         public AudioService(
             SettingsService settingsService,
@@ -20,7 +21,8 @@ namespace ValorChronicle.Audio.Core
             IBgmPlaybackBackend bgmPlayback,
             IAudioEffectOutput effectOutput,
             ISceneChangeSource sceneChangeSource,
-            SceneBgmPolicy sceneBgmPolicy = null)
+            SceneBgmPolicy sceneBgmPolicy = null,
+            BgmFadeSettings bgmFadeSettings = null)
         {
             this.settingsService = settingsService
                 ?? throw new ArgumentNullException(nameof(settingsService));
@@ -32,7 +34,8 @@ namespace ValorChronicle.Audio.Core
                 ?? throw new ArgumentNullException(nameof(sceneChangeSource));
             this.sceneBgmPolicy = sceneBgmPolicy ?? new SceneBgmPolicy();
             bgmCoordinator = new BgmPlaybackCoordinator(
-                bgmPlayback ?? throw new ArgumentNullException(nameof(bgmPlayback)));
+                bgmPlayback ?? throw new ArgumentNullException(nameof(bgmPlayback)),
+                bgmFadeSettings);
         }
 
         public bool IsInitialized { get; private set; }
@@ -48,8 +51,33 @@ namespace ValorChronicle.Audio.Core
                 volumeOutput);
             sceneChangeSource.Subscribe(HandleSceneChanged);
             IsInitialized = true;
-            HandleSceneChanged(sceneChangeSource.CurrentSceneName);
+            SceneAudioContext initialContext = sceneBgmPolicy.Resolve(
+                sceneChangeSource.CurrentSceneName);
+            if (initialContext == SceneAudioContext.Init)
+            {
+                isInitialInitPlaybackPending = true;
+            }
+            else
+            {
+                bgmCoordinator.ApplyScene(initialContext);
+            }
             return true;
+        }
+
+        public bool NotifyInitialInitReady()
+        {
+            RequireInitialized();
+            if (!isInitialInitPlaybackPending)
+                return false;
+
+            isInitialInitPlaybackPending = false;
+            if (sceneBgmPolicy.Resolve(sceneChangeSource.CurrentSceneName)
+                != SceneAudioContext.Init)
+            {
+                return false;
+            }
+
+            return bgmCoordinator.StartInitialInit();
         }
 
         public void PlayBgm(BgmTrackKind trackKind)
@@ -76,6 +104,20 @@ namespace ValorChronicle.Audio.Core
             bgmCoordinator.ResumeCurrent();
         }
 
+        public bool FadeOutBattleResultBgm()
+        {
+            RequireInitialized();
+            return bgmCoordinator.FadeOutBattleResult();
+        }
+
+        public void Advance(float unscaledDeltaTime)
+        {
+            if (!IsInitialized)
+                return;
+
+            bgmCoordinator.Advance(unscaledDeltaTime);
+        }
+
         public void PlaySfx(AudioClip clip)
         {
             RequireInitialized();
@@ -99,12 +141,22 @@ namespace ValorChronicle.Audio.Core
             volumeBinding?.Dispose();
             volumeBinding = null;
             bgmCoordinator.StopAll();
+            isInitialInitPlaybackPending = false;
             IsInitialized = false;
         }
 
         private void HandleSceneChanged(string sceneName)
         {
-            bgmCoordinator.ApplyScene(sceneBgmPolicy.Resolve(sceneName));
+            SceneAudioContext context = sceneBgmPolicy.Resolve(sceneName);
+            if (isInitialInitPlaybackPending)
+            {
+                if (context == SceneAudioContext.Init)
+                    return;
+
+                isInitialInitPlaybackPending = false;
+            }
+
+            bgmCoordinator.ApplyScene(context);
         }
 
         private void RequireInitialized()

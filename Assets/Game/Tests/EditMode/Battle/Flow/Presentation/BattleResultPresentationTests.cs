@@ -271,6 +271,30 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(fixture.Controller.LastPresentedResult, Is.Not.Null);
         }
 
+        [TestCase(BattleResultKind.Victory)]
+        [TestCase(BattleResultKind.Defeat)]
+        [TestCase(BattleResultKind.TurnLimitReached)]
+        public void ResultPresented_FiresAfterPanelIsShownAndOnlyOnce(
+            BattleResultKind resultKind)
+        {
+            PresentationFixture fixture = CreatePresentation(delay: 0f);
+            int presentedCount = 0;
+            BattleResultKind presentedKind = BattleResultKind.None;
+            fixture.Controller.ResultPresented += kind =>
+            {
+                Assert.That(fixture.View.gameObject.activeSelf, Is.True);
+                presentedCount++;
+                presentedKind = kind;
+            };
+            BattleFinalResult result = FinalResult(resultKind, 100000L);
+
+            fixture.Source.Publish(result);
+            fixture.Source.Publish(result);
+
+            Assert.That(presentedCount, Is.EqualTo(1));
+            Assert.That(presentedKind, Is.EqualTo(resultKind));
+        }
+
         [UnityTest]
         public IEnumerator SaveFailure_StaysHiddenAndRetryCanPresent()
         {
@@ -457,14 +481,18 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             BattleResultKind resultKind,
             long damageScore)
         {
+            const int turnLimit = 25;
+            int finishedTurn = resultKind == BattleResultKind.TurnLimitReached
+                ? turnLimit
+                : 10;
             return BattleResultFinalizer.Create(
                 new BattleFinalizationInput(
                     resultKind,
                     "boss_test",
                     BattleDifficultyIds.Normal,
                     100000L,
-                    25,
-                    10,
+                    turnLimit,
+                    finishedTurn,
                     damageScore,
                     BattleResultBalanceDefaults.Create()));
         }
