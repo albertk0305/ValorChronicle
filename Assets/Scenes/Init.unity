@@ -447,6 +447,7 @@ MonoBehaviour:
   settingButton: {fileID: 43165003}
   settingsPanelPrefab: {fileID: 1179796918045929915, guid: e542fb8655907f54b81e3c16a0277064, type: 3}
   panelParent: {fileID: 519175548}
+  pauseWhileOpen: 0
 --- !u!1 &1017674357
 GameObject:
   m_ObjectHideFlags: 0
@@ -1195,6 +1196,7 @@ GameObject:
   - component: {fileID: 2090646876}
   - component: {fileID: 2090646875}
   - component: {fileID: 2090646874}
+  - component: {fileID: 2090646877}
   m_Layer: 5
   m_Name: ExitButton
   m_TagString: Untagged
@@ -1264,7 +1266,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 2090646875}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 2090646877}
+        m_TargetAssemblyTypeName: GameExitButton, ValorChronicle.Game
+        m_MethodName: ExitGame
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &2090646875
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1303,6 +1317,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2090646872}
   m_CullTransparentMesh: 1
+--- !u!114 &2090646877
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2090646872}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a6126ebcd0206c4fabe4303f48a0290, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ValorChronicle.Game::GameExitButton
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
