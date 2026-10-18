@@ -348,6 +348,55 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
         }
 
         [Test]
+        public void StatsLookup_OpensLatestLocalizedDataClosesAndReopensOnce()
+        {
+            Fixture fixture = CreateFixture(
+                Profile(MareaId, 1, 0, 1000L),
+                new[] { MareaDefinition() });
+            fixture.UpgradeRoot.SetActive(true);
+            Assert.That(fixture.UpgradeController.TryPresent(MareaId),
+                Is.True);
+
+            fixture.UpgradeView.StatsLookupButton.onClick.Invoke();
+
+            Assert.That(fixture.StatsLookupPanel.IsVisible, Is.True);
+            Assert.That(fixture.UpgradeView.IsStatsLookupOpen, Is.True);
+            Assert.That(fixture.StatsLookupPanel.ContentText.text,
+                Does.Contain("Final ATK"));
+            fixture.LocalizationService.SetLocale("ko");
+            Assert.That(fixture.StatsLookupPanel.ContentText.text,
+                Does.Contain("최종 공격력"));
+
+            fixture.StatsLookupCloseButton.onClick.Invoke();
+            Assert.That(fixture.StatsLookupPanel.IsVisible, Is.False);
+            Assert.That(fixture.UpgradeView.IsStatsLookupOpen, Is.False);
+
+            CharacterLevelUpPressHoldInput levelUpInput =
+                fixture.UpgradeView.LevelUpPressHoldInput;
+            Assert.That(levelUpInput.TryBeginPress(1), Is.True);
+            levelUpInput.Release(1);
+            Assert.That(fixture.UpgradeController.CurrentModel.Level,
+                Is.EqualTo(2));
+
+            fixture.UpgradeView.StatsLookupButton.onClick.Invoke();
+            Assert.That(fixture.StatsLookupPanel.ContentText.text,
+                Does.Contain("레벨: 2"));
+            fixture.UpgradeRoot.SetActive(false);
+            InvokeLifecycle(fixture.UpgradeView, "OnDisable");
+            Assert.That(fixture.StatsLookupPanel.IsVisible, Is.False);
+            Assert.That(fixture.UpgradeView.IsStatsLookupOpen, Is.False);
+            fixture.UpgradeRoot.SetActive(true);
+            Assert.That(fixture.UpgradeController.TryPresent(MareaId),
+                Is.True);
+            Assert.That(fixture.UpgradeView.StatsLookupButton.interactable,
+                Is.True);
+
+            fixture.UpgradeView.StatsLookupButton.onClick.Invoke();
+            fixture.StatsLookupCloseButton.onClick.Invoke();
+            Assert.That(fixture.StatsLookupPanel.IsVisible, Is.False);
+        }
+
+        [Test]
         public void UpgradeLookupButtonsSwitchModesAndReturnToSameCharacter()
         {
             Fixture fixture = CreateFixture(
@@ -1165,12 +1214,19 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 AssetDatabase.LoadAssetAtPath<TextAsset>(
                     "Assets/Data/Localization/characters.tsv");
             Assert.That(localizationAsset, Is.Not.Null);
+            TextAsset uiLocalizationAsset =
+                AssetDatabase.LoadAssetAtPath<TextAsset>(
+                    "Assets/Data/Localization/ui.tsv");
+            Assert.That(uiLocalizationAsset, Is.Not.Null);
             LocalizationService localizationService =
                 new LocalizationService(new[]
                 {
                     LocalizationTableParser.Parse(
                         "characters.tsv",
-                        localizationAsset.text)
+                        localizationAsset.text),
+                    LocalizationTableParser.Parse(
+                        "ui.tsv",
+                        uiLocalizationAsset.text)
                 });
 
             GameObject container = Object("GameContent");
@@ -1188,9 +1244,14 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
             rosterController.Initialize(saveService, database);
 
             CharacterUpgradeScreenView upgradeView = UpgradeView(upgradeRoot);
+            CharacterStatsLookupPanelView statsLookupPanel =
+                StatsLookupPanel(
+                    upgradeRoot,
+                    out Button statsLookupCloseButton);
             var upgradeController = container.AddComponent<
                 CharacterUpgradeScreenController>();
             upgradeController.Configure(upgradeView, catalog, icons);
+            upgradeController.ConfigureStatsLookup(statsLookupPanel);
             upgradeController.Initialize(
                 saveService,
                 database,
@@ -1228,7 +1289,9 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 localizationService,
                 lookupRoot,
                 lookupController,
-                lookupView);
+                lookupView,
+                statsLookupPanel,
+                statsLookupCloseButton);
         }
 
         private CharacterRosterScreenView RosterView(GameObject root)
@@ -1309,7 +1372,25 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 ButtonObject("Return", root.transform),
                 ButtonObject("AwakeningLookup", root.transform),
                 ButtonObject("SkillsLookup", root.transform));
+            view.ConfigureStatsLookupButton(
+                ButtonObject("StatsLookup", root.transform));
             return view;
+        }
+
+        private CharacterStatsLookupPanelView StatsLookupPanel(
+            GameObject root,
+            out Button closeButton)
+        {
+            GameObject panelRoot = Object("StatsPanel", root.transform);
+            closeButton = ButtonObject("Close", panelRoot.transform);
+            RectTransform viewport = Rect("ScrollPanel", panelRoot.transform);
+            viewport.gameObject.AddComponent<Image>();
+            TMP_Text text = Text("Text", viewport);
+            CharacterStatsLookupPanelView panel =
+                panelRoot.AddComponent<CharacterStatsLookupPanelView>();
+            panel.Configure(closeButton, text, viewport);
+            panelRoot.SetActive(false);
+            return panel;
         }
 
         private CharacterLookupScreenView LookupView(GameObject root)
@@ -1616,7 +1697,9 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 LocalizationService localizationService,
                 GameObject lookupRoot,
                 CharacterLookupScreenController lookupController,
-                CharacterLookupScreenView lookupView)
+                CharacterLookupScreenView lookupView,
+                CharacterStatsLookupPanelView statsLookupPanel,
+                Button statsLookupCloseButton)
             {
                 SelectRoot = selectRoot;
                 UpgradeRoot = upgradeRoot;
@@ -1632,6 +1715,8 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 LookupRoot = lookupRoot;
                 LookupController = lookupController;
                 LookupView = lookupView;
+                StatsLookupPanel = statsLookupPanel;
+                StatsLookupCloseButton = statsLookupCloseButton;
             }
 
             public GameObject SelectRoot { get; }
@@ -1648,6 +1733,8 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
             public GameObject LookupRoot { get; }
             public CharacterLookupScreenController LookupController { get; }
             public CharacterLookupScreenView LookupView { get; }
+            public CharacterStatsLookupPanelView StatsLookupPanel { get; }
+            public Button StatsLookupCloseButton { get; }
         }
     }
 }

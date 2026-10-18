@@ -120,7 +120,9 @@ namespace ValorChronicle.Characters.Build
                 level,
                 awakening,
                 maxHp,
-                attack);
+                attack,
+                multipliers.MaxHpMultiplier,
+                multipliers.AttackMultiplier);
         }
 
         private static void ValidateAwakening(int awakening)

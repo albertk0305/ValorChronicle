@@ -7,13 +7,17 @@ namespace ValorChronicle.Characters.Build
             int level,
             int awakening,
             long maxHp,
-            long attack)
+            long attack,
+            double maxHpMultiplier,
+            double attackMultiplier)
         {
             CharacterId = characterId;
             Level = level;
             Awakening = awakening;
             MaxHp = maxHp;
             Attack = attack;
+            MaxHpMultiplier = maxHpMultiplier;
+            AttackMultiplier = attackMultiplier;
         }
 
         public string CharacterId { get; }
@@ -21,5 +25,7 @@ namespace ValorChronicle.Characters.Build
         public int Awakening { get; }
         public long MaxHp { get; }
         public long Attack { get; }
+        public double MaxHpMultiplier { get; }
+        public double AttackMultiplier { get; }
     }
 }

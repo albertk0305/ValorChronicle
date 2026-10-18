@@ -28,6 +28,8 @@ namespace ValorChronicle.Characters.Presentation
         private LocalizationService localizationService;
         private CharacterLevelUpPersistenceService persistenceService;
         private CharacterLevelUpPreviewSession previewSession;
+        private CharacterStatsLookupPanelView statsLookupPanel;
+        private CharacterStatsLookupTextBuilder statsLookupTextBuilder;
         private CharacterDefinition previewDefinition;
         private bool subscribed;
         private bool localizationSubscribed;
@@ -95,6 +97,7 @@ namespace ValorChronicle.Characters.Presentation
 
         private void OnDisable()
         {
+            CloseStatsLookup();
             CancelPreviewAndRestoreAuthoritative(renderView: false);
             Unsubscribe();
         }
@@ -116,6 +119,26 @@ namespace ValorChronicle.Characters.Presentation
             if (isActiveAndEnabled)
             {
                 Subscribe();
+            }
+        }
+
+        public void ConfigureStatsLookup(
+            CharacterStatsLookupPanelView configuredPanel)
+        {
+            if (statsLookupPanel != null)
+            {
+                statsLookupPanel.CloseRequested -=
+                    HandleStatsLookupCloseRequested;
+            }
+
+            statsLookupPanel = configuredPanel
+                ?? throw new ArgumentNullException(
+                    nameof(configuredPanel));
+            statsLookupPanel.Hide();
+            if (subscribed)
+            {
+                statsLookupPanel.CloseRequested +=
+                    HandleStatsLookupCloseRequested;
             }
         }
 
@@ -161,6 +184,8 @@ namespace ValorChronicle.Characters.Presentation
                 ?? CharacterBuildResolverFactory.CreateDefault();
             relicStatBonusResolver = new RelicStatBonusResolver(
                 definitionDatabase);
+            statsLookupTextBuilder = new CharacterStatsLookupTextBuilder(
+                localizationService);
             persistenceService = initializedPersistenceService
                 ?? new CharacterLevelUpPersistenceService(saveService);
             initialized = true;
@@ -312,7 +337,10 @@ namespace ValorChronicle.Characters.Presentation
                 battleRecords,
                 nextLevelCost,
                 !isMaximumLevel,
-                !isMaximumLevel && battleRecords >= nextLevelCost);
+                !isMaximumLevel && battleRecords >= nextLevelCost,
+                build.MaxHpMultiplier,
+                build.AttackMultiplier,
+                currentRelicStatBonuses);
         }
 
         private void Subscribe()
@@ -330,6 +358,12 @@ namespace ValorChronicle.Characters.Presentation
             view.AwakeningLookupRequested +=
                 HandleAwakeningLookupRequested;
             view.SkillsLookupRequested += HandleSkillsLookupRequested;
+            view.StatsLookupRequested += HandleStatsLookupRequested;
+            if (statsLookupPanel != null)
+            {
+                statsLookupPanel.CloseRequested +=
+                    HandleStatsLookupCloseRequested;
+            }
             view.Disabled += HandleViewDisabled;
             subscribed = true;
             SubscribeLocalization();
@@ -350,6 +384,12 @@ namespace ValorChronicle.Characters.Presentation
             view.AwakeningLookupRequested -=
                 HandleAwakeningLookupRequested;
             view.SkillsLookupRequested -= HandleSkillsLookupRequested;
+            view.StatsLookupRequested -= HandleStatsLookupRequested;
+            if (statsLookupPanel != null)
+            {
+                statsLookupPanel.CloseRequested -=
+                    HandleStatsLookupCloseRequested;
+            }
             view.Disabled -= HandleViewDisabled;
             subscribed = false;
             UnsubscribeLocalization();
@@ -406,6 +446,8 @@ namespace ValorChronicle.Characters.Presentation
             {
                 view.Render(CurrentModel);
             }
+
+            RefreshOpenStatsLookup();
         }
 
         private void HandleReturnRequested()
@@ -434,6 +476,57 @@ namespace ValorChronicle.Characters.Presentation
             {
                 SkillsLookupRequested?.Invoke(CurrentModel.CharacterId);
             }
+        }
+
+        private void HandleStatsLookupRequested()
+        {
+            if (operationInProgress
+                || previewSession != null
+                || CurrentModel == null
+                || statsLookupPanel == null)
+            {
+                return;
+            }
+
+            string characterId = CurrentModel.CharacterId;
+            if (!TryPresent(characterId)
+                || !definitionDatabase.TryGetCharacter(
+                    characterId,
+                    out CharacterDefinition definition))
+            {
+                return;
+            }
+
+            view.SetStatsLookupOpen(true);
+            statsLookupPanel.Show(
+                statsLookupTextBuilder.Build(CurrentModel, definition));
+        }
+
+        private void HandleStatsLookupCloseRequested()
+        {
+            CloseStatsLookup();
+        }
+
+        private void CloseStatsLookup()
+        {
+            statsLookupPanel?.Hide();
+            view?.SetStatsLookupOpen(false);
+        }
+
+        private void RefreshOpenStatsLookup()
+        {
+            if (statsLookupPanel?.IsVisible != true
+                || CurrentModel == null
+                || statsLookupTextBuilder == null
+                || !definitionDatabase.TryGetCharacter(
+                    CurrentModel.CharacterId,
+                    out CharacterDefinition definition))
+            {
+                return;
+            }
+
+            statsLookupPanel.Show(
+                statsLookupTextBuilder.Build(CurrentModel, definition));
         }
 
         private void HandleLevelUpPressStarted()
@@ -565,6 +658,7 @@ namespace ValorChronicle.Characters.Presentation
 
         private void HandleViewDisabled()
         {
+            CloseStatsLookup();
             CancelPreviewAndRestoreAuthoritative(renderView: false);
         }
 

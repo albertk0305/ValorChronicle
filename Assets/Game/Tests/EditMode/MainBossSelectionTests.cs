@@ -393,7 +393,7 @@ namespace ValorChronicle.Tests.EditMode
                 Assert.That(controller.LevelSelectView.BossId,
                     Is.EqualTo("kragmor"));
                 Assert.That(controller.LevelSelectView.BossNameText.text,
-                    Is.EqualTo("용광거신 크라그모르"));
+                    Is.EqualTo("크라그모르"));
                 Assert.That(controller.LevelSelectView.BestScoreText.text,
                     Is.EqualTo("마스터 모드 도전"));
                 Assert.That(controller.UnvalidPartyView.MessageText.text,

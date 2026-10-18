@@ -49,6 +49,12 @@ namespace ValorChronicle.Tests.EditMode
 
             Assert.That(result.MaxHpIncreaseRateSum, Is.EqualTo(expectedRate));
             Assert.That(result.AttackIncreaseRateSum, Is.Zero);
+            Assert.That(result.Sources, Has.Count.EqualTo(1));
+            Assert.That(result.Sources[0].DefinitionId, Is.EqualTo(bark.Id));
+            Assert.That(result.Sources[0].Awakening, Is.EqualTo(awakening));
+            Assert.That(result.Sources[0].EffectType,
+                Is.EqualTo(RelicEffectType.MaxHpIncrease));
+            Assert.That(result.Sources[0].Rate, Is.EqualTo(expectedRate));
         }
 
         [Test]

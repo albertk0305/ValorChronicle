@@ -31,6 +31,7 @@ namespace ValorChronicle.Relics.Stats
 
             double maxHpIncreaseRateSum = 0d;
             double attackIncreaseRateSum = 0d;
+            var sources = new List<RelicStatBonusSource>();
             var resolvedInstanceIds = new HashSet<string>(
                 StringComparer.Ordinal);
             int slotCount = Math.Min(
@@ -72,6 +73,14 @@ namespace ValorChronicle.Relics.Stats
                         attackIncreaseRateSum += rate;
                         break;
                 }
+
+                sources.Add(new RelicStatBonusSource(
+                    definition.Id,
+                    definition.DisplayNameKey,
+                    definition.DescriptionKey,
+                    definition.EffectType,
+                    instance.Awakening,
+                    rate));
             }
 
             if (!IsValidRate(maxHpIncreaseRateSum)
@@ -82,7 +91,8 @@ namespace ValorChronicle.Relics.Stats
 
             return new RelicStatBonusSummary(
                 maxHpIncreaseRateSum,
-                attackIncreaseRateSum);
+                attackIncreaseRateSum,
+                sources.AsReadOnly());
         }
 
         private static bool TryFindUniqueInstance(

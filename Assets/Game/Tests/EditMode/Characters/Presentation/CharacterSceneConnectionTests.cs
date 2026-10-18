@@ -110,6 +110,21 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
 
                 Assert.That(installers, Has.Length.EqualTo(1));
                 Assert.That(installers[0].IsConfigured, Is.True);
+                Transform content = installers[0].transform.Find(
+                    "CharacterSlots/CharacterSelectSlots");
+                Assert.That(content, Is.Not.Null);
+                Transform[] authoredCells = content.Cast<Transform>()
+                    .Where(child => child.name.StartsWith(
+                        "CharacterSlot",
+                        StringComparison.Ordinal))
+                    .ToArray();
+                Assert.That(content.childCount, Is.EqualTo(30));
+                Assert.That(authoredCells, Has.Length.EqualTo(30));
+                Assert.That(
+                    authoredCells.Select(cell => cell.name).Distinct().Count(),
+                    Is.EqualTo(authoredCells.Length));
+
+                InvokeAwake(installers[0]);
                 Transform upgrade = installers[0].transform.parent.Find(
                     "CharacterUpgrade");
                 Assert.That(upgrade, Is.Not.Null);
@@ -126,21 +141,27 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                 Assert.That(upgrade.Find("ReturnButton"), Is.Not.Null);
                 Assert.That(upgrade.Find("AwakeningButton"), Is.Not.Null);
                 Assert.That(upgrade.Find("SkillsButton"), Is.Not.Null);
-                Transform statsText = upgrade.Find("StatsLookUpPanel/Text");
+                Transform statsPanel = upgrade.Find("StatsLookUpPanel");
+                Assert.That(statsPanel, Is.Not.Null);
+                Assert.That(statsPanel.gameObject.activeSelf, Is.False);
+                Assert.That(statsPanel.GetComponent<
+                    CharacterStatsLookupPanelView>(), Is.Not.Null);
+                Assert.That(statsPanel.Find("BackgroundPanel")
+                    .GetComponent<Image>().raycastTarget, Is.True);
+                Transform statsViewport = statsPanel.Find("ScrollPanel");
+                Assert.That(statsViewport, Is.Not.Null);
+                Assert.That(statsViewport.GetComponent<ScrollRect>(),
+                    Is.Not.Null);
+                Assert.That(statsViewport.GetComponent<RectMask2D>(),
+                    Is.Not.Null);
+                Transform statsText = statsViewport.Find("Text");
                 Assert.That(statsText, Is.Not.Null);
                 MonoBehaviour[] statsBindings = statsText
                     .GetComponents<MonoBehaviour>()
                     .Where(component => component.GetType().FullName
                         == "ValorChronicle.Localization.LocalizedTMPText")
                     .ToArray();
-                Assert.That(statsBindings, Has.Length.EqualTo(1));
-                var statsBinding = new SerializedObject(statsBindings[0]);
-                Assert.That(statsBinding.FindProperty("targetText")
-                    .objectReferenceValue,
-                    Is.SameAs(statsText.GetComponent<TMP_Text>()));
-                Assert.That(statsBinding.FindProperty("localizationKey")
-                    .stringValue,
-                    Is.EqualTo("ui.character.stats"));
+                Assert.That(statsBindings, Is.Empty);
                 Transform relicSlots = upgrade.Find("Artifacts");
                 Assert.That(relicSlots, Is.Not.Null);
                 foreach (string slotName in new[]
@@ -178,7 +199,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                     Is.Not.Null);
                 Assert.That(
                     relicSelection.Find(
-                        "ArtifactPreview/ArtifactSelect/ArtifactSlots"),
+                        "ArtifactPreview/ArtifactSelect/ScrollPanel/ArtifactSlots"),
                     Is.Not.Null);
                 Assert.That(
                     relicSelection.Find(
@@ -211,10 +232,43 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                     Assert.That(lookup.Find(
                         $"SkillLookUp/{skillButton}"), Is.Not.Null);
                 }
-                Transform content = installers[0].transform.Find(
-                    "CharacterSlots/CharacterSelectSlots");
-                Assert.That(content, Is.Not.Null);
-                Assert.That(content.childCount, Is.EqualTo(30));
+                Transform characterViewport = content.parent;
+                VirtualizedCharacterGridView characterGrid =
+                    characterViewport.GetComponent<
+                        VirtualizedCharacterGridView>();
+                Assert.That(characterGrid, Is.Not.Null);
+                Assert.That(characterGrid.IsConfigured, Is.True);
+                int requiredPoolRows =
+                    VirtualizedGridLayout.GetRequiredPoolRowCount(
+                        characterViewport.GetComponent<RectTransform>()
+                            .rect.height,
+                        200f,
+                        265f,
+                        1);
+                int expectedPoolSize = requiredPoolRows * 5;
+                CharacterRosterCellView[] poolCells = content
+                    .GetComponentsInChildren<CharacterRosterCellView>(true);
+                CharacterRosterCellView[] runtimeCells = poolCells
+                    .Where(cell => cell.name.StartsWith(
+                        "Character (Virtual ",
+                        StringComparison.Ordinal))
+                    .ToArray();
+                Assert.That(characterGrid.PoolSize,
+                    Is.EqualTo(expectedPoolSize));
+                Assert.That(poolCells, Has.Length.EqualTo(expectedPoolSize));
+                Assert.That(characterGrid.PoolCells.Distinct().Count(),
+                    Is.EqualTo(characterGrid.PoolSize));
+                Assert.That(runtimeCells,
+                    Has.Length.EqualTo(expectedPoolSize - authoredCells.Length));
+                Assert.That(poolCells.All(cell =>
+                    cell.transform.parent == content), Is.True);
+                Assert.That(authoredCells.All(cell =>
+                    cell.GetComponent<CharacterRosterCellView>()?.IsConfigured
+                        == true), Is.True);
+                Assert.That(runtimeCells.All(cell => cell.IsConfigured),
+                    Is.True);
+                Assert.That(content.GetComponentsInChildren<
+                    RelicInventoryCellView>(true), Is.Empty);
 
                 Transform selectReturn = installers[0].transform.Find(
                     "ReturnButton");
@@ -351,6 +405,34 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                     Has.Length.EqualTo(1));
                 Assert.That(levelUpButton.GetComponents<
                     CharacterLevelUpPressHoldInput>(), Has.Length.EqualTo(1));
+                Transform statsPanel = parent.Find(
+                    "CharacterUpgrade/StatsLookUpPanel");
+                Transform statsViewport = statsPanel.Find("ScrollPanel");
+                Assert.That(statsPanel.GetComponents<
+                    CharacterStatsLookupPanelView>(), Has.Length.EqualTo(1));
+                Assert.That(statsViewport.GetComponents<ScrollRect>(),
+                    Has.Length.EqualTo(1));
+                Assert.That(statsViewport.GetComponents<RectMask2D>(),
+                    Has.Length.EqualTo(1));
+                ScrollRect statsScrollRect =
+                    statsViewport.GetComponent<ScrollRect>();
+                Assert.That(statsScrollRect.movementType,
+                    Is.EqualTo(ScrollRect.MovementType.Clamped));
+                Assert.That(statsScrollRect.inertia, Is.True);
+                Assert.That(statsScrollRect.decelerationRate,
+                    Is.EqualTo(0.135f));
+                Assert.That(statsScrollRect.scrollSensitivity,
+                    Is.EqualTo(1f));
+                CharacterStatsLookupPanelView statsPanelView =
+                    statsPanel.GetComponent<CharacterStatsLookupPanelView>();
+                int statsCloseCount = 0;
+                statsPanelView.CloseRequested += () => statsCloseCount++;
+                statsPanelView.Show("Stats");
+                InvokeLifecycle(statsPanelView, "OnEnable");
+                statsPanel.Find("CloseButton")
+                    .GetComponent<Button>().onClick.Invoke();
+                Assert.That(statsCloseCount, Is.EqualTo(1));
+                Assert.That(statsPanelView.IsVisible, Is.False);
 
                 VirtualizedCharacterGridView grid = viewport.GetComponent<
                     VirtualizedCharacterGridView>();

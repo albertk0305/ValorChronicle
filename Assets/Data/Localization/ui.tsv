@@ -12,6 +12,26 @@ ui.settings.redeem_save_failed	Failed to save your reward. Please try again.	보
 ui.init.press_to_start	Press to Start	시작하려면 누르세요
 ui.init.initialization_failed	Game initialization failed. Please restart the game.	게임 초기화에 실패했습니다. 게임을 다시 실행해 주세요.
 ui.character.stats	Stats	능력치
+ui.character.stats_lookup.title	Detailed Stats	상세 능력치
+ui.character.stats_lookup.basic	Basic Stats	기본 능력치
+ui.character.stats_lookup.level	Level: {value}	레벨: {value}
+ui.character.stats_lookup.awakening	Awakening: {value}	각성: {value}
+ui.character.stats_lookup.level_attack	Level ATK: {value}	레벨 공격력: {value}
+ui.character.stats_lookup.level_max_hp	Level Max HP: {value}	레벨 최대 HP: {value}
+ui.character.stats_lookup.attack	Final ATK: {value}	최종 공격력: {value}
+ui.character.stats_lookup.max_hp	Final Max HP: {value}	최종 최대 HP: {value}
+ui.character.stats_lookup.critical_chance	Critical Chance: {value}	치명타 확률: {value}
+ui.character.stats_lookup.critical_damage	Critical Damage: {value}	치명타 피해: {value}
+ui.character.stats_lookup.permanent	Permanent Effects	영구 효과
+ui.character.stats_lookup.conditional	Conditional Effects	조건부 효과
+ui.character.stats_lookup.awakening_source	Awakening	각성
+ui.character.stats_lookup.attack_increase	ATK	공격력
+ui.character.stats_lookup.max_hp_increase	Max HP	최대 HP
+ui.character.stats_lookup.permanent_source	{source}: {effect} +{value}	{source}: {effect} +{value}
+ui.character.stats_lookup.relic_source	{name} (Awakening {awakening}): {effect} +{value}	{name} (각성 {awakening}): {effect} +{value}
+ui.character.stats_lookup.source	Source: {source}	출처: {source}
+ui.character.stats_lookup.condition	Activation Condition: {condition}	발동 조건: {condition}
+ui.character.stats_lookup.effect	Effect: {effect}	효과: {effect}
 ui.gacha.skip	Skip	건너뛰기
 ui.battle.turn_format	Turn\n{current} / {limit}	턴\n{current} / {limit}
 ui.battle.combo_format	Combo {count}	콤보 {count}

@@ -1,4 +1,8 @@
 key	en	ko
+marea.stats_lookup.passive.condition	Water Element is present at attack start.	공격 시작 시 물 원소가 있습니다.
+marea.stats_lookup.passive.effect	Damage dealt +{damage_increase}%.	주는 피해 +{damage_increase}%.
+marea.stats_lookup.lingering_surge.condition	Consume {required_water} Water Elements at once.	물 원소 {required_water}개를 한 번에 소모합니다.
+marea.stats_lookup.lingering_surge.effect	Gain one Lingering Surge. The next 3 or 4 Match attack deals {damage_increase}% more final damage and consumes it; a 5 Match attack does not use it.	여류 파도 1개를 얻습니다. 다음 3매치 또는 4매치 공격의 최종 피해가 {damage_increase}% 증가한 후 소모되며, 5매치 공격에는 사용되지 않습니다.
 marea	Marea Bluefang	마레아 블루팽
 character.lookup.description_unavailable	Description unavailable.	설명을 표시할 수 없습니다.
 character.lookup.awakening.title	Awakening {stage} — {name}	각성 {stage} — {name}

@@ -100,7 +100,7 @@ namespace ValorChronicle.Tests.EditMode
                 Is.EqualTo("Kragmor"));
             Assert.That(
                 service.GetText(KragmorRules.BossId, "ko"),
-                Is.EqualTo("용광거신 크라그모르"));
+                Is.EqualTo("크라그모르"));
         }
 
         [Test]

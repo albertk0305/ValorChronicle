@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Relics.Stats
 {
@@ -6,7 +8,8 @@ namespace ValorChronicle.Relics.Stats
     {
         public RelicStatBonusSummary(
             double maxHpIncreaseRateSum,
-            double attackIncreaseRateSum)
+            double attackIncreaseRateSum,
+            IReadOnlyList<RelicStatBonusSource> sources = null)
         {
             ValidateRate(
                 maxHpIncreaseRateSum,
@@ -16,6 +19,7 @@ namespace ValorChronicle.Relics.Stats
                 nameof(attackIncreaseRateSum));
             MaxHpIncreaseRateSum = maxHpIncreaseRateSum;
             AttackIncreaseRateSum = attackIncreaseRateSum;
+            Sources = sources ?? Array.Empty<RelicStatBonusSource>();
         }
 
         public static RelicStatBonusSummary None { get; } =
@@ -23,6 +27,7 @@ namespace ValorChronicle.Relics.Stats
 
         public double MaxHpIncreaseRateSum { get; }
         public double AttackIncreaseRateSum { get; }
+        public IReadOnlyList<RelicStatBonusSource> Sources { get; }
 
         private static void ValidateRate(double rate, string parameterName)
         {
@@ -37,5 +42,31 @@ namespace ValorChronicle.Relics.Stats
                         + "non-negative.");
             }
         }
+    }
+
+    public sealed class RelicStatBonusSource
+    {
+        public RelicStatBonusSource(
+            string definitionId,
+            string displayNameKey,
+            string descriptionKey,
+            RelicEffectType effectType,
+            int awakening,
+            double rate)
+        {
+            DefinitionId = definitionId;
+            DisplayNameKey = displayNameKey;
+            DescriptionKey = descriptionKey;
+            EffectType = effectType;
+            Awakening = awakening;
+            Rate = rate;
+        }
+
+        public string DefinitionId { get; }
+        public string DisplayNameKey { get; }
+        public string DescriptionKey { get; }
+        public RelicEffectType EffectType { get; }
+        public int Awakening { get; }
+        public double Rate { get; }
     }
 }

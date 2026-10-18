@@ -1,4 +1,5 @@
 using UnityEngine;
+using ValorChronicle.Relics.Stats;
 
 namespace ValorChronicle.Characters.Presentation
 {
@@ -16,7 +17,10 @@ namespace ValorChronicle.Characters.Presentation
             long battleRecords,
             long nextLevelCost,
             bool showLevelUpCost,
-            bool canLevelUp)
+            bool canLevelUp,
+            double characterMaxHpMultiplier = 1d,
+            double characterAttackMultiplier = 1d,
+            RelicStatBonusSummary relicStatBonuses = null)
         {
             CharacterId = characterId;
             DisplayName = displayName;
@@ -30,6 +34,10 @@ namespace ValorChronicle.Characters.Presentation
             NextLevelCost = nextLevelCost;
             ShowLevelUpCost = showLevelUpCost;
             CanLevelUp = canLevelUp;
+            CharacterMaxHpMultiplier = characterMaxHpMultiplier;
+            CharacterAttackMultiplier = characterAttackMultiplier;
+            RelicStatBonuses = relicStatBonuses
+                ?? RelicStatBonusSummary.None;
         }
 
         public string CharacterId { get; }
@@ -44,6 +52,9 @@ namespace ValorChronicle.Characters.Presentation
         public long NextLevelCost { get; }
         public bool ShowLevelUpCost { get; }
         public bool CanLevelUp { get; }
+        public double CharacterMaxHpMultiplier { get; }
+        public double CharacterAttackMultiplier { get; }
+        public RelicStatBonusSummary RelicStatBonuses { get; }
 
         public CharacterUpgradePresentationModel WithDisplayName(
             string displayName)
@@ -60,7 +71,10 @@ namespace ValorChronicle.Characters.Presentation
                 BattleRecords,
                 NextLevelCost,
                 ShowLevelUpCost,
-                CanLevelUp);
+                CanLevelUp,
+                CharacterMaxHpMultiplier,
+                CharacterAttackMultiplier,
+                RelicStatBonuses);
         }
     }
 }

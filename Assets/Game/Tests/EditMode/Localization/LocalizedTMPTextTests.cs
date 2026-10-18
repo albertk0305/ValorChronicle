@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using TMPro;
@@ -176,21 +177,32 @@ namespace ValorChronicle.Tests.EditMode.Localization
 
             LocalizedTMPText[] bindings = instance
                 .GetComponentsInChildren<LocalizedTMPText>(true);
-            Assert.That(bindings, Has.Length.EqualTo(3));
+            Assert.That(bindings, Has.Length.EqualTo(4));
             InitializeAll(bindings, localization);
             AssertLabels(
                 bindings,
                 "Master Volume",
                 "BGM",
-                "SFX");
+                "SFX",
+                "Redeem Code");
 
             settings.SetLocale("ko");
-            AssertLabels(bindings, "전체 음량", "배경 음악", "효과음");
+            AssertLabels(
+                bindings,
+                "전체 음량",
+                "배경 음악",
+                "효과음",
+                "리딤코드");
 
             instance.SetActive(false);
             InvokeLifecycle(bindings, "OnDisable");
             settings.SetLocale("en");
-            AssertLabels(bindings, "전체 음량", "배경 음악", "효과음");
+            AssertLabels(
+                bindings,
+                "전체 음량",
+                "배경 음악",
+                "효과음",
+                "리딤코드");
 
             instance.SetActive(true);
             InvokeLifecycle(bindings, "OnEnable");
@@ -198,7 +210,8 @@ namespace ValorChronicle.Tests.EditMode.Localization
                 bindings,
                 "Master Volume",
                 "BGM",
-                "SFX");
+                "SFX",
+                "Redeem Code");
         }
 
         [Test]
@@ -235,7 +248,12 @@ namespace ValorChronicle.Tests.EditMode.Localization
                 InitializeAll(bindings, localization);
 
                 Assert.That(localization.CurrentLocale, Is.EqualTo("ko"));
-                AssertLabels(bindings, "전체 음량", "배경 음악", "효과음");
+                AssertLabels(
+                    bindings,
+                    "전체 음량",
+                    "배경 음악",
+                    "효과음",
+                    "리딤코드");
             }
             finally
             {
@@ -294,14 +312,20 @@ namespace ValorChronicle.Tests.EditMode.Localization
             IEnumerable<LocalizedTMPText> bindings,
             string master,
             string bgm,
-            string sfx)
+            string sfx,
+            string redeemCode)
         {
             var expected = new Dictionary<string, string>
             {
                 ["ui.settings.master_volume"] = master,
                 ["ui.settings.bgm_volume"] = bgm,
-                ["ui.settings.sfx_volume"] = sfx
+                ["ui.settings.sfx_volume"] = sfx,
+                ["ui.settings.redeem_code"] = redeemCode
             };
+
+            Assert.That(
+                bindings.Select(binding => binding.LocalizationKey),
+                Is.EquivalentTo(expected.Keys));
 
             foreach (LocalizedTMPText binding in bindings)
             {

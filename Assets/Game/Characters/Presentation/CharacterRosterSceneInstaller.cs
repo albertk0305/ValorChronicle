@@ -154,6 +154,32 @@ namespace ValorChronicle.Characters.Presentation
                     upgradeRoot,
                     "SkillsButton")));
 
+            upgradeView.ConfigureStatsLookupButton(
+                RequireComponent<Button>(RequireTransform(
+                    upgradeRoot,
+                    "StatsLookUpButton")));
+            RectTransform statsLookupRoot = RequireTransform(
+                upgradeRoot,
+                "StatsLookUpPanel");
+            RectTransform statsViewport = RequireTransform(
+                statsLookupRoot,
+                "ScrollPanel");
+            RequireComponent<Image>(RequireTransform(
+                statsLookupRoot,
+                "BackgroundPanel")).raycastTarget = true;
+            RequireComponent<Image>(statsViewport).raycastTarget = true;
+            CharacterStatsLookupPanelView statsLookupPanel =
+                GetOrAdd<CharacterStatsLookupPanelView>(
+                    statsLookupRoot.gameObject);
+            statsLookupPanel.Configure(
+                RequireComponent<Button>(RequireTransform(
+                    statsLookupRoot,
+                    "CloseButton")),
+                RequireComponent<TMP_Text>(RequireTransform(
+                    statsViewport,
+                    "Text")),
+                statsViewport);
+
             UpgradeController =
                 GetOrAdd<CharacterUpgradeScreenController>(
                     parent.gameObject);
@@ -161,6 +187,7 @@ namespace ValorChronicle.Characters.Presentation
                 upgradeView,
                 presentationCatalog,
                 elementIconSet);
+            UpgradeController.ConfigureStatsLookup(statsLookupPanel);
             RectTransform relicSelectionRoot = ConfigureRelicScreen(
                 parent,
                 upgradeRoot);

@@ -22,10 +22,12 @@ namespace ValorChronicle.Characters.Presentation
         private Button returnButton;
         private Button awakeningLookupButton;
         private Button skillsLookupButton;
+        private Button statsLookupButton;
         private CharacterLevelUpPressHoldInput levelUpPressHoldInput;
         private bool listenersBound;
         private bool busy;
         private bool previewActive;
+        private bool statsLookupOpen;
 
         public event Action ReturnRequested;
         public event Action LevelUpPressStarted;
@@ -34,6 +36,7 @@ namespace ValorChronicle.Characters.Presentation
         public event Action LevelUpCancelRequested;
         public event Action AwakeningLookupRequested;
         public event Action SkillsLookupRequested;
+        public event Action StatsLookupRequested;
         public event Action Disabled;
 
         public CharacterUpgradePresentationModel CurrentModel { get; private set; }
@@ -51,10 +54,12 @@ namespace ValorChronicle.Characters.Presentation
         public Button ReturnButton => returnButton;
         public Button AwakeningLookupButton => awakeningLookupButton;
         public Button SkillsLookupButton => skillsLookupButton;
+        public Button StatsLookupButton => statsLookupButton;
         public CharacterLevelUpPressHoldInput LevelUpPressHoldInput =>
             levelUpPressHoldInput;
         public bool IsBusy => busy;
         public bool IsPreviewActive => previewActive;
+        public bool IsStatsLookupOpen => statsLookupOpen;
 
         private void OnDisable()
         {
@@ -131,6 +136,25 @@ namespace ValorChronicle.Characters.Presentation
             BindListeners();
         }
 
+        public void ConfigureStatsLookupButton(Button configuredButton)
+        {
+            if (listenersBound && statsLookupButton != null)
+            {
+                statsLookupButton.onClick.RemoveListener(
+                    HandleStatsLookupRequested);
+            }
+
+            statsLookupButton = configuredButton
+                ?? throw new ArgumentNullException(nameof(configuredButton));
+            if (listenersBound)
+            {
+                statsLookupButton.onClick.AddListener(
+                    HandleStatsLookupRequested);
+            }
+
+            RefreshInteractionState();
+        }
+
         public void Render(CharacterUpgradePresentationModel model)
         {
             CurrentModel = model
@@ -160,6 +184,17 @@ namespace ValorChronicle.Characters.Presentation
         public void SetPreviewActive(bool isActive)
         {
             previewActive = isActive;
+            RefreshInteractionState();
+        }
+
+        public void SetStatsLookupOpen(bool isOpen)
+        {
+            statsLookupOpen = isOpen;
+            if (isOpen)
+            {
+                CancelLevelUpPress(notify: false);
+            }
+
             RefreshInteractionState();
         }
 
@@ -214,6 +249,8 @@ namespace ValorChronicle.Characters.Presentation
                 HandleAwakeningLookupRequested);
             skillsLookupButton.onClick.AddListener(
                 HandleSkillsLookupRequested);
+            statsLookupButton?.onClick.AddListener(
+                HandleStatsLookupRequested);
             levelUpPressHoldInput.PressStarted += HandleLevelUpPressStarted;
             levelUpPressHoldInput.RepeatRequested +=
                 HandleLevelUpRepeatRequested;
@@ -236,6 +273,8 @@ namespace ValorChronicle.Characters.Presentation
                 HandleAwakeningLookupRequested);
             skillsLookupButton.onClick.RemoveListener(
                 HandleSkillsLookupRequested);
+            statsLookupButton?.onClick.RemoveListener(
+                HandleStatsLookupRequested);
             levelUpPressHoldInput.PressStarted -= HandleLevelUpPressStarted;
             levelUpPressHoldInput.RepeatRequested -=
                 HandleLevelUpRepeatRequested;
@@ -276,7 +315,10 @@ namespace ValorChronicle.Characters.Presentation
 
         private void HandleAwakeningLookupRequested()
         {
-            if (!busy && !previewActive && CurrentModel != null)
+            if (!busy
+                && !previewActive
+                && !statsLookupOpen
+                && CurrentModel != null)
             {
                 AwakeningLookupRequested?.Invoke();
             }
@@ -284,9 +326,23 @@ namespace ValorChronicle.Characters.Presentation
 
         private void HandleSkillsLookupRequested()
         {
-            if (!busy && !previewActive && CurrentModel != null)
+            if (!busy
+                && !previewActive
+                && !statsLookupOpen
+                && CurrentModel != null)
             {
                 SkillsLookupRequested?.Invoke();
+            }
+        }
+
+        private void HandleStatsLookupRequested()
+        {
+            if (!busy
+                && !previewActive
+                && !statsLookupOpen
+                && CurrentModel != null)
+            {
+                StatsLookupRequested?.Invoke();
             }
         }
 
@@ -294,6 +350,7 @@ namespace ValorChronicle.Characters.Presentation
         {
             return !busy
                 && !previewActive
+                && !statsLookupOpen
                 && CurrentModel?.CanLevelUp == true;
         }
 
@@ -302,16 +359,20 @@ namespace ValorChronicle.Characters.Presentation
             if (levelUpButton != null)
             {
                 levelUpButton.interactable = !busy
+                    && !statsLookupOpen
                     && CurrentModel?.CanLevelUp == true;
             }
 
             if (returnButton != null)
             {
-                returnButton.interactable = !busy && !previewActive;
+                returnButton.interactable = !busy
+                    && !previewActive
+                    && !statsLookupOpen;
             }
 
             bool lookupEnabled = !busy
                 && !previewActive
+                && !statsLookupOpen
                 && CurrentModel != null;
             if (awakeningLookupButton != null)
             {
@@ -321,6 +382,10 @@ namespace ValorChronicle.Characters.Presentation
             if (skillsLookupButton != null)
             {
                 skillsLookupButton.interactable = lookupEnabled;
+            }
+            if (statsLookupButton != null)
+            {
+                statsLookupButton.interactable = lookupEnabled;
             }
         }
 
