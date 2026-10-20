@@ -335,6 +335,45 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Damage
         }
 
         [Test]
+        public void ActionLocalAttackTypeIncreaseAddsWithFilteredEffect()
+        {
+            CreateStates(
+                1000d,
+                out CharacterBattleState attacker,
+                out PartyBattleState party,
+                out BossBattleState boss);
+            attacker.Effects.ApplyEffect(AttackTypeEffect(
+                1,
+                "additional_and_chase",
+                0.35d));
+            var factory = new DamageContextFactory(
+                new SequenceRandomSource());
+
+            DamageContext additional = factory.Build(Request(
+                attacker,
+                party,
+                boss,
+                AttackType.Additional,
+                false,
+                actionLocalAttackTypeDamageIncreaseRate: 0.10d));
+            DamageContext match = factory.Build(Request(
+                attacker,
+                party,
+                boss,
+                AttackType.Match,
+                false,
+                actionLocalAttackTypeDamageIncreaseRate: 0.10d));
+
+            Assert.That(additional.AttackTypeDamageIncreaseRateSum,
+                Is.EqualTo(0.45d).Within(0.000000001d));
+            Assert.That(
+                DamageCalculator.Calculate(additional).FinalDamage,
+                Is.EqualTo(1450L));
+            Assert.That(match.AttackTypeDamageIncreaseRateSum,
+                Is.EqualTo(0.10d).Within(0.000000001d));
+        }
+
+        [Test]
         public void ActionLocalAndElementIncreaseRemainSeparateMultipliers()
         {
             CreateStates(
@@ -377,7 +416,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Damage
             BossBattleState boss,
             AttackType attackType,
             bool canCritical,
-            double actionLocalDealtDamageIncreaseRate = 0d)
+            double actionLocalDealtDamageIncreaseRate = 0d,
+            double actionLocalAttackTypeDamageIncreaseRate = 0d)
         {
             return new DamageContextBuildRequest(
                 attacker,
@@ -391,7 +431,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Damage
                 0,
                 canCritical,
                 actionLocalDealtDamageIncreaseRate:
-                    actionLocalDealtDamageIncreaseRate);
+                    actionLocalDealtDamageIncreaseRate,
+                actionLocalAttackTypeDamageIncreaseRate:
+                    actionLocalAttackTypeDamageIncreaseRate);
         }
 
         private static long CalculateSimpleDamage(

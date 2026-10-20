@@ -42,6 +42,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Marea
         [TestCase(0, 8, 5, "ActiveDurationTurns")]
         [TestCase(3, -1, 5, "ActiveCooldownTurns")]
         [TestCase(3, 8, 0, "WaterElementMaxAmount")]
+        [TestCase(3, 8, 7, "WaterElementMaxAmount")]
         public void InvalidIntegerIsRejected(
             int duration,
             int cooldown,

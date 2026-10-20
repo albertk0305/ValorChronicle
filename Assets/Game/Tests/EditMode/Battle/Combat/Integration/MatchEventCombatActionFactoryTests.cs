@@ -8,6 +8,7 @@ using ValorChronicle.Battle.Combat.Damage;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
+using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Tests.EditMode.Battle.Flow;
 
@@ -186,6 +187,329 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         }
 
         [Test]
+        public void FactoryAllowsMatchFollowedByDerivedAdditionalDamage()
+        {
+            CharacterBattleState character =
+                Character("fire", 0, ElementType.Fire);
+            PartyBattleState party = Party(character);
+            BossBattleState boss = Boss();
+            var provider = new DelegateMatchEventActionProvider(context =>
+            {
+                DamageAction match =
+                    CombatIntegrationTestSupport.MatchDamage(context, 1d);
+                return new CombatAction[]
+                {
+                    match,
+                    CombatIntegrationTestSupport.AdditionalMatchDamage(
+                        context,
+                        match,
+                        0.5d)
+                };
+            });
+            var actionIds = new CombatActionIdSequence();
+            var factory = new MatchEventCombatActionFactory(
+                party,
+                boss,
+                provider,
+                actionIds);
+
+            IReadOnlyList<CombatAction> actions =
+                factory.CreateRootActions(BeginSingleMatch(
+                    ElementType.Fire,
+                    4));
+
+            Assert.That(actions, Has.Count.EqualTo(2));
+            var match = (DamageAction)actions[0];
+            var additional = (DamageAction)actions[1];
+            Assert.That(match.Origin, Is.EqualTo(ActionOrigin.Match));
+            Assert.That(match.ContextRequest.AttackType,
+                Is.EqualTo(AttackType.Match));
+            Assert.That(match.RootActionId, Is.EqualTo(match.ActionId));
+            Assert.That(match.SourceActionId, Is.Null);
+            Assert.That(additional.Origin,
+                Is.EqualTo(ActionOrigin.Additional));
+            Assert.That(additional.ContextRequest.AttackType,
+                Is.EqualTo(AttackType.Additional));
+            Assert.That(additional.RootActionId,
+                Is.EqualTo(match.ActionId));
+            Assert.That(additional.SourceActionId,
+                Is.EqualTo(match.ActionId));
+            Assert.That(additional.ContextRequest.AppliesCombo, Is.True);
+            Assert.That(additional.ContextRequest.FinalComboCount,
+                Is.EqualTo(1));
+            Assert.That(additional.CanTriggerFollowUp, Is.False);
+            Assert.That(actionIds.LastIssuedId, Is.EqualTo(2));
+        }
+
+        [TestCase(0, 1)]
+        [TestCase(1, 2)]
+        public void ProviderSnapshotsAdditionalConditionWhenActionsAreCreated(
+            int resourceAmount,
+            int expectedActionCount)
+        {
+            CharacterBattleState character =
+                Character("fire", 0, ElementType.Fire);
+            PartyBattleState party = Party(character);
+            BossBattleState boss = Boss();
+            boss.Resources.Register("condition", 1);
+            if (resourceAmount > 0)
+            {
+                boss.Resources.Add("condition", resourceAmount);
+            }
+
+            var provider = new DelegateMatchEventActionProvider(context =>
+            {
+                DamageAction match =
+                    CombatIntegrationTestSupport.MatchDamage(context, 1d);
+                if (context.Boss.Resources.GetAmount("condition") == 0)
+                {
+                    return new CombatAction[] { match };
+                }
+
+                return new CombatAction[]
+                {
+                    match,
+                    CombatIntegrationTestSupport.AdditionalMatchDamage(
+                        context,
+                        match,
+                        0.5d)
+                };
+            });
+            var factory = new MatchEventCombatActionFactory(
+                party,
+                boss,
+                provider,
+                new CombatActionIdSequence());
+            IReadOnlyList<CombatAction> actions =
+                factory.CreateRootActions(BeginSingleMatch(
+                    ElementType.Fire,
+                    4));
+
+            boss.Resources.ConsumeAll("condition");
+            var executor = new CombatActionExecutor(
+                boss,
+                party,
+                new DamageContextFactory(new SeededRandomSource(1)));
+            CombatActionExecutionResult result = executor.Execute(
+                new CombatActionQueue(actions));
+
+            Assert.That(actions, Has.Count.EqualTo(expectedActionCount));
+            Assert.That(result.CompletedActionCount,
+                Is.EqualTo(expectedActionCount));
+        }
+
+        [TestCase("additional_only")]
+        [TestCase("wrong_root")]
+        [TestCase("wrong_source")]
+        [TestCase("missing_source")]
+        public void FactoryRejectsInvalidAdditionalLineage(string scenario)
+        {
+            CharacterBattleState character =
+                Character("fire", 0, ElementType.Fire);
+            PartyBattleState party = Party(character);
+            BossBattleState boss = Boss();
+            var actionIds = new CombatActionIdSequence();
+            long outsideSequenceId = scenario == "additional_only"
+                ? actionIds.Next()
+                : 0;
+            var provider = new DelegateMatchEventActionProvider(context =>
+            {
+                if (scenario == "additional_only")
+                {
+                    return new CombatAction[]
+                    {
+                        Additional(
+                            context,
+                            outsideSequenceId,
+                            outsideSequenceId)
+                    };
+                }
+
+                var marker = new AddResourceAction(
+                    context.ActionIds.Next(),
+                    ActionOrigin.System,
+                    context.Boss,
+                    "marker",
+                    1);
+                DamageAction match =
+                    CombatIntegrationTestSupport.MatchDamage(context, 1d);
+                if (scenario == "wrong_root")
+                {
+                    return new CombatAction[]
+                    {
+                        marker,
+                        match,
+                        Additional(
+                            context,
+                            marker.ActionId,
+                            match.ActionId)
+                    };
+                }
+
+                if (scenario == "wrong_source")
+                {
+                    return new CombatAction[]
+                    {
+                        marker,
+                        match,
+                        Additional(
+                            context,
+                            match.ActionId,
+                            marker.ActionId)
+                    };
+                }
+
+                return new CombatAction[]
+                {
+                    marker,
+                    match,
+                    Additional(context, 99, 99)
+                };
+            });
+            var factory = new MatchEventCombatActionFactory(
+                party,
+                boss,
+                provider,
+                actionIds);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                factory.CreateRootActions(
+                    BeginSingleMatch(ElementType.Fire, 4)));
+        }
+
+        [TestCase("attacker")]
+        [TestCase("party")]
+        [TestCase("boss")]
+        [TestCase("element")]
+        [TestCase("tag")]
+        [TestCase("combo")]
+        [TestCase("combo_disabled")]
+        public void FactoryRejectsAdditionalWithWrongMatchMetadata(
+            string scenario)
+        {
+            CharacterBattleState character =
+                Character("fire", 0, ElementType.Fire);
+            PartyBattleState party = Party(character);
+            BossBattleState boss = Boss();
+            var provider = new DelegateMatchEventActionProvider(context =>
+            {
+                DamageAction match =
+                    CombatIntegrationTestSupport.MatchDamage(context, 1d);
+                return new CombatAction[]
+                {
+                    match,
+                    Additional(
+                        context,
+                        match.ActionId,
+                        match.ActionId,
+                        attacker: scenario == "attacker"
+                            ? Character("other", 1, ElementType.Fire)
+                            : null,
+                        party: scenario == "party"
+                            ? Party(Character(
+                                "other",
+                                1,
+                                ElementType.Fire))
+                            : null,
+                        boss: scenario == "boss" ? Boss() : null,
+                        element: scenario == "element"
+                            ? ElementType.Water
+                            : (ElementType?)null,
+                        attackTag: scenario == "tag"
+                            ? AttackTag.Match3
+                            : (AttackTag?)null,
+                        appliesCombo: scenario != "combo_disabled",
+                        finalComboCount: scenario == "combo" ? 99 : 1)
+                };
+            });
+            var factory = new MatchEventCombatActionFactory(
+                party,
+                boss,
+                provider,
+                new CombatActionIdSequence());
+
+            Assert.Throws<InvalidOperationException>(() =>
+                factory.CreateRootActions(
+                    BeginSingleMatch(ElementType.Fire, 4)));
+        }
+
+        [Test]
+        public void FactoryRejectsDuplicateActionId()
+        {
+            CharacterBattleState character =
+                Character("fire", 0, ElementType.Fire);
+            PartyBattleState party = Party(character);
+            BossBattleState boss = Boss();
+            var duplicateProvider = new DelegateMatchEventActionProvider(
+                context =>
+                {
+                    DamageAction first =
+                        CombatIntegrationTestSupport.MatchDamage(context, 1d);
+                    context.ActionIds.Next();
+                    return new CombatAction[]
+                    {
+                        first,
+                        MatchWithId(context, first.ActionId)
+                    };
+                });
+            Assert.Throws<InvalidOperationException>(() =>
+                new MatchEventCombatActionFactory(
+                    party,
+                    boss,
+                    duplicateProvider,
+                    new CombatActionIdSequence()).CreateRootActions(
+                        BeginSingleMatch(ElementType.Fire, 4)));
+        }
+
+        [TestCase(ActionOrigin.Active, AttackType.Active)]
+        [TestCase(
+            ActionOrigin.DamageOverTime,
+            AttackType.DamageOverTime)]
+        [TestCase(ActionOrigin.Chase, AttackType.Chase)]
+        public void FactoryRejectsUnsupportedDamageOrigins(
+            ActionOrigin origin,
+            AttackType attackType)
+        {
+            CharacterBattleState character =
+                Character("fire", 0, ElementType.Fire);
+            PartyBattleState party = Party(character);
+            BossBattleState boss = Boss();
+            var provider = new DelegateMatchEventActionProvider(context =>
+            {
+                DamageAction match =
+                    CombatIntegrationTestSupport.MatchDamage(context, 1d);
+                var unsupported = new DamageAction(
+                    context.ActionIds.Next(),
+                    origin,
+                    Request(
+                        context,
+                        attackType,
+                        context.Character,
+                        context.Party,
+                        context.Boss,
+                        context.Character.Element,
+                        context.MatchAttackTag,
+                        true,
+                        context.FinalComboCount),
+                    rootActionId: origin == ActionOrigin.Chase
+                        ? match.ActionId
+                        : (long?)null,
+                    sourceActionId: origin == ActionOrigin.Chase
+                        ? match.ActionId
+                        : (long?)null);
+                return new CombatAction[] { match, unsupported };
+            });
+
+            Assert.Throws<InvalidOperationException>(() =>
+                new MatchEventCombatActionFactory(
+                    party,
+                    boss,
+                    provider,
+                    new CombatActionIdSequence()).CreateRootActions(
+                        BeginSingleMatch(ElementType.Fire, 4)));
+        }
+
+        [Test]
         public void FactoryRejectsDamageWithWrongFinalComboMetadata()
         {
             CharacterBattleState character =
@@ -231,6 +555,78 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                 true);
             coordinator.TryBeginNextMatchEvent(out MatchEventExecution result);
             return result;
+        }
+
+        private static DamageAction Additional(
+            MatchEventActionContext context,
+            long rootActionId,
+            long sourceActionId,
+            CharacterBattleState attacker = null,
+            PartyBattleState party = null,
+            BossBattleState boss = null,
+            ElementType? element = null,
+            AttackTag? attackTag = null,
+            bool appliesCombo = true,
+            int finalComboCount = 1)
+        {
+            return new DamageAction(
+                context.ActionIds.Next(),
+                ActionOrigin.Additional,
+                Request(
+                    context,
+                    AttackType.Additional,
+                    attacker ?? context.Character,
+                    party ?? context.Party,
+                    boss ?? context.Boss,
+                    element ?? context.Character.Element,
+                    attackTag ?? context.MatchAttackTag,
+                    appliesCombo,
+                    appliesCombo ? finalComboCount : 0),
+                rootActionId,
+                sourceActionId);
+        }
+
+        private static DamageAction MatchWithId(
+            MatchEventActionContext context,
+            long actionId)
+        {
+            return new DamageAction(
+                actionId,
+                ActionOrigin.Match,
+                Request(
+                    context,
+                    AttackType.Match,
+                    context.Character,
+                    context.Party,
+                    context.Boss,
+                    context.Character.Element,
+                    context.MatchAttackTag,
+                    true,
+                    context.FinalComboCount));
+        }
+
+        private static DamageContextBuildRequest Request(
+            MatchEventActionContext context,
+            AttackType attackType,
+            CharacterBattleState attacker,
+            PartyBattleState party,
+            BossBattleState boss,
+            ElementType element,
+            AttackTag attackTag,
+            bool appliesCombo,
+            int finalComboCount)
+        {
+            return new DamageContextBuildRequest(
+                attacker,
+                party,
+                boss,
+                element,
+                attackType,
+                attackTag,
+                1d,
+                appliesCombo,
+                finalComboCount,
+                false);
         }
 
         private static BattleFlowCoordinator StartBoardResolution(int turns)

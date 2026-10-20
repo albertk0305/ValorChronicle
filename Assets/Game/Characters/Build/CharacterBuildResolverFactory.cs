@@ -1,4 +1,4 @@
-using ValorChronicle.Characters.Marea;
+using ValorChronicle.Characters.Runtime;
 
 namespace ValorChronicle.Characters.Build
 {
@@ -6,11 +6,9 @@ namespace ValorChronicle.Characters.Build
     {
         public static CharacterBuildResolver CreateDefault()
         {
-            return new CharacterBuildResolver(
-                new ICharacterBuildModifier[]
-                {
-                    new MareaBluefangBuildModifier()
-                });
+            return CharacterRuntimeRegistrationCatalog
+                .CreateDefault()
+                .CreateBuildResolver();
         }
     }
 }

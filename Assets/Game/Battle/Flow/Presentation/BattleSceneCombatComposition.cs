@@ -20,6 +20,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
     public sealed class BattleSceneCombatComposition : IDisposable
     {
         private readonly IReadOnlyList<ActiveAbilityBinding> activeBindings;
+        private readonly IReadOnlyList<ICharacterCombatStatusSource>
+            combatStatusSources;
 
         public BattleSceneCombatComposition(
             IReadOnlyList<BattlePartyMemberInput> partyMembers,
@@ -163,13 +165,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 Boss,
                 KragmorRuntimeState,
                 ActionIds);
-            TriggerResolver = new CombatTriggerResolver(
-                Array.Empty<ICombatTriggerRule>());
-            Executor = new CombatActionExecutor(
-                Boss,
-                Party,
-                new DamageContextFactory(randomSource),
-                TriggerResolver);
 
             MatchProviders = new MatchEventActionProviderRegistry();
             ActiveProviders = new ActiveAbilityActionProviderRegistry();
@@ -187,6 +182,13 @@ namespace ValorChronicle.Battle.Flow.Presentation
             var bindings = new List<ActiveAbilityBinding>(
                 partyMembers.Count);
             var cooldowns = new List<int>(partyMembers.Count);
+            var triggerRules = new List<ICombatTriggerRule>();
+            var resourceRequirements =
+                new List<CombatResourceRequirement>();
+            var statusSources =
+                new List<ICharacterCombatStatusSource>();
+            var statusSourceKeys = new HashSet<string>(
+                StringComparer.Ordinal);
             for (int index = 0; index < Party.Characters.Count; index++)
             {
                 CharacterBattleState character = Party.Characters[index];
@@ -197,6 +199,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
                         member,
                         character,
                         Boss,
+                        ActionIds,
                         MatchProviders,
                         ActiveProviders);
 
@@ -207,6 +210,99 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     throw new InvalidOperationException(
                         $"The registrar for '{character.CharacterId}' did "
                             + "not register a match provider.");
+                }
+
+                IReadOnlyList<ICombatTriggerRule> registeredRules =
+                    registration.TriggerRules
+                    ?? throw new InvalidOperationException(
+                        $"The registrar for '{character.CharacterId}' "
+                            + "returned a null trigger rule collection.");
+                for (int ruleIndex = 0;
+                    ruleIndex < registeredRules.Count;
+                    ruleIndex++)
+                {
+                    ICombatTriggerRule rule = registeredRules[ruleIndex]
+                        ?? throw new InvalidOperationException(
+                            $"The registrar for '{character.CharacterId}' "
+                                + "returned a null trigger rule at index "
+                                + $"{ruleIndex}.");
+                    triggerRules.Add(rule);
+                }
+
+                IReadOnlyList<CombatResourceRequirement>
+                    registeredResourceRequirements =
+                        registration.ResourceRequirements
+                        ?? throw new InvalidOperationException(
+                            $"The registrar for '{character.CharacterId}' "
+                                + "returned a null resource requirement "
+                                + "collection.");
+                for (int requirementIndex = 0;
+                    requirementIndex
+                        < registeredResourceRequirements.Count;
+                    requirementIndex++)
+                {
+                    CombatResourceRequirement requirement =
+                        registeredResourceRequirements[requirementIndex]
+                        ?? throw new InvalidOperationException(
+                            $"The registrar for "
+                                + $"'{character.CharacterId}' returned a "
+                                + "null resource requirement at index "
+                                + $"{requirementIndex}.");
+                    resourceRequirements.Add(requirement);
+                }
+
+                IReadOnlyList<ICharacterCombatStatusSource>
+                    registeredStatusSources =
+                        registration.CombatStatusSources
+                        ?? throw new InvalidOperationException(
+                            $"The registrar for '{character.CharacterId}' "
+                                + "returned a null combat status source "
+                                + "collection.");
+                for (int statusIndex = 0;
+                    statusIndex < registeredStatusSources.Count;
+                    statusIndex++)
+                {
+                    ICharacterCombatStatusSource source =
+                        registeredStatusSources[statusIndex]
+                        ?? throw new InvalidOperationException(
+                            $"The registrar for "
+                                + $"'{character.CharacterId}' returned a "
+                                + "null combat status source at index "
+                                + $"{statusIndex}.");
+                    if (!string.Equals(
+                            source.CharacterId,
+                            character.CharacterId,
+                            StringComparison.Ordinal)
+                        || source.PartySlotIndex
+                            != character.PartySlotIndex)
+                    {
+                        throw new InvalidOperationException(
+                            $"Combat status source '{source.StatusId}' must "
+                                + "match its registered character and party "
+                                + "slot.");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(source.StatusId))
+                    {
+                        throw new InvalidOperationException(
+                            $"The registrar for '{character.CharacterId}' "
+                                + "returned a combat status source without "
+                                + "an ID.");
+                    }
+
+                    string sourceKey = source.PartySlotIndex.ToString(
+                            System.Globalization.CultureInfo.InvariantCulture)
+                        + "\u001f"
+                        + source.StatusId;
+                    if (!statusSourceKeys.Add(sourceKey))
+                    {
+                        throw new InvalidOperationException(
+                            $"Duplicate combat status source "
+                                + $"'{source.StatusId}' for party slot "
+                                + $"{source.PartySlotIndex}.");
+                    }
+
+                    statusSources.Add(source);
                 }
 
                 if (!registration.HasActiveAbility)
@@ -232,7 +328,45 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 cooldowns.Add(registration.ActiveCooldownTurns);
             }
 
+            IReadOnlyList<CombatResourceRequirement>
+                mergedResourceRequirements =
+                    CombatResourceRequirementMerger.Merge(
+                        resourceRequirements);
+            for (int index = 0;
+                index < mergedResourceRequirements.Count;
+                index++)
+            {
+                CombatResourceRequirement requirement =
+                    mergedResourceRequirements[index];
+                if (Boss.Resources.TryGet(requirement.ResourceId, out _))
+                {
+                    throw new InvalidOperationException(
+                        $"Combat resource '{requirement.ResourceId}' was "
+                            + "registered before shared resource "
+                            + "requirements were applied.");
+                }
+            }
+
+            for (int index = 0;
+                index < mergedResourceRequirements.Count;
+                index++)
+            {
+                CombatResourceRequirement requirement =
+                    mergedResourceRequirements[index];
+                Boss.Resources.Register(
+                    requirement.ResourceId,
+                    requirement.MaxAmount);
+            }
+
+            TriggerResolver = new CombatTriggerResolver(triggerRules);
+            Executor = new CombatActionExecutor(
+                Boss,
+                Party,
+                new DamageContextFactory(randomSource),
+                TriggerResolver);
             activeBindings = Array.AsReadOnly(bindings.ToArray());
+            combatStatusSources = Array.AsReadOnly(
+                statusSources.ToArray());
             FlowSetup = new BattleFlowSetup(
                 bossDefinition.TurnLimit,
                 cooldowns);
@@ -257,6 +391,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
             KragmorRuntimeState;
         public IReadOnlyList<ActiveAbilityBinding> ActiveBindings =>
             activeBindings;
+        public IReadOnlyList<ICharacterCombatStatusSource>
+            CombatStatusSources => combatStatusSources;
         public BattleFlowCombatBridge Bridge { get; private set; }
         public BattleResultPersistenceService ResultPersistenceService
         {

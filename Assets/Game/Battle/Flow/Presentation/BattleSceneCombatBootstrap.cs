@@ -3,8 +3,8 @@ using UnityEngine;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Entry;
-using ValorChronicle.Characters.Marea;
 using ValorChronicle.Bosses.Kragmor;
+using ValorChronicle.Characters.Runtime;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Logging;
 using ValorChronicle.Core.Pause;
@@ -219,12 +219,10 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 }
 
                 battleFlowController.InitializePauseService(pauseService);
-                var characterRegistrars =
-                    new CharacterCombatProviderRegistrarCatalog(
-                        new ICharacterCombatProviderRegistrar[]
-                        {
-                            new MareaBluefangCombatProviderRegistrar()
-                        });
+                CharacterCombatProviderRegistrarCatalog characterRegistrars =
+                    CharacterRuntimeRegistrationCatalog
+                        .CreateDefault()
+                        .CreateCombatRegistrarCatalog();
                 composition = new BattleSceneCombatComposition(
                     partyResolution.Members,
                     characterRegistrars,

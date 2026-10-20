@@ -37,6 +37,12 @@ namespace ValorChronicle.Battle.Flow.Presentation
         [NonSerialized]
         private string characterId;
 
+        [NonSerialized]
+        private bool characterImageColorCached;
+
+        [NonSerialized]
+        private Color characterImageColor;
+
         public GameObject Root => root;
         public Button ActiveButton => activeButton;
         public Image CharacterImage => characterImage;
@@ -96,6 +102,9 @@ namespace ValorChronicle.Battle.Flow.Presentation
             SetCharacterAvailable(false);
             if (characterImage != null)
             {
+                CacheCharacterImageColor();
+                characterImage.sprite = null;
+                characterImage.color = characterImageColor;
                 characterImage.enabled = false;
             }
 
@@ -111,6 +120,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
         public void RenderCharacter(
             string runtimeCharacterId,
+            Sprite characterSprite,
             Sprite elementSprite,
             int remainingCooldown,
             bool activeAvailable)
@@ -118,6 +128,15 @@ namespace ValorChronicle.Battle.Flow.Presentation
             characterId = runtimeCharacterId;
             if (characterImage != null)
             {
+                CacheCharacterImageColor();
+                characterImage.sprite = characterSprite;
+                characterImage.color = characterSprite != null
+                    ? characterImageColor
+                    : new Color(
+                        characterImageColor.r,
+                        characterImageColor.g,
+                        characterImageColor.b,
+                        0f);
                 characterImage.enabled = true;
             }
 
@@ -168,6 +187,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     System.Globalization.CultureInfo.InvariantCulture)
                 : string.Empty;
             cooldownText.gameObject.SetActive(visible);
+        }
+
+        private void CacheCharacterImageColor()
+        {
+            if (characterImageColorCached || characterImage == null)
+            {
+                return;
+            }
+
+            characterImageColor = characterImage.color;
+            characterImageColorCached = true;
         }
     }
 }

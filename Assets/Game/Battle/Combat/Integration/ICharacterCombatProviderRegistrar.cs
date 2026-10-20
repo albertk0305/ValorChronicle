@@ -7,12 +7,15 @@ namespace ValorChronicle.Battle.Combat.Integration
 {
     public interface ICharacterCombatProviderRegistrar
     {
+        string CharacterId { get; }
+
         Type SupportedCombatConfigType { get; }
 
         CharacterCombatProviderRegistrationResult Register(
             BattlePartyMemberInput member,
             CharacterBattleState character,
             BossBattleState boss,
+            CombatActionIdSequence actionIds,
             MatchEventActionProviderRegistry matchProviders,
             ActiveAbilityActionProviderRegistry activeProviders);
     }

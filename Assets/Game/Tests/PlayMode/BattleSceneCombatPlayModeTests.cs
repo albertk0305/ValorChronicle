@@ -13,6 +13,7 @@ using UnityEngine.UI;
 using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Combat.Actions;
+using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Entry;
@@ -21,6 +22,7 @@ using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
+using ValorChronicle.Characters.Serena;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.Core.Pause;
 using ValorChronicle.Core.Random;
@@ -45,10 +47,18 @@ namespace ValorChronicle.Tests.PlayMode
         private GameObject bootstrapRoot;
         private DefinitionDatabase testDefinitionDatabase;
         private CharacterDefinition testMareaDefinition;
+        private CharacterDefinition testSerenaDefinition;
+        private EffectDefinition testSerenaActiveEffectDefinition;
+        private SkillDefinition testSerenaPassiveDefinition;
         private BossDefinition testKragmorDefinition;
         private BattleResultBalanceDefinition testResultBalanceDefinition;
         private MareaBluefangCombatConfig testMareaConfig;
+        private SerenaCoralspearCombatConfig testSerenaConfig;
         private KragmorCombatConfig testKragmorConfig;
+        private Texture2D testSerenaEffectTexture;
+        private Sprite testSerenaEffectIcon;
+        private Texture2D testSerenaChaseTexture;
+        private Sprite testSerenaChaseIcon;
         private string saveRoot;
         private float previousTimeScale;
         private GamePauseService gamePauseService;
@@ -415,6 +425,21 @@ namespace ValorChronicle.Tests.PlayMode
                 UnityEngine.Object.Destroy(testMareaDefinition);
             }
 
+            if (testSerenaDefinition != null)
+            {
+                UnityEngine.Object.Destroy(testSerenaDefinition);
+            }
+
+            if (testSerenaActiveEffectDefinition != null)
+            {
+                UnityEngine.Object.Destroy(testSerenaActiveEffectDefinition);
+            }
+
+            if (testSerenaPassiveDefinition != null)
+            {
+                UnityEngine.Object.Destroy(testSerenaPassiveDefinition);
+            }
+
             if (testKragmorDefinition != null)
             {
                 UnityEngine.Object.Destroy(testKragmorDefinition);
@@ -433,6 +458,31 @@ namespace ValorChronicle.Tests.PlayMode
             if (testMareaConfig != null)
             {
                 UnityEngine.Object.Destroy(testMareaConfig);
+            }
+
+            if (testSerenaConfig != null)
+            {
+                UnityEngine.Object.Destroy(testSerenaConfig);
+            }
+
+            if (testSerenaEffectIcon != null)
+            {
+                UnityEngine.Object.Destroy(testSerenaEffectIcon);
+            }
+
+            if (testSerenaEffectTexture != null)
+            {
+                UnityEngine.Object.Destroy(testSerenaEffectTexture);
+            }
+
+            if (testSerenaChaseIcon != null)
+            {
+                UnityEngine.Object.Destroy(testSerenaChaseIcon);
+            }
+
+            if (testSerenaChaseTexture != null)
+            {
+                UnityEngine.Object.Destroy(testSerenaChaseTexture);
             }
 
             if (!string.IsNullOrEmpty(saveRoot)
@@ -457,6 +507,24 @@ namespace ValorChronicle.Tests.PlayMode
                 Is.EqualTo(ElementType.Water));
             Assert.That(combat.Party.Characters[0].MaxHp, Is.EqualTo(900));
             Assert.That(combat.Party.Characters[0].Attack, Is.EqualTo(180d));
+            BattleHudController hud = UnityEngine.Object
+                .FindFirstObjectByType<BattleHudController>();
+            Assert.That(hud, Is.Not.Null);
+            Assert.That(hud.CharacterPresentationCatalog, Is.Not.Null);
+            Assert.That(
+                hud.CharacterPresentationCatalog.IsInitialized,
+                Is.True);
+            Assert.That(
+                hud.CharacterPresentationCatalog.TryGet(
+                    MareaBluefangRules.CharacterId,
+                    out CharacterPresentationDefinition mareaPresentation),
+                Is.True);
+            BattleCharacterSlotView mareaSlot = hud.GetCharacterSlot(0);
+            Assert.That(mareaSlot.CharacterId,
+                Is.EqualTo(MareaBluefangRules.CharacterId));
+            Assert.That(mareaSlot.CharacterImage.sprite,
+                Is.SameAs(mareaPresentation.FaceSprite));
+            Assert.That(mareaSlot.CharacterImage.enabled, Is.True);
             Assert.That(combat.Boss.BossId, Is.EqualTo("kragmor"));
             Assert.That(combat.Boss.MaxHp, Is.EqualTo(66000));
             Assert.That(combat.Boss.CurrentHp, Is.EqualTo(66000));
@@ -516,6 +584,319 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(combat.Boss.Resources.GetAmount(
                     WaterElementResource.Id),
                 Is.EqualTo(1));
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator SceneComposesStandaloneSerenaFromOwnedPartyProfile()
+        {
+            Assert.That(combat.Party.Characters, Has.Count.EqualTo(1));
+            CharacterBattleState serena = combat.Party.Characters[0];
+            Assert.That(serena.CharacterId,
+                Is.EqualTo(SerenaCoralspearRules.CharacterId));
+            Assert.That(serena.PartySlotIndex, Is.Zero);
+            Assert.That(serena.Element, Is.EqualTo(ElementType.Water));
+            Assert.That(serena.MaxHp, Is.EqualTo(870));
+            Assert.That(serena.Attack, Is.EqualTo(170d));
+            Assert.That(combat.MatchProviders.TryResolve(
+                SerenaCoralspearRules.CharacterId,
+                out _), Is.True);
+            Assert.That(combat.ActiveProviders.TryResolve(
+                SerenaCoralspearRules.CharacterId,
+                SerenaCoralspearRules.ActiveAbilityId,
+                out _), Is.True);
+            Assert.That(combat.ActiveBindings, Has.Count.EqualTo(1));
+            Assert.That(combat.ActiveBindings[0].PartySlotIndex, Is.Zero);
+            Assert.That(combat.Boss.Resources.GetAll().Count(resource =>
+                    resource.ResourceId == WaterElementResource.Id),
+                Is.EqualTo(1));
+
+            BattleHudController hud = UnityEngine.Object
+                .FindFirstObjectByType<BattleHudController>();
+            Assert.That(hud, Is.Not.Null);
+            Assert.That(hud.CharacterPresentationCatalog.TryGet(
+                    SerenaCoralspearRules.CharacterId,
+                    out CharacterPresentationDefinition presentation),
+                Is.True);
+            Assert.That(presentation.FaceSprite, Is.Not.Null);
+            BattleCharacterSlotView slot = hud.GetCharacterSlot(0);
+            Assert.That(slot.CharacterId,
+                Is.EqualTo(SerenaCoralspearRules.CharacterId));
+            Assert.That(slot.CharacterImage.sprite,
+                Is.SameAs(presentation.FaceSprite));
+            Assert.That(slot.ActiveButton.interactable, Is.True);
+            Assert.That(hud.TryResolvePlayerProjectileAnchors(
+                    serena.PartySlotIndex,
+                    serena.CharacterId,
+                    out RectTransform serenaSource,
+                    out RectTransform serenaTarget),
+                Is.True);
+            Assert.That(serenaSource,
+                Is.SameAs(slot.CharacterImage.rectTransform));
+            Assert.That(serenaTarget,
+                Is.SameAs(hud.BossImage.rectTransform));
+            Assert.That(combat.CombatStatusSources, Has.Count.EqualTo(1));
+            Assert.That(combat.CombatStatusSources[0].PartySlotIndex,
+                Is.Zero);
+            Assert.That(slot.GetStatusSlot(0).Root.activeSelf, Is.False);
+
+            CombatActionExecutionResult threeMatch =
+                ResolveWaterMatch(blockCount: 3);
+            DamageActionResult threeDamage = FindDamage(
+                threeMatch,
+                SerenaCoralspearRules.CharacterId,
+                ActionOrigin.Match);
+            Assert.That(threeDamage.Context.SkillCoefficient,
+                Is.EqualTo(0.75d).Within(0.000000001d));
+            Assert.That(combat.Boss.Resources.GetAmount(
+                    WaterElementResource.Id),
+                Is.EqualTo(1));
+            RestorePartyHpForSnapshotTest();
+
+            CombatActionExecutionResult fourMatch =
+                ResolveWaterMatch(blockCount: 4);
+            DamageActionResult additional = FindDamage(
+                fourMatch,
+                SerenaCoralspearRules.CharacterId,
+                ActionOrigin.Additional);
+            Assert.That(additional.Context.SkillCoefficient,
+                Is.EqualTo(0.90d).Within(0.000000001d));
+            Assert.That(additional.Action.RootActionId,
+                Is.EqualTo(additional.Action.SourceActionId));
+            RestorePartyHpForSnapshotTest();
+
+            CombatActionExecutionResult fiveMatch =
+                ResolveWaterMatch(blockCount: 5);
+            Assert.That(FindDamage(
+                    fiveMatch,
+                    SerenaCoralspearRules.CharacterId,
+                    ActionOrigin.Match).Context.SkillCoefficient,
+                Is.EqualTo(2.20d).Within(0.000000001d));
+            Assert.That(fiveMatch.ActionResults
+                    .OfType<DamageActionResult>()
+                    .Any(result => result.Action.Origin
+                        == ActionOrigin.Chase),
+                Is.False);
+            Assert.That(combat.CombatStatusSources[0].CurrentCount,
+                Is.EqualTo(1));
+            Assert.That(slot.GetStatusSlot(0).Root.activeSelf, Is.True);
+            Assert.That(slot.GetStatusSlot(0).IconImage.sprite,
+                Is.SameAs(testSerenaChaseIcon));
+            Assert.That(slot.GetStatusSlot(0).ValueText.text,
+                Is.EqualTo("1"));
+            RestorePartyHpForSnapshotTest();
+
+            ResolveWaterMatch(blockCount: 5);
+            Assert.That(slot.GetStatusSlot(0).ValueText.text,
+                Is.EqualTo("2"));
+            RestorePartyHpForSnapshotTest();
+            ResolveWaterMatch(blockCount: 5);
+            Assert.That(slot.GetStatusSlot(0).ValueText.text,
+                Is.EqualTo("3"));
+            RestorePartyHpForSnapshotTest();
+            ResolveWaterMatch(blockCount: 5);
+            Assert.That(combat.CombatStatusSources[0].CurrentCount,
+                Is.EqualTo(3));
+            Assert.That(slot.GetStatusSlot(0).ValueText.text,
+                Is.EqualTo("3"));
+            RestorePartyHpForSnapshotTest();
+
+            SetBossHpForTerminalTest(1);
+            CombatActionExecutionResult lethal = ResolveWaterMatch(
+                blockCount: 3,
+                completeBossAction: false);
+            Assert.That(lethal.StoppedEarly, Is.True);
+            Assert.That(lethal.BossDefeated, Is.True);
+            Assert.That(lethal.ActionResults
+                    .OfType<AddResourceActionResult>(),
+                Is.Empty);
+            Assert.That(flow.Context.Result,
+                Is.EqualTo(BattleResultKind.Victory));
+            Assert.That(slot.GetStatusSlot(0).Root.activeSelf, Is.False);
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator SceneComposesMareaAndSerenaWithSharedCombatState()
+        {
+            Assert.That(combat.Party.Characters.Select(character =>
+                    character.CharacterId),
+                Is.EqualTo(new[]
+                {
+                    MareaBluefangRules.CharacterId,
+                    SerenaCoralspearRules.CharacterId
+                }));
+            Assert.That(combat.ActiveBindings.Select(binding =>
+                    binding.PartySlotIndex),
+                Is.EqualTo(new[] { 0, 1 }));
+            Assert.That(flow.Context.ActiveAbilities[1].RemainingCooldown,
+                Is.Zero);
+            Assert.That(combat.Party.Characters[1].Effects.FindByEffectId(
+                    SerenaCoralspearRules.ActiveEffectId),
+                Is.Empty);
+            Assert.That(combat.Boss.Resources.GetAll().Count(resource =>
+                    resource.ResourceId == WaterElementResource.Id),
+                Is.EqualTo(1));
+
+            BattleHudController hud = UnityEngine.Object
+                .FindFirstObjectByType<BattleHudController>();
+            BattleCharacterSlotView serenaSlot = hud.GetCharacterSlot(1);
+            Assert.That(serenaSlot.CharacterId,
+                Is.EqualTo(SerenaCoralspearRules.CharacterId));
+            Assert.That(serenaSlot.ActiveButton.interactable, Is.True);
+            CharacterBattleState serena = combat.Party.Characters[1];
+            Assert.That(hud.TryResolvePlayerProjectileAnchors(
+                    serena.PartySlotIndex,
+                    serena.CharacterId,
+                    out RectTransform serenaSource,
+                    out RectTransform serenaTarget),
+                Is.True);
+            Assert.That(serenaSource,
+                Is.SameAs(serenaSlot.CharacterImage.rectTransform));
+            Assert.That(serenaTarget,
+                Is.SameAs(hud.BossImage.rectTransform));
+            Assert.That(combat.CombatStatusSources, Has.Count.EqualTo(1));
+            Assert.That(combat.CombatStatusSources[0].PartySlotIndex,
+                Is.EqualTo(1));
+            Assert.That(serenaSlot.GetStatusSlot(0).Root.activeSelf,
+                Is.False);
+
+            CombatActionExecutionResult threeMatch =
+                ResolveWaterMatch(blockCount: 3);
+            Assert.That(threeMatch.ActionResults
+                    .OfType<DamageActionResult>()
+                    .Count(result => result.Action.Origin
+                        == ActionOrigin.Match),
+                Is.EqualTo(2));
+            Assert.That(combat.Boss.Resources.GetAmount(
+                    WaterElementResource.Id),
+                Is.EqualTo(2));
+            RestorePartyHpForSnapshotTest();
+
+            CombatActionExecutionResult fourMatch =
+                ResolveWaterMatch(blockCount: 4);
+            Assert.That(FindDamage(
+                    fourMatch,
+                    SerenaCoralspearRules.CharacterId,
+                    ActionOrigin.Additional).Context.SkillCoefficient,
+                Is.EqualTo(0.90d).Within(0.000000001d));
+            RestorePartyHpForSnapshotTest();
+
+            CombatActionExecutionResult firstFiveMatch =
+                ResolveWaterMatch(blockCount: 5);
+            DamageActionResult firstChase = firstFiveMatch.ActionResults
+                .OfType<DamageActionResult>()
+                .Single(result => result.Action.Origin
+                    == ActionOrigin.Chase);
+            Assert.That(firstChase.Context.AttackTypeDamageIncreaseRateSum,
+                Is.Zero.Within(0.000000001d));
+            Assert.That(combat.Boss.Resources.GetAmount(
+                    WaterElementResource.Id),
+                Is.Zero);
+            Assert.That(combat.CombatStatusSources[0].CurrentCount,
+                Is.EqualTo(1));
+            Assert.That(serenaSlot.GetStatusSlot(0).IconImage.sprite,
+                Is.SameAs(testSerenaChaseIcon));
+            Assert.That(serenaSlot.GetStatusSlot(0).ValueText.text,
+                Is.EqualTo("1"));
+            RestorePartyHpForSnapshotTest();
+
+            ClickThroughEventSystem(serenaSlot.ActiveButton);
+            float activeDeadline = Time.realtimeSinceStartup + 5f;
+            while (combat.Party.Characters[1].Effects.FindByEffectId(
+                       SerenaCoralspearRules.ActiveEffectId).Count == 0
+                && Time.realtimeSinceStartup < activeDeadline)
+            {
+                yield return null;
+            }
+
+            ActiveAbilityRuntimeState serenaActive =
+                flow.Context.ActiveAbilities[1];
+            Assert.That(serenaActive.RemainingCooldown, Is.EqualTo(8));
+            Assert.That(combat.Party.Characters[1].Effects.FindByEffectId(
+                    SerenaCoralspearRules.ActiveEffectId),
+                Has.Count.EqualTo(1));
+            BattleStatusIconView activeStatus =
+                serenaSlot.GetStatusSlot(0);
+            Assert.That(activeStatus.Root.activeSelf, Is.True);
+            Assert.That(activeStatus.IconImage.sprite,
+                Is.SameAs(testSerenaEffectIcon));
+            Assert.That(activeStatus.ValueText.text, Is.EqualTo("3"));
+            BattleStatusIconView chaseStatus =
+                serenaSlot.GetStatusSlot(1);
+            Assert.That(chaseStatus.Root.activeSelf, Is.True);
+            Assert.That(chaseStatus.IconImage.sprite,
+                Is.SameAs(testSerenaChaseIcon));
+            Assert.That(chaseStatus.ValueText.text, Is.EqualTo("1"));
+
+            CombatActionExecutionResult secondThreeMatch =
+                ResolveWaterMatch(blockCount: 3);
+            Assert.That(FindDamage(
+                    secondThreeMatch,
+                    SerenaCoralspearRules.CharacterId,
+                    ActionOrigin.Match).Context
+                    .AttackTypeDamageIncreaseRateSum,
+                Is.Zero.Within(0.000000001d));
+            Assert.That(serenaActive.RemainingCooldown, Is.EqualTo(7));
+            Assert.That(activeStatus.ValueText.text, Is.EqualTo("2"));
+            RestorePartyHpForSnapshotTest();
+
+            bool observedConsumedCharge = false;
+            CombatActionExecutionResult empoweredFiveMatch =
+                ResolveWaterMatchWithStepObserver(
+                    blockCount: 5,
+                    action =>
+                    {
+                        if (action.Origin != ActionOrigin.Chase)
+                        {
+                            return;
+                        }
+
+                        observedConsumedCharge = true;
+                        Assert.That(combat.CombatStatusSources[0]
+                                .CurrentCount,
+                            Is.Zero);
+                        Assert.That(chaseStatus.Root.activeSelf,
+                            Is.False);
+                    });
+            DamageActionResult empoweredChase = empoweredFiveMatch
+                .ActionResults
+                .OfType<DamageActionResult>()
+                .Single(result => result.Action.Origin
+                    == ActionOrigin.Chase);
+            Assert.That(empoweredChase.Context
+                    .AttackTypeDamageIncreaseRateSum,
+                Is.EqualTo(1.15d).Within(0.000000001d));
+            Assert.That(observedConsumedCharge, Is.True);
+            Assert.That(combat.CombatStatusSources[0].CurrentCount,
+                Is.EqualTo(1));
+            Assert.That(chaseStatus.Root.activeSelf, Is.True);
+            Assert.That(chaseStatus.ValueText.text, Is.EqualTo("1"));
+            Assert.That(serenaActive.RemainingCooldown, Is.EqualTo(6));
+            Assert.That(activeStatus.ValueText.text, Is.EqualTo("1"));
+            RestorePartyHpForSnapshotTest();
+
+            combat.Boss.Resources.Get(WaterElementResource.Id).Add(1);
+            CombatActionExecutionResult activeFourMatch =
+                ResolveWaterMatch(blockCount: 4);
+            DamageActionResult activeAdditional = FindDamage(
+                activeFourMatch,
+                SerenaCoralspearRules.CharacterId,
+                ActionOrigin.Additional);
+            Assert.That(activeAdditional.Context
+                    .AttackTypeDamageIncreaseRateSum,
+                Is.EqualTo(0.35d).Within(0.000000001d));
+            Assert.That(combat.Party.Characters[1].Effects.FindByEffectId(
+                    SerenaCoralspearRules.ActiveEffectId),
+                Is.Empty);
+            Assert.That(combat.CombatStatusSources[0].CurrentCount,
+                Is.EqualTo(1));
+            Assert.That(activeStatus.Root.activeSelf, Is.True);
+            Assert.That(activeStatus.IconImage.sprite,
+                Is.SameAs(testSerenaChaseIcon));
+            Assert.That(activeStatus.ValueText.text, Is.EqualTo("1"));
+            Assert.That(chaseStatus.Root.activeSelf, Is.False);
+            Assert.That(serenaActive.RemainingCooldown, Is.EqualTo(5));
             yield return null;
         }
 
@@ -939,6 +1320,50 @@ namespace ValorChronicle.Tests.PlayMode
             return result;
         }
 
+        private CombatActionExecutionResult
+            ResolveWaterMatchWithStepObserver(
+                int blockCount,
+                Action<CombatAction> stepApplied)
+        {
+            Assert.That(stepApplied, Is.Not.Null);
+            Assert.That(flow.Context.Phase,
+                Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(flow.Coordinator.TryBeginBoardResolution(), Is.True);
+            Assert.That(flow.Coordinator.NotifyBoardActionResolved(
+                CreateWaterCascade(blockCount),
+                consumesTurn: true), Is.True);
+            Assert.That(flow.Coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution), Is.True);
+            Assert.That(combat.Bridge.TryBeginMatchEventCombat(
+                execution,
+                out bool hasMatchingCharacter), Is.True);
+            Assert.That(hasMatchingCharacter, Is.True);
+
+            while (combat.Bridge.TryGetNextMatchCombatAction(
+                out _,
+                out CombatAction action))
+            {
+                Assert.That(combat.Bridge.TryApplyNextMatchCombatAction(
+                    out _), Is.True);
+                stepApplied(action);
+            }
+
+            Assert.That(combat.Bridge.TryCompleteMatchEventCombat(execution),
+                Is.True);
+            CombatActionExecutionResult result =
+                combat.Bridge.LastMatchExecutionResult;
+            Assert.That(result, Is.Not.Null);
+            if (flow.Context.Result == BattleResultKind.None)
+            {
+                Assert.That(combat.Bridge.ResolveBossAction(
+                    flow.Context.CurrentTurn), Is.True);
+                Assert.That(flow.Context.Phase,
+                    Is.EqualTo(BattlePhase.PlayerInput));
+            }
+
+            return result;
+        }
+
         private static BoardCascadeResult CreateWaterCascade(int blockCount)
         {
             var board = new BoardState();
@@ -1022,6 +1447,21 @@ namespace ValorChronicle.Tests.PlayMode
                 new object[] { combat.Party.MaxHp });
             Assert.That(combat.Party.CurrentHp,
                 Is.EqualTo(combat.Party.MaxHp));
+        }
+
+        private static DamageActionResult FindDamage(
+            CombatActionExecutionResult result,
+            string attackerId,
+            ActionOrigin origin)
+        {
+            return result.ActionResults
+                .OfType<DamageActionResult>()
+                .Single(item => item.Action.Origin == origin
+                    && item.Action is DamageAction damage
+                    && string.Equals(
+                        damage.ContextRequest.Attacker.CharacterId,
+                        attackerId,
+                        StringComparison.Ordinal));
         }
 
         private void AssertDefense(KragmorDefenseState expectedState)
@@ -1169,6 +1609,17 @@ namespace ValorChronicle.Tests.PlayMode
 
         private void InstallTestBootstrapper()
         {
+            string testName = TestContext.CurrentContext.Test.Name;
+            bool standaloneSerena = string.Equals(
+                testName,
+                nameof(SceneComposesStandaloneSerenaFromOwnedPartyProfile),
+                StringComparison.Ordinal);
+            bool mareaAndSerena = string.Equals(
+                testName,
+                nameof(SceneComposesMareaAndSerenaWithSharedCombatState),
+                StringComparison.Ordinal);
+            bool includeSerena = standaloneSerena || mareaAndSerena;
+
             testMareaConfig = ScriptableObject.CreateInstance<
                 MareaBluefangCombatConfig>();
             SetField(testMareaConfig, "match3Coefficient", 0.90d);
@@ -1209,6 +1660,69 @@ namespace ValorChronicle.Tests.PlayMode
                 testMareaDefinition,
                 "combatConfig",
                 testMareaConfig);
+
+            if (includeSerena)
+            {
+                testSerenaConfig = ScriptableObject.CreateInstance<
+                    SerenaCoralspearCombatConfig>();
+                testSerenaDefinition = ScriptableObject.CreateInstance<
+                    CharacterDefinition>();
+                SetField(
+                    testSerenaDefinition,
+                    "id",
+                    SerenaCoralspearRules.CharacterId);
+                SetField(
+                    testSerenaDefinition,
+                    "element",
+                    ElementType.Water);
+                SetField(testSerenaDefinition, "level1Hp", 870);
+                SetField(testSerenaDefinition, "level1Attack", 170);
+                SetField(testSerenaDefinition, "level100Hp", 3200);
+                SetField(testSerenaDefinition, "level100Attack", 980);
+                SetField(
+                    testSerenaDefinition,
+                    "combatConfig",
+                    testSerenaConfig);
+
+                testSerenaEffectTexture = new Texture2D(1, 1);
+                testSerenaEffectTexture.SetPixel(0, 0, Color.cyan);
+                testSerenaEffectTexture.Apply();
+                testSerenaEffectIcon = Sprite.Create(
+                    testSerenaEffectTexture,
+                    new Rect(0f, 0f, 1f, 1f),
+                    new Vector2(0.5f, 0.5f));
+                testSerenaChaseTexture = new Texture2D(1, 1);
+                testSerenaChaseTexture.SetPixel(0, 0, Color.blue);
+                testSerenaChaseTexture.Apply();
+                testSerenaChaseIcon = Sprite.Create(
+                    testSerenaChaseTexture,
+                    new Rect(0f, 0f, 1f, 1f),
+                    new Vector2(0.5f, 0.5f));
+                testSerenaActiveEffectDefinition =
+                    ScriptableObject.CreateInstance<EffectDefinition>();
+                SetField(
+                    testSerenaActiveEffectDefinition,
+                    "id",
+                    SerenaCoralspearRules.ActiveEffectId);
+                SetField(
+                    testSerenaActiveEffectDefinition,
+                    "icon",
+                    testSerenaEffectIcon);
+                testSerenaPassiveDefinition =
+                    ScriptableObject.CreateInstance<SkillDefinition>();
+                SetField(
+                    testSerenaPassiveDefinition,
+                    "id",
+                    SerenaCoralspearRules.EmpoweredChaseStatusId);
+                SetField(
+                    testSerenaPassiveDefinition,
+                    "skillKind",
+                    SkillKind.Passive);
+                SetField(
+                    testSerenaPassiveDefinition,
+                    "icon",
+                    testSerenaChaseIcon);
+            }
 
             testKragmorDefinition = ScriptableObject.CreateInstance<
                 BossDefinition>();
@@ -1255,11 +1769,11 @@ namespace ValorChronicle.Tests.PlayMode
                     new BossDifficultyStats(
                         BattleDifficultyIds.Normal,
                         maxHp: 66000,
-                        attack: 850d),
+                        attack: includeSerena ? 100d : 850d),
                     new BossDifficultyStats(
                         BattleDifficultyIds.Challenge,
                         maxHp: 66000,
-                        attack: 850d)
+                        attack: includeSerena ? 100d : 850d)
                 });
 
             testDefinitionDatabase = ScriptableObject.CreateInstance<
@@ -1267,11 +1781,28 @@ namespace ValorChronicle.Tests.PlayMode
             SetField(
                 testDefinitionDatabase,
                 "characters",
-                new[] { testMareaDefinition });
+                includeSerena
+                    ? new[]
+                    {
+                        testMareaDefinition,
+                        testSerenaDefinition
+                    }
+                    : new[] { testMareaDefinition });
             SetField(
                 testDefinitionDatabase,
                 "bosses",
                 new[] { testKragmorDefinition });
+            if (includeSerena)
+            {
+                SetField(
+                    testDefinitionDatabase,
+                    "skills",
+                    new[] { testSerenaPassiveDefinition });
+                SetField(
+                    testDefinitionDatabase,
+                    "effects",
+                    new[] { testSerenaActiveEffectDefinition });
+            }
             testResultBalanceDefinition = CreateResultBalanceDefinition();
             SetField(
                 testDefinitionDatabase,
@@ -1292,14 +1823,31 @@ namespace ValorChronicle.Tests.PlayMode
             SaveTransactionResult partySetup =
                 saveService.ExecuteTransaction(profile =>
                 {
-                    profile.Characters.Add(new CharacterSaveData
+                    if (!standaloneSerena)
                     {
-                        CharacterId = MareaBluefangRules.CharacterId,
-                        Level = 1,
-                        Awakening = 0
-                    });
-                    profile.Party.Presets[0].CharacterSlotIds[0] =
-                        MareaBluefangRules.CharacterId;
+                        profile.Characters.Add(new CharacterSaveData
+                        {
+                            CharacterId = MareaBluefangRules.CharacterId,
+                            Level = 1,
+                            Awakening = 0
+                        });
+                        profile.Party.Presets[0].CharacterSlotIds[0] =
+                            MareaBluefangRules.CharacterId;
+                    }
+
+                    if (includeSerena)
+                    {
+                        profile.Characters.Add(new CharacterSaveData
+                        {
+                            CharacterId =
+                                SerenaCoralspearRules.CharacterId,
+                            Level = 1,
+                            Awakening = 0
+                        });
+                        profile.Party.Presets[0].CharacterSlotIds[
+                            mareaAndSerena ? 1 : 0] =
+                            SerenaCoralspearRules.CharacterId;
+                    }
                 });
             Assert.That(partySetup.IsSuccess, Is.True, partySetup.Message);
 

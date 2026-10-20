@@ -18,11 +18,13 @@ using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
+using ValorChronicle.Characters.Marea;
+using ValorChronicle.Characters.Serena;
 using ValorChronicle.Core.Pause;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
 
-namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
+namespace ValorChronicle.Tests.PlayMode
 {
     public sealed class BattleFlowControllerTests
     {
@@ -33,18 +35,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         private BattleBoardController boardController;
         private BattleFlowController flowController;
         private float previousTimeScale;
-
-        [UnitySetUp]
-        public IEnumerator EnterRuntimeMode()
-        {
-            yield return new EnterPlayMode();
-        }
-
-        [UnityTearDown]
-        public IEnumerator ExitRuntimeMode()
-        {
-            yield return new ExitPlayMode();
-        }
 
         [SetUp]
         public void SetUp()
@@ -232,8 +222,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         {
             var pauseService = new GamePauseService();
             flowController.InitializePauseService(pauseService);
-            SetField(flowController, "preAttackDelaySeconds", 0.02f);
             InitializeStarted(Array.Empty<int>());
+            IDisposable pause = pauseService.RequestPause();
             SendCompletedAction(
                 1,
                 CreateResolvedResult(CreateSingleMatchCascade()));
@@ -243,7 +233,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             int pendingMatchCount =
                 flowController.Coordinator.PendingMatchEventCount;
 
-            IDisposable pause = pauseService.RequestPause();
             yield return new WaitForSecondsRealtime(0.05f);
 
             Assert.That(Time.timeScale, Is.Zero);
@@ -1134,8 +1123,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         [UnityTest]
         public IEnumerator PreAttackDelayKeepsQueueBeforeFirstDequeue()
         {
+            const float delaySeconds = 0.05f;
             InitializeStarted(Array.Empty<int>());
-            SetField(flowController, "preAttackDelaySeconds", 0.05f);
+            SetField(flowController, "preAttackDelaySeconds", delaySeconds);
             var executed = new List<MatchEvent>();
             flowController.Coordinator.MatchEventExecuting += executed.Add;
 
@@ -1151,10 +1141,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Context.Phase,
                 Is.EqualTo(BattlePhase.MatchEventResolving));
 
-            yield return WaitUntil(
+            yield return WaitUntilAfterScaledDelay(
                 () => executed.Count > 0,
                 "Pre-attack delay did not release the first MatchEvent.",
-                maximumFrames: 120);
+                delaySeconds);
 
             Assert.That(executed[0].SequenceIndex, Is.Zero);
             Assert.That(flowController.MatchQueuePresentation.Count,
@@ -1193,8 +1183,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         [UnityTest]
         public IEnumerator ConsecutiveEmptyItemsPopAcrossSeparateDelays()
         {
+            const float delaySeconds = 0.04f;
             InitializeStarted(Array.Empty<int>());
-            SetField(flowController, "emptyQueueItemDelaySeconds", 0.04f);
+            SetField(
+                flowController,
+                "emptyQueueItemDelaySeconds",
+                delaySeconds);
             var character = new CharacterBattleState(
                 "fire",
                 0,
@@ -1222,10 +1216,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.Coordinator.HasMatchEventInFlight,
                 Is.True);
 
-            yield return WaitUntil(
+            yield return WaitUntilAfterScaledDelay(
                 () => executed.Count == 2,
                 "The second empty queue item was not released.",
-                maximumFrames: 120);
+                delaySeconds);
 
             Assert.That(executed[1].SequenceIndex, Is.EqualTo(1));
             Assert.That(flowController.MatchQueuePresentation.Count,
@@ -1237,8 +1231,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         [UnityTest]
         public IEnumerator PreBossDelayStartsOnlyAfterLastMatchCombat()
         {
+            const float delaySeconds = 0.04f;
             InitializeStarted(new[] { 3 });
-            SetField(flowController, "preBossActionDelaySeconds", 0.04f);
+            SetField(
+                flowController,
+                "preBossActionDelaySeconds",
+                delaySeconds);
             var party = new PartyBattleState(new[]
             {
                 new CharacterBattleState(
@@ -1276,14 +1274,14 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(flowController.CanUseActive(0), Is.False);
             Assert.That(notUsersTurnPanel.activeSelf, Is.True);
 
-            yield return WaitUntil(
+            yield return WaitUntilAfterScaledDelay(
                 () => bossStartedCount == 1
                     && bossProvider.CallCount == 1
                     && flowController.Context.CurrentTurn == 2
                     && flowController.Context.Phase
                         == BattlePhase.PlayerInput,
                 "The delayed Boss action did not complete the turn.",
-                maximumFrames: 120);
+                delaySeconds);
 
             Assert.That(bossStartedCount, Is.EqualTo(1));
             Assert.That(bossProvider.CallCount, Is.EqualTo(1));
@@ -1293,8 +1291,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         [UnityTest]
         public IEnumerator EmptyMatchItemsStillUseOnePreBossDelay()
         {
+            const float delaySeconds = 0.04f;
             InitializeStarted(Array.Empty<int>());
-            SetField(flowController, "preBossActionDelaySeconds", 0.04f);
+            SetField(
+                flowController,
+                "preBossActionDelaySeconds",
+                delaySeconds);
             var party = new PartyBattleState(new[]
             {
                 new CharacterBattleState(
@@ -1322,10 +1324,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(bossStartedCount, Is.Zero);
             Assert.That(bossProvider.CallCount, Is.Zero);
 
-            yield return WaitUntil(
+            yield return WaitUntilAfterScaledDelay(
                 () => bossProvider.CallCount == 1,
                 "Empty MatchEvents did not reach the delayed Boss turn.",
-                maximumFrames: 120);
+                delaySeconds);
 
             Assert.That(bossStartedCount, Is.EqualTo(1));
             Assert.That(bossProvider.CallCount, Is.EqualTo(1));
@@ -1611,6 +1613,120 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     .Action.ActionId,
                 Is.EqualTo(2));
             Assert.That(actionIds.LastIssuedId, Is.EqualTo(2));
+        }
+
+        [UnityTest]
+        public IEnumerator PassiveChaseProjectileUsesChaseAttackerInsteadOfWaterConsumer()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var marea = new CharacterBattleState(
+                MareaBluefangRules.CharacterId,
+                0,
+                ElementType.Water,
+                1000,
+                100d);
+            var serena = new CharacterBattleState(
+                SerenaCoralspearRules.CharacterId,
+                1,
+                ElementType.Water,
+                1000,
+                200d);
+            var party = new PartyBattleState(new[] { marea, serena });
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Fire,
+                1000,
+                0d);
+            boss.Resources.Register(
+                WaterElementResource.Id,
+                WaterElementResource.MaxAmount);
+            boss.Resources.Get(WaterElementResource.Id).Add(1);
+
+            SerenaCoralspearCombatConfig config =
+                ScriptableObject.CreateInstance<
+                    SerenaCoralspearCombatConfig>();
+            createdObjects.Add(config);
+            var actionIds = new CombatActionIdSequence();
+            var state = new SerenaCoralspearBattleState(
+                serena,
+                config.EmpoweredChaseMaxCharges);
+            var executor = new CombatActionExecutor(
+                boss,
+                party,
+                new DamageContextFactory(new SeededRandomSource(1)),
+                new CombatTriggerResolver(new ICombatTriggerRule[]
+                {
+                    new SerenaCoralspearPassiveChaseRule(
+                        state,
+                        config,
+                        awakening: 0,
+                        actionIds: actionIds)
+                }));
+            var bridge = new BattleFlowCombatBridge(
+                flowController.Coordinator,
+                party,
+                boss,
+                executor,
+                new ControllerWaterConsumeActionProvider(),
+                new ControllerBossActionProvider(),
+                actionIds);
+            flowController.AttachCombatBridge(bridge);
+            var presenter = new ControllableProjectilePresenter();
+            SetField(
+                flowController,
+                "projectilePresenterOverride",
+                presenter);
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateWaterMatchCascade()));
+
+            Assert.That(presenter.Requests, Has.Count.EqualTo(1));
+            Assert.That(presenter.Requests[0].PartySlotIndex, Is.Zero);
+            Assert.That(presenter.Requests[0].CharacterId,
+                Is.EqualTo(MareaBluefangRules.CharacterId));
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(presenter.Requests, Has.Count.EqualTo(2));
+            Assert.That(presenter.Requests[1].PartySlotIndex, Is.EqualTo(1));
+            Assert.That(presenter.Requests[1].CharacterId,
+                Is.EqualTo(SerenaCoralspearRules.CharacterId));
+            Assert.That(presenter.Requests[1].AttackElement,
+                Is.EqualTo(ElementType.Water));
+            presenter.Arrive();
+            yield return null;
+
+            Assert.That(bridge.LastMatchExecutionResult, Is.Not.Null);
+            Assert.That(bridge.LastMatchExecutionResult.ActionResults,
+                Has.Count.EqualTo(3));
+            DamageActionResult mareaDamage = bridge.LastMatchExecutionResult
+                .ActionResults[0] as DamageActionResult;
+            ConsumeResourceActionResult consumption = bridge
+                .LastMatchExecutionResult.ActionResults[1]
+                as ConsumeResourceActionResult;
+            DamageActionResult chase = bridge.LastMatchExecutionResult
+                .ActionResults[2] as DamageActionResult;
+            Assert.That(mareaDamage, Is.Not.Null);
+            Assert.That(consumption, Is.Not.Null);
+            Assert.That(chase, Is.Not.Null);
+            Assert.That(((DamageAction)mareaDamage.Action)
+                    .ContextRequest.Attacker,
+                Is.SameAs(marea));
+            Assert.That(((ConsumeResourceAction)consumption.Action)
+                    .ConsumerId,
+                Is.EqualTo(MareaBluefangRules.CharacterId));
+            Assert.That(chase.Action.Origin, Is.EqualTo(ActionOrigin.Chase));
+            Assert.That(((DamageAction)chase.Action)
+                    .ContextRequest.AttackType,
+                Is.EqualTo(AttackType.Chase));
+            Assert.That(chase.Action.RootActionId,
+                Is.EqualTo(mareaDamage.Action.ActionId));
+            Assert.That(chase.Action.SourceActionId,
+                Is.EqualTo(consumption.Action.ActionId));
+            Assert.That(((DamageAction)chase.Action).ContextRequest.Attacker,
+                Is.SameAs(serena));
+            Assert.That(chase.Context.BaseAttack, Is.EqualTo(200d));
         }
 
         [Test]
@@ -2702,6 +2818,18 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(condition(), Is.True, failureMessage);
         }
 
+        private static IEnumerator WaitUntilAfterScaledDelay(
+            Func<bool> condition,
+            string failureMessage,
+            float delaySeconds)
+        {
+            yield return new WaitForSeconds(delaySeconds);
+            yield return WaitUntil(
+                condition,
+                failureMessage,
+                maximumFrames: 8);
+        }
+
         private void SendCompletedAction(
             long actionId,
             BoardSwapActionResult result)
@@ -2825,6 +2953,19 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 {
                     BattleFlowTestSupport.Match(
                         ElementType.Fire,
+                        new BoardPosition(0, 0),
+                        new BoardPosition(1, 0),
+                        new BoardPosition(2, 0))
+                });
+        }
+
+        private static BoardCascadeResult CreateWaterMatchCascade()
+        {
+            return BattleFlowTestSupport.CreateCascade(
+                new[]
+                {
+                    BattleFlowTestSupport.Match(
+                        ElementType.Water,
                         new BoardPosition(0, 0),
                         new BoardPosition(1, 0),
                         new BoardPosition(2, 0))
@@ -3087,6 +3228,131 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             return (T)GetField(target, fieldName);
         }
 
+        private static class BattleFlowTestSupport
+        {
+            public static MatchFixture Match(
+                ElementType element,
+                params BoardPosition[] positions)
+            {
+                return new MatchFixture(element, positions);
+            }
+
+            public static BoardCascadeResult CreateCascade(
+                params MatchFixture[][] steps)
+            {
+                var cascadeSteps = new List<BoardCascadeStep>(steps.Length);
+                long nextRuntimeId = 1;
+                for (int stepIndex = 0;
+                    stepIndex < steps.Length;
+                    stepIndex++)
+                {
+                    cascadeSteps.Add(CreateStep(
+                        steps[stepIndex],
+                        ref nextRuntimeId));
+                }
+
+                return CreateInternal<BoardCascadeResult>(
+                    new BoardState(),
+                    cascadeSteps);
+            }
+
+            private static BoardCascadeStep CreateStep(
+                IReadOnlyList<MatchFixture> fixtures,
+                ref long nextRuntimeId)
+            {
+                var matches = new List<BoardMatch>(fixtures.Count);
+                var removals = new List<BoardBlockRemoval>();
+                for (int matchIndex = 0;
+                    matchIndex < fixtures.Count;
+                    matchIndex++)
+                {
+                    MatchFixture fixture = fixtures[matchIndex];
+                    var positions = new List<BoardPosition>(
+                        fixture.Positions);
+                    matches.Add(CreateInternal<BoardMatch>(
+                        fixture.Element,
+                        GetTier(positions.Count),
+                        positions[0],
+                        positions));
+
+                    for (int positionIndex = 0;
+                        positionIndex < positions.Count;
+                        positionIndex++)
+                    {
+                        var block = new BoardBlock(
+                            nextRuntimeId++,
+                            BoardBlockType.Normal,
+                            fixture.Element);
+                        removals.Add(CreateInternal<BoardBlockRemoval>(
+                            block,
+                            positions[positionIndex]));
+                    }
+                }
+
+                BoardCollapseResult collapse =
+                    CreateInternal<BoardCollapseResult>(
+                        new BoardState(),
+                        removals,
+                        new List<BoardBlockMove>());
+                BoardRefillResult refill =
+                    CreateInternal<BoardRefillResult>(
+                        new BoardState(),
+                        new List<BoardBlockSpawn>());
+                return CreateInternal<BoardCascadeStep>(
+                    matches,
+                    collapse,
+                    refill);
+            }
+
+            private static BoardMatchTier GetTier(int blockCount)
+            {
+                if (blockCount == 3)
+                {
+                    return BoardMatchTier.Three;
+                }
+
+                if (blockCount == 4)
+                {
+                    return BoardMatchTier.Four;
+                }
+
+                return BoardMatchTier.FiveOrMore;
+            }
+
+            private static T CreateInternal<T>(params object[] arguments)
+            {
+                return (T)Activator.CreateInstance(
+                    typeof(T),
+                    BindingFlags.Instance
+                        | BindingFlags.Public
+                        | BindingFlags.NonPublic,
+                    null,
+                    arguments,
+                    null);
+            }
+
+            public sealed class MatchFixture
+            {
+                public MatchFixture(
+                    ElementType element,
+                    IReadOnlyList<BoardPosition> positions)
+                {
+                    if (positions == null || positions.Count == 0)
+                    {
+                        throw new ArgumentException(
+                            "Match positions are required.",
+                            nameof(positions));
+                    }
+
+                    Element = element;
+                    Positions = positions;
+                }
+
+                public ElementType Element { get; }
+                public IReadOnlyList<BoardPosition> Positions { get; }
+            }
+        }
+
         private sealed class ControllerMatchActionProvider
             : IMatchEventActionProvider
         {
@@ -3112,6 +3378,50 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                             true,
                             context.FinalComboCount,
                             false))
+                };
+            }
+        }
+
+        private sealed class ControllerWaterConsumeActionProvider
+            : IMatchEventActionProvider
+        {
+            public IReadOnlyList<CombatAction> CreateRootActions(
+                MatchEventActionContext context)
+            {
+                if (!string.Equals(
+                        context.Character.CharacterId,
+                        MareaBluefangRules.CharacterId,
+                        StringComparison.Ordinal))
+                {
+                    return Array.Empty<CombatAction>();
+                }
+
+                long damageActionId = context.ActionIds.Next();
+                return new CombatAction[]
+                {
+                    new DamageAction(
+                        damageActionId,
+                        ActionOrigin.Match,
+                        new DamageContextBuildRequest(
+                            context.Character,
+                            context.Party,
+                            context.Boss,
+                            ElementType.Water,
+                            AttackType.Match,
+                            context.MatchAttackTag,
+                            1d,
+                            true,
+                            context.FinalComboCount,
+                            false)),
+                    new ConsumeResourceAction(
+                        context.ActionIds.Next(),
+                        ActionOrigin.System,
+                        context.Boss,
+                        WaterElementResource.Id,
+                        context.Character.CharacterId,
+                        ResourceConsumptionMode.All,
+                        rootActionId: damageActionId,
+                        sourceActionId: damageActionId)
                 };
             }
         }

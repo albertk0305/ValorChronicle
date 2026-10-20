@@ -253,10 +253,32 @@ namespace ValorChronicle.Tests.EditMode
                     CurrencyPull(0, 1000))), Is.True);
 
                 yield return null;
+                // EditMode does not schedule MonoBehaviour coroutines. Drive
+                // the same routine while retaining Unity's unscaled clock.
+                InvokePrivate(controller, "StopFlow");
+                int version = GetPrivateField<int>(
+                    controller,
+                    "presentationVersion");
+                Action enterShowingResult = () => InvokePrivate(
+                    controller,
+                    "EnterShowingResult");
+                var opening = (IEnumerator)InvokePrivate(
+                    controller,
+                    "AnimateCurtain",
+                    0f,
+                    1f,
+                    0.05f,
+                    version,
+                    enterShowingResult);
                 float timeout = Time.realtimeSinceStartup + 2f;
                 while (controller.State == GachaPresentationState.Opening
                     && Time.realtimeSinceStartup < timeout)
                 {
+                    if (!opening.MoveNext())
+                    {
+                        break;
+                    }
+
                     yield return null;
                 }
 

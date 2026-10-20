@@ -187,6 +187,34 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                     false));
         }
 
+        public static DamageAction AdditionalMatchDamage(
+            MatchEventActionContext context,
+            DamageAction source,
+            double coefficient = 1d)
+        {
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            return new DamageAction(
+                context.ActionIds.Next(),
+                ActionOrigin.Additional,
+                new DamageContextBuildRequest(
+                    context.Character,
+                    context.Party,
+                    context.Boss,
+                    context.Character.Element,
+                    AttackType.Additional,
+                    context.MatchAttackTag,
+                    coefficient,
+                    true,
+                    context.FinalComboCount,
+                    false),
+                rootActionId: source.ActionId,
+                sourceActionId: source.ActionId);
+        }
+
         public static BossDamageAction BossDamage(
             BossCombatActionContext context,
             double coefficient = 1d)

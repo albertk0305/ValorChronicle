@@ -1,11 +1,9 @@
 using System;
-using System.Collections;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using TMPro;
 using UnityEngine;
-using UnityEngine.TestTools;
 using UnityEngine.UI;
 using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Flow;
@@ -15,7 +13,7 @@ using ValorChronicle.Core.Scene;
 using ValorChronicle.Localization;
 using ValorChronicle.UI.Settings;
 
-namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
+namespace ValorChronicle.Tests.PlayMode
 {
     public sealed class BattlePausePanelBindingTests
     {
@@ -29,18 +27,6 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         private LocalizedTMPText pauseText;
         private GameObject settingsPrefab;
         private float timeScale;
-
-        [UnitySetUp]
-        public IEnumerator EnterRuntimeMode()
-        {
-            yield return new EnterPlayMode();
-        }
-
-        [UnityTearDown]
-        public IEnumerator ExitRuntimeMode()
-        {
-            yield return new ExitPlayMode();
-        }
 
         [SetUp]
         public void SetUp()
@@ -133,11 +119,28 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         [TearDown]
         public void TearDown()
         {
-            if (root != null)
-                UnityEngine.Object.DestroyImmediate(root);
-            if (settingsPrefab != null)
-                UnityEngine.Object.DestroyImmediate(settingsPrefab);
-            pauseService?.Dispose();
+            try
+            {
+                if (root != null)
+                    UnityEngine.Object.DestroyImmediate(root);
+            }
+            finally
+            {
+                try
+                {
+                    if (settingsPrefab != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(settingsPrefab);
+                    }
+                }
+                finally
+                {
+                    pauseService?.Dispose();
+                    root = null;
+                    settingsPrefab = null;
+                    pauseService = null;
+                }
+            }
         }
 
         [Test]

@@ -136,6 +136,7 @@ namespace ValorChronicle.Battle.Combat.Integration
                         + "battle-scoped ID per returned action.");
             }
 
+            var validMatchDamageActionIds = new HashSet<long>();
             for (int actionIndex = 0;
                 actionIndex < actions.Count;
                 actionIndex++)
@@ -163,13 +164,19 @@ namespace ValorChronicle.Battle.Combat.Integration
                             + "or earlier in-sequence lineage.");
                 }
 
-                ValidateMatchDamageAction(action, context);
+                ValidateMatchDamageAction(
+                    action,
+                    context,
+                    isRoot,
+                    validMatchDamageActionIds);
             }
         }
 
         private static void ValidateMatchDamageAction(
             CombatAction action,
-            MatchEventActionContext context)
+            MatchEventActionContext context,
+            bool isRoot,
+            HashSet<long> validMatchDamageActionIds)
         {
             if (action is BossDamageAction)
             {
@@ -183,8 +190,19 @@ namespace ValorChronicle.Battle.Combat.Integration
             }
 
             var request = damageAction.ContextRequest;
-            if (damageAction.Origin != ActionOrigin.Match
-                || request.AttackType != AttackType.Match
+            bool isMatchDamage =
+                damageAction.Origin == ActionOrigin.Match
+                && request.AttackType == AttackType.Match
+                && isRoot;
+            bool isAdditionalDamage =
+                damageAction.Origin == ActionOrigin.Additional
+                && request.AttackType == AttackType.Additional
+                && damageAction.SourceActionId.HasValue
+                && damageAction.RootActionId
+                    == damageAction.SourceActionId.Value
+                && validMatchDamageActionIds.Contains(
+                    damageAction.SourceActionId.Value);
+            if ((!isMatchDamage && !isAdditionalDamage)
                 || !ReferenceEquals(request.Attacker, context.Character)
                 || !ReferenceEquals(request.Party, context.Party)
                 || !ReferenceEquals(request.TargetBoss, context.Boss)
@@ -194,8 +212,16 @@ namespace ValorChronicle.Battle.Combat.Integration
                 || (request.AttackTags & context.MatchAttackTag) == 0)
             {
                 throw new InvalidOperationException(
-                    "Match damage roots must use the current character, "
-                        + "battle, element, tier tag, and final combo count.");
+                    "Match providers may return root Match damage or "
+                        + "Additional damage directly derived from an "
+                        + "earlier valid Match damage action. Damage must "
+                        + "use the current character, battle, element, "
+                        + "tier tag, and final combo count.");
+            }
+
+            if (isMatchDamage)
+            {
+                validMatchDamageActionIds.Add(damageAction.ActionId);
             }
         }
 

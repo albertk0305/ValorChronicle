@@ -1,4 +1,5 @@
 using System;
+using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Data.Definitions;
@@ -9,6 +10,8 @@ namespace ValorChronicle.Characters.Marea
     public sealed class MareaBluefangCombatProviderRegistrar
         : ICharacterCombatProviderRegistrar
     {
+        public string CharacterId => MareaBluefangRules.CharacterId;
+
         public Type SupportedCombatConfigType =>
             typeof(MareaBluefangCombatConfig);
 
@@ -16,6 +19,7 @@ namespace ValorChronicle.Characters.Marea
             BattlePartyMemberInput member,
             CharacterBattleState character,
             BossBattleState boss,
+            CombatActionIdSequence actionIds,
             MatchEventActionProviderRegistry matchProviders,
             ActiveAbilityActionProviderRegistry activeProviders)
         {
@@ -32,6 +36,11 @@ namespace ValorChronicle.Characters.Marea
             if (boss == null)
             {
                 throw new ArgumentNullException(nameof(boss));
+            }
+
+            if (actionIds == null)
+            {
+                throw new ArgumentNullException(nameof(actionIds));
             }
 
             if (!string.Equals(
@@ -62,9 +71,6 @@ namespace ValorChronicle.Characters.Marea
                     $"Marea's CombatConfig is invalid. {errorMessage}");
             }
 
-            WaterElementResource.Register(
-                boss.Resources,
-                config.WaterElementMaxAmount);
             MareaBluefangCombatProviderRegistration.Register(
                 matchProviders,
                 activeProviders,
@@ -73,7 +79,14 @@ namespace ValorChronicle.Characters.Marea
             return CharacterCombatProviderRegistrationResult
                 .WithActiveAbility(
                     MareaBluefangRules.ActiveAbilityId,
-                    config.ActiveCooldownTurns);
+                    config.ActiveCooldownTurns,
+                    Array.Empty<ICombatTriggerRule>(),
+                    new CombatResourceRequirement[]
+                    {
+                        new CombatResourceRequirement(
+                            WaterElementResource.Id,
+                            WaterElementResource.MaxAmount)
+                    });
         }
     }
 }

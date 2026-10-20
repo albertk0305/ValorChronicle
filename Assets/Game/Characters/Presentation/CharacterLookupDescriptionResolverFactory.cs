@@ -1,4 +1,4 @@
-using ValorChronicle.Characters.Marea;
+using ValorChronicle.Characters.Runtime;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Localization;
 
@@ -10,13 +10,11 @@ namespace ValorChronicle.Characters.Presentation
             DefinitionDatabase definitionDatabase,
             LocalizationService localizationService)
         {
-            return new CharacterLookupDescriptionResolver(
-                definitionDatabase,
-                localizationService,
-                new ICharacterLookupDescriptionProvider[]
-                {
-                    new MareaBluefangLookupDescriptionProvider()
-                });
+            return CharacterRuntimeRegistrationCatalog
+                .CreateDefault()
+                .CreateLookupDescriptionResolver(
+                    definitionDatabase,
+                    localizationService);
         }
     }
 }

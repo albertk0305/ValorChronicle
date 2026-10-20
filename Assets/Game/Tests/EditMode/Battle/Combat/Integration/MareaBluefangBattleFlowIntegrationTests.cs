@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using UnityEditor;
+using UnityEngine;
 using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Damage;
@@ -11,6 +13,7 @@ using ValorChronicle.Battle.Flow;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Party.Battle;
 using ValorChronicle.Tests.EditMode.Battle.Flow;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
@@ -48,6 +51,91 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                 "character_unknown",
                 "active_unknown",
                 out _), Is.False);
+        }
+
+        [Test]
+        public void RegistrarKeepsMareaContractAndDeclaresWaterRequirement()
+        {
+            MareaBluefangCombatConfig config =
+                MareaBluefangTestConfig.Create();
+            CharacterDefinition definition = ScriptableObject.CreateInstance<
+                CharacterDefinition>();
+            try
+            {
+                var serialized = new SerializedObject(definition);
+                serialized.FindProperty("id").stringValue =
+                    MareaBluefangRules.CharacterId;
+                serialized.FindProperty("element").enumValueIndex =
+                    (int)ElementType.Water;
+                serialized.FindProperty("level1Hp").intValue = 1000;
+                serialized.FindProperty("level1Attack").intValue = 1000;
+                serialized.FindProperty("level100Hp").intValue = 1000;
+                serialized.FindProperty("level100Attack").intValue = 1000;
+                serialized.FindProperty("combatConfig").objectReferenceValue =
+                    config;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                var member = new BattlePartyMemberInput(
+                    MareaBluefangRules.CharacterId,
+                    partySlotIndex: 0,
+                    level: 1,
+                    awakening: 0,
+                    definition);
+                CharacterBattleState character = Marea(0);
+                BossBattleState boss = Boss();
+                var actionIds = new CombatActionIdSequence();
+                var matchProviders = new MatchEventActionProviderRegistry();
+                var activeProviders = new ActiveAbilityActionProviderRegistry();
+                var registrar = new MareaBluefangCombatProviderRegistrar();
+
+                Assert.Throws<ArgumentNullException>(() =>
+                    registrar.Register(
+                        member,
+                        character,
+                        boss,
+                        null,
+                        matchProviders,
+                        activeProviders));
+
+                CharacterCombatProviderRegistrationResult result =
+                    registrar.Register(
+                        member,
+                        character,
+                        boss,
+                        actionIds,
+                        matchProviders,
+                        activeProviders);
+
+                Assert.That(matchProviders.TryResolve(
+                    MareaBluefangRules.CharacterId,
+                    out IMatchEventActionProvider matchProvider), Is.True);
+                Assert.That(matchProvider,
+                    Is.TypeOf<MareaBluefangMatchActionProvider>());
+                Assert.That(activeProviders.TryResolve(
+                    MareaBluefangRules.CharacterId,
+                    MareaBluefangRules.ActiveAbilityId,
+                    out IActiveAbilityActionProvider activeProvider), Is.True);
+                Assert.That(activeProvider,
+                    Is.TypeOf<MareaBluefangActiveActionProvider>());
+                Assert.That(result.ActiveAbilityId,
+                    Is.EqualTo(MareaBluefangRules.ActiveAbilityId));
+                Assert.That(result.ActiveCooldownTurns, Is.EqualTo(8));
+                Assert.That(result.TriggerRules, Is.Empty);
+                Assert.That(result.ResourceRequirements,
+                    Has.Count.EqualTo(1));
+                Assert.That(result.ResourceRequirements[0].ResourceId,
+                    Is.EqualTo(WaterElementResource.Id));
+                Assert.That(result.ResourceRequirements[0].MaxAmount,
+                    Is.EqualTo(WaterElementResource.MaxAmount));
+                Assert.That(actionIds.LastIssuedId, Is.Zero);
+                Assert.That(boss.Resources.TryGet(
+                    WaterElementResource.Id,
+                    out _), Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(definition);
+                UnityEngine.Object.DestroyImmediate(config);
+            }
         }
 
         [Test]
@@ -572,6 +660,23 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(battle.Coordinator.Context.Phase,
                 Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(battle.ActionIds.LastIssuedId, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void MatchExecutionAppliesCalculatedDamageToBossAndScore()
+        {
+            IntegratedBattle battle = CreateIntegratedMareaBattle(2);
+            battle.Coordinator.StartBattle();
+            long bossHpBefore = battle.Bridge.Boss.CurrentHp;
+
+            DamageActionResult damage = ResolveOneMareaMatch(battle);
+
+            Assert.That(damage.DamageResult.FinalDamage, Is.EqualTo(900L));
+            Assert.That(damage.AppliedDamage, Is.EqualTo(900L));
+            Assert.That(battle.Bridge.Boss.CurrentHp,
+                Is.EqualTo(bossHpBefore - damage.AppliedDamage));
+            Assert.That(battle.Bridge.DamageScore,
+                Is.EqualTo(damage.AppliedDamage));
         }
 
         [Test]

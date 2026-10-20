@@ -24,7 +24,8 @@ namespace ValorChronicle.Battle.Combat.Damage
             double baseCriticalChance = DefaultBaseCriticalChance,
             double baseCriticalDamageMultiplier =
                 DefaultBaseCriticalDamageMultiplier,
-            double actionLocalDealtDamageIncreaseRate = 0d)
+            double actionLocalDealtDamageIncreaseRate = 0d,
+            double actionLocalAttackTypeDamageIncreaseRate = 0d)
         {
             Attacker = attacker
                 ?? throw new ArgumentNullException(nameof(attacker));
@@ -51,6 +52,9 @@ namespace ValorChronicle.Battle.Combat.Damage
             ValidateNonNegative(
                 actionLocalDealtDamageIncreaseRate,
                 nameof(actionLocalDealtDamageIncreaseRate));
+            ValidateNonNegative(
+                actionLocalAttackTypeDamageIncreaseRate,
+                nameof(actionLocalAttackTypeDamageIncreaseRate));
             if (baseCriticalDamageMultiplier < 1d)
             {
                 throw new ArgumentOutOfRangeException(
@@ -70,6 +74,8 @@ namespace ValorChronicle.Battle.Combat.Damage
             BaseCriticalDamageMultiplier = baseCriticalDamageMultiplier;
             ActionLocalDealtDamageIncreaseRate =
                 actionLocalDealtDamageIncreaseRate;
+            ActionLocalAttackTypeDamageIncreaseRate =
+                actionLocalAttackTypeDamageIncreaseRate;
         }
 
         public CharacterBattleState Attacker { get; }
@@ -85,6 +91,7 @@ namespace ValorChronicle.Battle.Combat.Damage
         public double BaseCriticalChance { get; }
         public double BaseCriticalDamageMultiplier { get; }
         public double ActionLocalDealtDamageIncreaseRate { get; }
+        public double ActionLocalAttackTypeDamageIncreaseRate { get; }
 
         private static void ValidateElement(ElementType element)
         {

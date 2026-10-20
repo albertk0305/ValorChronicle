@@ -5,6 +5,8 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
+using ValorChronicle.Characters.Marea;
+using ValorChronicle.Characters.Serena;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Data.Validation;
@@ -277,29 +279,63 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
-        public void CanonicalCatalogRegistersEveryCurrentCharacterAndRelic()
+        public void CanonicalCatalogUsesExplicitCharacterRegistration()
         {
             DefinitionDatabase database = AssetDatabase.LoadAssetAtPath<
                 DefinitionDatabase>(
                 "Assets/Data/Database/DefinitionDatabase.asset");
             Assert.That(database, Is.Not.Null);
             Assert.That(database.ExchangeCatalog, Is.Not.Null);
+            database.Initialize();
+
             Assert.That(database.ExchangeCatalog.CharacterExchangeCost,
                 Is.EqualTo(60L));
             Assert.That(database.ExchangeCatalog.RelicExchangeCost,
                 Is.EqualTo(25L));
+
+            string[] registeredCharacterIds = database.ExchangeCatalog
+                .CharacterIds
+                .ToArray();
+            Assert.That(registeredCharacterIds.Distinct().Count(),
+                Is.EqualTo(registeredCharacterIds.Length));
+            Assert.That(registeredCharacterIds,
+                Does.Contain(MareaBluefangRules.CharacterId));
+            Assert.That(registeredCharacterIds,
+                Does.Not.Contain(SerenaCoralspearRules.CharacterId));
+            Assert.That(database.Characters.Select(item => item.Id),
+                Does.Contain(SerenaCoralspearRules.CharacterId));
+            for (int index = 0;
+                index < registeredCharacterIds.Length;
+                index++)
+            {
+                Assert.That(database.TryGetCharacter(
+                        registeredCharacterIds[index],
+                        out _),
+                    Is.True,
+                    registeredCharacterIds[index]);
+            }
+
+            ExchangeCatalogData result = ExchangeCatalogBuilder.Build(
+                database,
+                database.ExchangeCatalog,
+                Profile(heroTokens: 60L, relicTokens: 25L));
             Assert.That(
-                database.ExchangeCatalog.CharacterIds.OrderBy(
+                result.Characters.Select(item => item.CharacterId),
+                Is.EqualTo(registeredCharacterIds.OrderBy(
                     id => id,
-                    StringComparer.Ordinal),
-                Is.EqualTo(database.Characters.Select(item => item.Id)
-                    .OrderBy(id => id, StringComparer.Ordinal)));
+                    StringComparer.Ordinal)));
+
             Assert.That(
                 database.ExchangeCatalog.RelicIds.OrderBy(
                     id => id,
                     StringComparer.Ordinal),
                 Is.EqualTo(database.Relics.Select(item => item.Id)
                     .OrderBy(id => id, StringComparer.Ordinal)));
+            Assert.That(
+                result.Relics.Select(item => item.RelicId),
+                Is.EqualTo(database.ExchangeCatalog.RelicIds.OrderBy(
+                    id => id,
+                    StringComparer.Ordinal)));
         }
 
         private TestData RelicData()

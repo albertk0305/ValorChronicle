@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Characters.Marea
@@ -111,9 +112,11 @@ namespace ValorChronicle.Characters.Marea
                 return false;
             }
 
-            if (waterElementMaxAmount <= 0)
+            if (waterElementMaxAmount != WaterElementResource.MaxAmount)
             {
-                errorMessage = "WaterElementMaxAmount must be greater than zero.";
+                errorMessage = "WaterElementMaxAmount must match the shared "
+                    + $"water element maximum of "
+                    + $"{WaterElementResource.MaxAmount}.";
                 return false;
             }
 

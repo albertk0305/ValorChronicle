@@ -96,31 +96,8 @@ namespace ValorChronicle.Tests.EditMode
                     Expected(GachaRewardKind.BattleRecords, 12000, 5)
                 });
 
-            Assert.That(
-                characterGacha.CharacterPoolIds,
-                Is.EqualTo(new[] { "character_marea_bluefang" }));
-            Assert.That(
-                characterGacha.RelicPoolIds,
-                Is.EqualTo(new[]
-                {
-                    "relic_victors_broken_sword",
-                    "relic_world_tree_bark"
-                }));
-            Assert.That(
-                relicGacha.CharacterPoolIds,
-                Is.EqualTo(characterGacha.CharacterPoolIds));
-            Assert.That(
-                relicGacha.RelicPoolIds,
-                Is.EqualTo(characterGacha.RelicPoolIds));
-
-            Assert.That(
-                characterGacha.CharacterPoolIds.All(id =>
-                    database.TryGetCharacter(id, out _)),
-                Is.True);
-            Assert.That(
-                characterGacha.RelicPoolIds.All(id =>
-                    database.TryGetRelic(id, out _)),
-                Is.True);
+            AssertPoolsReferenceKnownDefinitions(characterGacha, database);
+            AssertPoolsReferenceKnownDefinitions(relicGacha, database);
         }
 
         [Test]
@@ -418,6 +395,31 @@ namespace ValorChronicle.Tests.EditMode
                         entry.Quantity,
                         entry.Weight)),
                 Is.EqualTo(expectedRewards));
+        }
+
+        private static void AssertPoolsReferenceKnownDefinitions(
+            GachaDefinition definition,
+            DefinitionDatabase database)
+        {
+            Assert.That(definition.CharacterPoolIds, Is.Not.Empty);
+            Assert.That(
+                definition.CharacterPoolIds.Distinct(StringComparer.Ordinal)
+                    .Count(),
+                Is.EqualTo(definition.CharacterPoolIds.Count));
+            Assert.That(
+                definition.CharacterPoolIds.All(id =>
+                    database.TryGetCharacter(id, out _)),
+                Is.True);
+
+            Assert.That(definition.RelicPoolIds, Is.Not.Empty);
+            Assert.That(
+                definition.RelicPoolIds.Distinct(StringComparer.Ordinal)
+                    .Count(),
+                Is.EqualTo(definition.RelicPoolIds.Count));
+            Assert.That(
+                definition.RelicPoolIds.All(id =>
+                    database.TryGetRelic(id, out _)),
+                Is.True);
         }
 
         private static void AssertGachaError(

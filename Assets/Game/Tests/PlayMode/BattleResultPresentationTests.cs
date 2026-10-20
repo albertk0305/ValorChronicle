@@ -13,27 +13,21 @@ using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Battle.Results.Persistence;
 using ValorChronicle.Localization;
+using ValorChronicle.Save.Copying;
+using ValorChronicle.Save.Migration;
+using ValorChronicle.Save.Processing;
+using ValorChronicle.Save.Repository;
+using ValorChronicle.Save.Serialization;
 using ValorChronicle.Save.Services;
+using ValorChronicle.Save.Validation;
 
-namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
+namespace ValorChronicle.Tests.PlayMode
 {
     public sealed class BattleResultPresentationTests
     {
         private readonly List<UnityEngine.Object> createdObjects =
             new List<UnityEngine.Object>();
         private float previousTimeScale;
-
-        [UnitySetUp]
-        public IEnumerator EnterRuntimeMode()
-        {
-            yield return new EnterPlayMode();
-        }
-
-        [UnityTearDown]
-        public IEnumerator ExitRuntimeMode()
-        {
-            yield return new ExitPlayMode();
-        }
 
         [SetUp]
         public void SetUp()
@@ -501,13 +495,29 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         {
             return new FakeSaveRepository
             {
-                MainText = SaveTestDataBuilder.ValidJson()
+                MainText = new NewtonsoftJsonSaveSerializer().Serialize(
+                    new NewProfileFactory().Create("profile_test", 10))
             };
         }
 
         private static SaveService LoadedService(FakeSaveRepository repository)
         {
-            SaveService service = SaveServiceTestFactory.Create(repository);
+            var cloner = new SaveDataCloner();
+            var service = new SaveService(
+                repository,
+                new NewtonsoftJsonSaveSerializer(),
+                new NewProfileFactory(),
+                cloner,
+                new SaveMigrationRunner(
+                    cloner,
+                    new ISaveMigrationStep[]
+                    {
+                        new V1ToV2PartyMigration(),
+                        new V2ToV3RelicEquipMigration()
+                    }),
+                new SaveValidationProcessor(),
+                new ExistingSaveContentCatalog(),
+                new FixedUnixTimeProvider());
             SaveLoadResult load = service.LoadOrCreate("ignored");
             Assert.That(load.CanUseProfile, Is.True, load.Message);
             return service;
@@ -579,6 +589,103 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             {
                 ResultFinalized?.Invoke(result);
             }
+        }
+
+        private sealed class FakeSaveRepository : ISaveRepository
+        {
+            public string MainText { get; set; }
+            public string BackupText { get; set; }
+            public string TempText { get; set; }
+            public bool FailWriteTemp { get; set; }
+            public List<string> Calls { get; } = new List<string>();
+
+            public bool MainExists => MainText != null;
+            public bool BackupExists => BackupText != null;
+            public bool TempExists => TempText != null;
+
+            public int Count(string operation) =>
+                Calls.FindAll(value => value == operation).Count;
+
+            public void EnsureRootDirectory() =>
+                Calls.Add(nameof(EnsureRootDirectory));
+
+            public string ReadMain()
+            {
+                Calls.Add(nameof(ReadMain));
+                return MainText;
+            }
+
+            public string ReadBackup()
+            {
+                Calls.Add(nameof(ReadBackup));
+                return BackupText;
+            }
+
+            public string ReadTemp()
+            {
+                Calls.Add(nameof(ReadTemp));
+                return TempText;
+            }
+
+            public void WriteTemp(string contents)
+            {
+                Calls.Add(nameof(WriteTemp));
+                if (FailWriteTemp)
+                {
+                    throw new InvalidOperationException(
+                        "Injected temp write failure.");
+                }
+
+                TempText = contents;
+            }
+
+            public void CopyMainToBackup()
+            {
+                Calls.Add(nameof(CopyMainToBackup));
+                BackupText = MainText;
+            }
+
+            public void PromoteTempToMain()
+            {
+                Calls.Add(nameof(PromoteTempToMain));
+                MainText = TempText;
+                TempText = null;
+            }
+
+            public void DeleteTempIfExists()
+            {
+                Calls.Add(nameof(DeleteTempIfExists));
+                TempText = null;
+            }
+        }
+
+        private sealed class FixedUnixTimeProvider : IUnixTimeProvider
+        {
+            public long GetUtcUnixTimeSeconds() => 100;
+        }
+
+        private sealed class ExistingSaveContentCatalog : ISaveContentCatalog
+        {
+            public SaveContentLookupResult LookupCharacter(string characterId)
+                => SaveContentLookupResult.Exists;
+
+            public SaveContentLookupResult LookupRelic(string relicDefinitionId)
+                => SaveContentLookupResult.Exists;
+
+            public SaveContentLookupResult LookupBoss(string bossId)
+                => SaveContentLookupResult.Exists;
+
+            public SaveContentLookupResult LookupBossDifficulty(
+                string bossId,
+                string difficultyId) => SaveContentLookupResult.Exists;
+
+            public SaveContentLookupResult LookupGacha(string gachaId)
+                => SaveContentLookupResult.Exists;
+
+            public SaveContentLookupResult LookupRewardGrade(
+                string bossId,
+                string difficultyId,
+                string gradeId) => SaveContentLookupResult.Exists;
         }
 
         private sealed class PresentationFixture

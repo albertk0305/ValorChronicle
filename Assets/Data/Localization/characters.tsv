@@ -30,3 +30,28 @@ marea.awakening.3.description	Predator's Instinct damage increase changes from {
 marea.awakening.4.description	3 Match changes from {match3_before}% to {match3_after}% ATK. 4 Match base changes from {match4_base_before}% to {match4_base_after}% ATK, and its Water Element bonus changes from {match4_conditional_before}% to {match4_conditional_after}% ATK.	3매치 공격력 계수가 {match3_before}%에서 {match3_after}%로 변경됩니다. 4매치 기본 공격력 계수가 {match4_base_before}%에서 {match4_base_after}%로, 물 원소 추가 공격력 계수가 {match4_conditional_before}%에서 {match4_conditional_after}%로 변경됩니다.
 marea.awakening.5.description	Time of Devouring's coefficient per consumed Water Element changes from {per_water_before}% to {per_water_after}% ATK.	포식의 시간의 소모한 물 원소당 공격력 계수가 {per_water_before}%에서 {per_water_after}%로 변경됩니다.
 marea.awakening.6.description	Consuming {required_water} Water Elements at once grants one Lingering Surge. It persists until the next 3 or 4 Match attack, increases that attack's final damage by {damage_increase}%, and is then consumed. A 5 Match attack neither uses nor consumes it.	물 원소 {required_water}개를 한 번에 소모하면 잔류 쇄도 1개를 얻습니다. 다음 3매치 또는 4매치 공격까지 유지되며, 해당 공격의 최종 피해를 {damage_increase}% 증가시킨 후 소모됩니다. 5매치 공격은 잔류 쇄도를 사용하거나 소모하지 않습니다.
+serena	Serena Coralspear	세레나 코랄스피어
+serena.skill.match3.name	Current's Awl - 3 Match	해류의 송곳 - 3매치
+serena.skill.match3.description	Deals {coefficient}% ATK as Water damage, then attaches {water_gain} Water Element.	공격력의 {coefficient}%만큼 물속성 피해를 준 후 물 원소 {water_gain}개를 부착합니다.
+serena.skill.match4.name	Deep Sea Torrent - 4 Match	심해의 격류 - 4매치
+serena.skill.match4.description	Deals {base_coefficient}% ATK as Water damage. If Water Element was present at attack start, performs a separate Additional attack dealing {additional_coefficient}% ATK as Water damage.	공격력의 {base_coefficient}%만큼 물속성 피해를 줍니다. 공격 시작 시 물 원소가 있었다면 공격력의 {additional_coefficient}%만큼 물속성 피해를 주는 별도의 Additional 공격을 합니다.
+serena.skill.match5.name	Breath of the Deep Blue - 5 Match	파도의 숨결 - 5매치
+serena.skill.match5.description	Deals {coefficient}% ATK as Water damage and grants {empowered_chase_gain} Empowered Chase. Water Element attached after damage: {water_gain}.	공격력의 {coefficient}%만큼 물속성 피해를 주고 강화 추격 {empowered_chase_gain}회를 얻습니다. 피해 후 부착하는 물 원소: {water_gain}개.
+serena.skill.passive.name	Deep Sea Resonance	심해의 공명
+serena.skill.passive.description	When another ally actually consumes Water Element, performs one Chase attack per consumption event, dealing {per_water_coefficient}% ATK per element consumed. Additional and Chase damage increases by {damage_increase}%. Empowered Chase adds {empowered_damage_increase}% damage and can hold up to {max_charges} charges.	다른 아군이 물 원소를 실제로 소모하면 소비 이벤트당 추격 공격을 1회 하며, 소모한 원소 하나당 공격력의 {per_water_coefficient}%만큼 피해를 줍니다. Additional 및 Chase 피해가 {damage_increase}% 증가합니다. 강화 추격은 피해를 {empowered_damage_increase}% 추가로 증가시키며 최대 {max_charges}회 보유할 수 있습니다.
+serena.skill.active.name	Encore Aria	앙코르 아리아
+serena.skill.active.description	Increases this character's Additional and Chase damage by {damage_increase}% for {duration} turns. Cooldown: {cooldown} turns.	이 캐릭터의 Additional 및 Chase 피해가 {duration}턴 동안 {damage_increase}% 증가합니다. 재사용 대기시간: {cooldown}턴.
+serena.awakening.1.name	Overture of the Deep	심해의 서곡
+serena.awakening.2.name	Resonant Blade	여운의 창날
+serena.awakening.3.name	Sonata of Response	화답의 소나타
+serena.awakening.4.name	Torrent Mastery	격류 연마
+serena.awakening.5.name	Thrilling Climax	전율의 클라이맥스
+serena.awakening.6.name	Eternal Refrain	영원한 리프레인
+serena.awakening.1.description	ATK multiplier increases from {multiplier_before}% to {multiplier_after}%.	공격력 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+serena.awakening.2.description	Additional and Chase damage increase changes from {damage_before}% to {damage_after}%.	Additional 및 Chase 피해 증가량이 {damage_before}%에서 {damage_after}%로 변경됩니다.
+serena.awakening.3.description	Deep Sea Resonance's coefficient per consumed Water Element changes from {chase_before}% to {chase_after}% ATK.	심해의 공명의 소모한 물 원소당 공격력 계수가 {chase_before}%에서 {chase_after}%로 변경됩니다.
+serena.awakening.4.description	3 Match changes from {match3_before}% to {match3_after}% ATK. 4 Match base changes from {match4_base_before}% to {match4_base_after}% ATK, and its Additional attack changes from {match4_additional_before}% to {match4_additional_after}% ATK.	3매치 공격력 계수가 {match3_before}%에서 {match3_after}%로 변경됩니다. 4매치 기본 공격력 계수가 {match4_base_before}%에서 {match4_base_after}%로, Additional 공격력 계수가 {match4_additional_before}%에서 {match4_additional_after}%로 변경됩니다.
+serena.awakening.5.description	Encore Aria's Additional and Chase damage increase changes from {active_before}% to {active_after}%.	앙코르 아리아의 Additional 및 Chase 피해 증가량이 {active_before}%에서 {active_after}%로 변경됩니다.
+serena.awakening.6.description	Water Element attached after a 5 Match changes from {water_before} to {water_after}.	5매치 피해 후 부착하는 물 원소가 {water_before}개에서 {water_after}개로 변경됩니다.
+effect.serena.encore_aria.name	Encore Aria	앙코르 아리아
+effect.serena.encore_aria.description	Encore Aria's Additional and Chase damage increase is active.	앙코르 아리아의 Additional 및 Chase 피해 증가가 적용 중입니다.

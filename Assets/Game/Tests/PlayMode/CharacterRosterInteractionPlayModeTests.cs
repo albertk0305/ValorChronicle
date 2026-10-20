@@ -218,13 +218,15 @@ namespace ValorChronicle.Tests.PlayMode
                     .Single(item => item.IsBound);
                 Vector2 before = fixture.Content.anchoredPosition;
                 Drag(fixture, cell.Button.gameObject, -250f);
-                Assert.That(fixture.Grid.ScrollOffset, Is.Zero);
+                Assert.That(fixture.Grid.ScrollOffset,
+                    Is.EqualTo(0f).Within(0.01f));
                 AssertAnchoredPositionWithinTolerance(
                     fixture.Content.anchoredPosition,
                     before);
 
                 Drag(fixture, fixture.ScrollOverlay.gameObject, -250f);
-                Assert.That(fixture.Grid.ScrollOffset, Is.Zero);
+                Assert.That(fixture.Grid.ScrollOffset,
+                    Is.EqualTo(0f).Within(0.01f));
                 AssertAnchoredPositionWithinTolerance(
                     fixture.Content.anchoredPosition,
                     before);

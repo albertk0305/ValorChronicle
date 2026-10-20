@@ -22,6 +22,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 {
     public sealed class BattleSceneCombatCompositionPartyTests
     {
+        private const string TriggerInputResourceId = "trigger_input";
+        private const string TriggerOutputResourceId = "trigger_output";
+
         private readonly List<UnityEngine.Object> createdObjects =
             new List<UnityEngine.Object>();
 
@@ -104,6 +107,387 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(memberA.Awakening, Is.EqualTo(1));
             Assert.That(memberB.Awakening, Is.EqualTo(2));
             Assert.That(memberC.Awakening, Is.EqualTo(3));
+            Assert.That(composition.Boss.Resources.Count, Is.Zero);
+        }
+
+        [Test]
+        public void CompositionPassesOneBattleActionIdSequenceToRegistrars()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar();
+            using BattleSceneCombatComposition composition = Compose(
+                new[]
+                {
+                    Member("a", 0, 1, 0, 3),
+                    Member("b", 2, 1, 0, 5)
+                },
+                registrar);
+
+            Assert.That(registrar.ReceivedActionIds,
+                Has.Count.EqualTo(2));
+            foreach (CombatActionIdSequence received in
+                registrar.ReceivedActionIds)
+            {
+                Assert.That(received, Is.SameAs(composition.ActionIds));
+            }
+        }
+
+        [Test]
+        public void CompositionCollectsRulesInSlotOrderAndExecutesDerivations()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar(
+                "left",
+                "right");
+            registrar.ResourceRequirements.Add(
+                new CombatResourceRequirement("shared_charge", 2));
+            using BattleSceneCombatComposition composition = Compose(
+                new[]
+                {
+                    Member("right", 4, 1, 0, 5),
+                    Member("left", 1, 1, 0, 3)
+                },
+                registrar);
+            PrepareTriggerResources(composition, inputAmount: 1);
+            long rootActionId = composition.ActionIds.Next();
+
+            CombatActionExecutionResult result = composition.Executor.Execute(
+                new CombatActionQueue(new CombatAction[]
+                {
+                    Consumption(composition, rootActionId)
+                }));
+
+            Assert.That(
+                registrar.CreatedRules.Select(
+                    rule => rule.Owner.PartySlotIndex),
+                Is.EqualTo(new[] { 1, 4 }));
+            Assert.That(registrar.MatchedPartySlots,
+                Is.EqualTo(new[] { 1, 4 }));
+            Assert.That(composition.Boss.Resources.GetAmount(
+                TriggerOutputResourceId), Is.EqualTo(2));
+            Assert.That(composition.Boss.Resources.Get(
+                    "shared_charge").MaxAmount,
+                Is.EqualTo(2));
+            Assert.That(result.ActionResults, Has.Count.EqualTo(3));
+            Assert.That(result.ActionResults[0].Action,
+                Is.TypeOf<ConsumeResourceAction>());
+            Assert.That(result.ActionResults[1].Action,
+                Is.TypeOf<AddResourceAction>());
+            Assert.That(result.ActionResults[2].Action,
+                Is.TypeOf<AddResourceAction>());
+
+            var actionIds = new HashSet<long>();
+            for (int index = 0; index < result.ActionResults.Count; index++)
+            {
+                Assert.That(actionIds.Add(
+                    result.ActionResults[index].Action.ActionId), Is.True);
+            }
+
+            for (int index = 1; index < result.ActionResults.Count; index++)
+            {
+                CombatAction derived = result.ActionResults[index].Action;
+                Assert.That(derived.RootActionId, Is.EqualTo(rootActionId));
+                Assert.That(derived.SourceActionId,
+                    Is.EqualTo(rootActionId));
+            }
+
+            foreach (ResourceConsumptionTestTriggerRule rule in
+                registrar.CreatedRules)
+            {
+                Assert.That(rule.ActionIds,
+                    Is.SameAs(composition.ActionIds));
+                Assert.That(rule.Boss, Is.SameAs(composition.Boss));
+                Assert.That(
+                    composition.Party.Characters.Contains(rule.Owner),
+                    Is.True);
+            }
+        }
+
+        [Test]
+        public void CompositionCollectsRulesFromDifferentRegistrarsInSlotOrder()
+        {
+            var matchedPartySlots = new List<int>();
+            var firstRegistrar = new TestCharacterCombatProviderRegistrar(
+                typeof(TestCharacterCombatConfig),
+                matchedPartySlots,
+                "first");
+            var secondRegistrar = new TestCharacterCombatProviderRegistrar(
+                typeof(AlternateTestCharacterCombatConfig),
+                matchedPartySlots,
+                "second");
+            using BattleSceneCombatComposition composition =
+                ComposeWithRegistrars(
+                    new[]
+                    {
+                        AlternateMember("second", slot: 3, cooldown: 5),
+                        Member("first", 1, 1, 0, 3)
+                    },
+                    new ICharacterCombatProviderRegistrar[]
+                    {
+                        firstRegistrar,
+                        secondRegistrar
+                    });
+            PrepareTriggerResources(composition, inputAmount: 1);
+
+            composition.Executor.Execute(new CombatActionQueue(
+                new CombatAction[]
+                {
+                    Consumption(
+                        composition,
+                        composition.ActionIds.Next())
+                }));
+
+            Assert.That(matchedPartySlots, Is.EqualTo(new[] { 1, 3 }));
+            Assert.That(composition.Boss.Resources.GetAmount(
+                TriggerOutputResourceId), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void CompositionEvaluatesEachConsumptionAndQueuesItsDerivationNext()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar("owner");
+            using BattleSceneCombatComposition composition = Compose(
+                new[] { Member("owner", 2, 1, 0, 3) },
+                registrar);
+            PrepareTriggerResources(composition, inputAmount: 2);
+            long firstRootId = composition.ActionIds.Next();
+            long secondRootId = composition.ActionIds.Next();
+
+            CombatActionExecutionResult result = composition.Executor.Execute(
+                new CombatActionQueue(new CombatAction[]
+                {
+                    Consumption(composition, firstRootId),
+                    Consumption(composition, secondRootId)
+                }));
+
+            Assert.That(result.ActionResults, Has.Count.EqualTo(4));
+            Assert.That(
+                result.ActionResults.Select(item => item.Action.GetType()),
+                Is.EqualTo(new[]
+                {
+                    typeof(ConsumeResourceAction),
+                    typeof(AddResourceAction),
+                    typeof(ConsumeResourceAction),
+                    typeof(AddResourceAction)
+                }));
+            Assert.That(result.ActionResults[0].Action.ActionId,
+                Is.EqualTo(firstRootId));
+            Assert.That(result.ActionResults[1].Action.SourceActionId,
+                Is.EqualTo(firstRootId));
+            Assert.That(result.ActionResults[2].Action.ActionId,
+                Is.EqualTo(secondRootId));
+            Assert.That(result.ActionResults[3].Action.SourceActionId,
+                Is.EqualTo(secondRootId));
+            Assert.That(registrar.MatchedPartySlots,
+                Is.EqualTo(new[] { 2, 2 }));
+            Assert.That(composition.Boss.Resources.GetAmount(
+                TriggerOutputResourceId), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void CompositionDoesNotInstallRuleForCharacterOutsideParty()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar(
+                "not_in_party");
+            using BattleSceneCombatComposition composition = Compose(
+                new[] { Member("present", 0, 1, 0, 3) },
+                registrar);
+            PrepareTriggerResources(composition, inputAmount: 1);
+
+            CombatActionExecutionResult result = composition.Executor.Execute(
+                new CombatActionQueue(new CombatAction[]
+                {
+                    Consumption(
+                        composition,
+                        composition.ActionIds.Next())
+                }));
+
+            Assert.That(registrar.CreatedRules, Is.Empty);
+            Assert.That(result.ActionResults, Has.Count.EqualTo(1));
+            Assert.That(composition.Boss.Resources.GetAmount(
+                TriggerOutputResourceId), Is.Zero);
+        }
+
+        [Test]
+        public void SeparateCompositionsReceiveSeparateRuleInstances()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar("owner");
+            using BattleSceneCombatComposition first = Compose(
+                new[] { Member("owner", 0, 1, 0, 3) },
+                registrar);
+            using BattleSceneCombatComposition second = Compose(
+                new[] { Member("owner", 0, 1, 0, 3) },
+                registrar);
+            PrepareTriggerResources(second, inputAmount: 1);
+            ResourceConsumptionTestTriggerRule firstRule =
+                registrar.CreatedRules[0];
+            ResourceConsumptionTestTriggerRule secondRule =
+                registrar.CreatedRules[1];
+
+            second.Executor.Execute(new CombatActionQueue(new CombatAction[]
+            {
+                Consumption(second, second.ActionIds.Next())
+            }));
+
+            Assert.That(firstRule, Is.Not.SameAs(secondRule));
+            Assert.That(firstRule.EvaluationCount, Is.Zero);
+            Assert.That(secondRule.EvaluationCount, Is.GreaterThan(0));
+            Assert.That(firstRule.Boss, Is.SameAs(first.Boss));
+            Assert.That(secondRule.Boss, Is.SameAs(second.Boss));
+        }
+
+        [Test]
+        public void CompositionMergesSharedAndDistinctResourceRequirements()
+        {
+            var firstRegistrar = new TestCharacterCombatProviderRegistrar();
+            firstRegistrar.ResourceRequirements.Add(
+                new CombatResourceRequirement("shared", 5));
+            firstRegistrar.ResourceRequirements.Add(
+                new CombatResourceRequirement("first_only", 3));
+            firstRegistrar.ResourceRequirements.Add(
+                new CombatResourceRequirement("shared", 5));
+            var secondRegistrar = new TestCharacterCombatProviderRegistrar(
+                typeof(AlternateTestCharacterCombatConfig));
+            secondRegistrar.ResourceRequirements.Add(
+                new CombatResourceRequirement("shared", 5));
+            secondRegistrar.ResourceRequirements.Add(
+                new CombatResourceRequirement("second_only", 4));
+
+            using BattleSceneCombatComposition composition =
+                ComposeWithRegistrars(
+                    new[]
+                    {
+                        AlternateMember("second", slot: 4, cooldown: 5),
+                        Member("first", 0, 1, 0, 3)
+                    },
+                    new ICharacterCombatProviderRegistrar[]
+                    {
+                        firstRegistrar,
+                        secondRegistrar
+                    });
+
+            Assert.That(composition.Boss.Resources.Count, Is.EqualTo(3));
+            Assert.That(composition.Boss.Resources.Get("shared").MaxAmount,
+                Is.EqualTo(5));
+            Assert.That(composition.Boss.Resources.Get("first_only")
+                .MaxAmount, Is.EqualTo(3));
+            Assert.That(composition.Boss.Resources.Get("second_only")
+                .MaxAmount, Is.EqualTo(4));
+            Assert.That(composition.Boss.Resources.GetAmount("shared"),
+                Is.Zero);
+        }
+
+        [Test]
+        public void CompositionRejectsConflictingResourceMaximums()
+        {
+            var firstRegistrar = new TestCharacterCombatProviderRegistrar();
+            firstRegistrar.ResourceRequirements.Add(
+                new CombatResourceRequirement("shared", 5));
+            var secondRegistrar = new TestCharacterCombatProviderRegistrar(
+                typeof(AlternateTestCharacterCombatConfig));
+            secondRegistrar.ResourceRequirements.Add(
+                new CombatResourceRequirement("shared", 7));
+
+            InvalidOperationException exception =
+                Assert.Throws<InvalidOperationException>(() =>
+                    ComposeWithRegistrars(
+                        new[]
+                        {
+                            Member("first", 0, 1, 0, 3),
+                            AlternateMember(
+                                "second",
+                                slot: 1,
+                                cooldown: 5)
+                        },
+                        new ICharacterCombatProviderRegistrar[]
+                        {
+                            firstRegistrar,
+                            secondRegistrar
+                        }));
+
+            Assert.That(exception.Message, Does.Contain("shared"));
+            Assert.That(exception.Message, Does.Contain("5"));
+            Assert.That(exception.Message, Does.Contain("7"));
+            Assert.That(firstRegistrar.ReceivedActionIds, Has.Count.EqualTo(1));
+            Assert.That(secondRegistrar.ReceivedActionIds,
+                Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void ResourceMergeIsIndependentOfPartySlotOrder()
+        {
+            var firstRegistrar = new TestCharacterCombatProviderRegistrar();
+            firstRegistrar.ResourceRequirements.Add(
+                new CombatResourceRequirement("z_resource", 5));
+            var secondRegistrar = new TestCharacterCombatProviderRegistrar(
+                typeof(AlternateTestCharacterCombatConfig));
+            secondRegistrar.ResourceRequirements.Add(
+                new CombatResourceRequirement("a_resource", 3));
+            var registrars = new ICharacterCombatProviderRegistrar[]
+            {
+                firstRegistrar,
+                secondRegistrar
+            };
+
+            using BattleSceneCombatComposition first =
+                ComposeWithRegistrars(
+                    new[]
+                    {
+                        Member("first_a", 0, 1, 0, 3),
+                        AlternateMember("second_a", 4, 5)
+                    },
+                    registrars);
+            using BattleSceneCombatComposition second =
+                ComposeWithRegistrars(
+                    new[]
+                    {
+                        Member("first_b", 4, 1, 0, 3),
+                        AlternateMember("second_b", 0, 5)
+                    },
+                    registrars);
+
+            IReadOnlyList<ResourceState> firstResources =
+                first.Boss.Resources.GetAll();
+            IReadOnlyList<ResourceState> secondResources =
+                second.Boss.Resources.GetAll();
+            Assert.That(
+                secondResources.Select(resource => resource.ResourceId),
+                Is.EqualTo(firstResources.Select(
+                    resource => resource.ResourceId)));
+            Assert.That(
+                secondResources.Select(resource => resource.MaxAmount),
+                Is.EqualTo(firstResources.Select(
+                    resource => resource.MaxAmount)));
+        }
+
+        [Test]
+        public void SeparateCompositionsOwnIndependentResourceStates()
+        {
+            var firstRegistrar = new TestCharacterCombatProviderRegistrar();
+            firstRegistrar.ResourceRequirements.Add(
+                new CombatResourceRequirement(
+                    WaterElementResource.Id,
+                    WaterElementResource.MaxAmount));
+            var secondRegistrar = new TestCharacterCombatProviderRegistrar();
+            secondRegistrar.ResourceRequirements.Add(
+                new CombatResourceRequirement(
+                    WaterElementResource.Id,
+                    WaterElementResource.MaxAmount));
+            using BattleSceneCombatComposition first = Compose(
+                new[] { Member("first", 0, 1, 0, 3) },
+                firstRegistrar);
+            using BattleSceneCombatComposition second = Compose(
+                new[] { Member("second", 0, 1, 0, 3) },
+                secondRegistrar);
+
+            first.Boss.Resources.Add(WaterElementResource.Id, 2);
+
+            Assert.That(first.Boss.Resources.GetAmount(
+                    WaterElementResource.Id),
+                Is.EqualTo(2));
+            Assert.That(second.Boss.Resources.GetAmount(
+                WaterElementResource.Id), Is.Zero);
+            Assert.That(first.Boss.Resources.Get(WaterElementResource.Id),
+                Is.Not.SameAs(second.Boss.Resources.Get(
+                    WaterElementResource.Id)));
         }
 
         [Test]
@@ -277,21 +661,60 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         }
 
         private BattleSceneCombatComposition Compose(
-            IReadOnlyList<BattlePartyMemberInput> members)
+            IReadOnlyList<BattlePartyMemberInput> members,
+            ICharacterCombatProviderRegistrar registrar = null)
+        {
+            return ComposeWithRegistrars(
+                members,
+                new ICharacterCombatProviderRegistrar[]
+                {
+                    registrar
+                        ?? new TestCharacterCombatProviderRegistrar()
+                });
+        }
+
+        private BattleSceneCombatComposition ComposeWithRegistrars(
+            IReadOnlyList<BattlePartyMemberInput> members,
+            IReadOnlyList<ICharacterCombatProviderRegistrar> registrars)
         {
             BossDefinition boss = Boss(out KragmorCombatConfig bossConfig);
             return new BattleSceneCombatComposition(
                 members,
-                new CharacterCombatProviderRegistrarCatalog(
-                    new ICharacterCombatProviderRegistrar[]
-                    {
-                        new TestCharacterCombatProviderRegistrar()
-                    }),
+                new CharacterCombatProviderRegistrarCatalog(registrars),
                 boss,
                 bossConfig,
                 new BossDifficultyStats("difficulty_test", 10000, 100),
                 new SeededRandomSource(1),
                 BattleResultBalanceDefaults.Create());
+        }
+
+        private static void PrepareTriggerResources(
+            BattleSceneCombatComposition composition,
+            int inputAmount)
+        {
+            composition.Boss.Resources.Register(
+                TriggerInputResourceId,
+                maxAmount: 10);
+            composition.Boss.Resources.Register(
+                TriggerOutputResourceId,
+                maxAmount: 10);
+            composition.Boss.Resources.Add(
+                TriggerInputResourceId,
+                inputAmount);
+        }
+
+        private static ConsumeResourceAction Consumption(
+            BattleSceneCombatComposition composition,
+            long actionId)
+        {
+            return new ConsumeResourceAction(
+                actionId,
+                ActionOrigin.System,
+                composition.Boss,
+                TriggerInputResourceId,
+                consumerId: "test_consumer",
+                mode: ResourceConsumptionMode.Amount,
+                amount: 1);
         }
 
         private BattlePartyMemberInput Member(
@@ -325,6 +748,28 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             config.Initialize(
                 hasActiveAbility: false,
                 activeCooldownTurns: 0);
+            CharacterDefinition definition = Definition(
+                id,
+                ElementType.Water,
+                config);
+            return new BattlePartyMemberInput(
+                id,
+                slot,
+                level: 1,
+                awakening: 0,
+                definition);
+        }
+
+        private BattlePartyMemberInput AlternateMember(
+            string id,
+            int slot,
+            int cooldown)
+        {
+            AlternateTestCharacterCombatConfig config =
+                Config<AlternateTestCharacterCombatConfig>();
+            config.Initialize(
+                hasActiveAbility: true,
+                activeCooldownTurns: cooldown);
             CharacterDefinition definition = Definition(
                 id,
                 ElementType.Water,
@@ -386,25 +831,87 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         private sealed class TestCharacterCombatProviderRegistrar
             : ICharacterCombatProviderRegistrar
         {
+            private readonly Type supportedCombatConfigType;
+            private readonly HashSet<string> triggerOwnerIds;
+
+            public TestCharacterCombatProviderRegistrar(
+                params string[] triggerOwnerIds)
+                : this(
+                    typeof(TestCharacterCombatConfig),
+                    new List<int>(),
+                    triggerOwnerIds)
+            {
+            }
+
+            public TestCharacterCombatProviderRegistrar(
+                Type supportedCombatConfigType,
+                params string[] triggerOwnerIds)
+                : this(
+                    supportedCombatConfigType,
+                    new List<int>(),
+                    triggerOwnerIds)
+            {
+            }
+
+            public TestCharacterCombatProviderRegistrar(
+                Type supportedCombatConfigType,
+                List<int> matchedPartySlots,
+                params string[] triggerOwnerIds)
+            {
+                this.supportedCombatConfigType = supportedCombatConfigType;
+                this.triggerOwnerIds = new HashSet<string>(
+                    triggerOwnerIds ?? Array.Empty<string>(),
+                    StringComparer.Ordinal);
+                MatchedPartySlots = matchedPartySlots
+                    ?? throw new ArgumentNullException(
+                        nameof(matchedPartySlots));
+            }
+
+            public List<CombatActionIdSequence> ReceivedActionIds { get; } =
+                new List<CombatActionIdSequence>();
+            public List<ResourceConsumptionTestTriggerRule> CreatedRules
+                { get; } = new List<ResourceConsumptionTestTriggerRule>();
+            public List<int> MatchedPartySlots { get; }
+            public List<CombatResourceRequirement> ResourceRequirements
+                { get; } = new List<CombatResourceRequirement>();
+
             public Type SupportedCombatConfigType =>
-                typeof(TestCharacterCombatConfig);
+                supportedCombatConfigType;
+            public string CharacterId => "test_character";
 
             public CharacterCombatProviderRegistrationResult Register(
                 BattlePartyMemberInput member,
                 CharacterBattleState character,
                 BossBattleState boss,
+                CombatActionIdSequence actionIds,
                 MatchEventActionProviderRegistry matchProviders,
                 ActiveAbilityActionProviderRegistry activeProviders)
             {
-                var config = (TestCharacterCombatConfig)
+                ReceivedActionIds.Add(actionIds);
+                var config = (ITestCharacterCombatConfig)
                     member.CharacterDefinition.CombatConfig;
                 matchProviders.Register(
                     member.CharacterId,
                     new EmptyMatchProvider());
+                IReadOnlyList<ICombatTriggerRule> triggerRules =
+                    Array.Empty<ICombatTriggerRule>();
+                if (triggerOwnerIds.Contains(member.CharacterId))
+                {
+                    var rule = new ResourceConsumptionTestTriggerRule(
+                        character,
+                        boss,
+                        actionIds,
+                        MatchedPartySlots);
+                    CreatedRules.Add(rule);
+                    triggerRules = new ICombatTriggerRule[] { rule };
+                }
+
                 if (!config.HasActiveAbility)
                 {
                     return CharacterCombatProviderRegistrationResult
-                        .WithoutActiveAbility();
+                        .WithoutActiveAbility(
+                            triggerRules,
+                            ResourceRequirements);
                 }
 
                 string activeAbilityId = $"{member.CharacterId}_active";
@@ -415,7 +922,61 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 return CharacterCombatProviderRegistrationResult
                     .WithActiveAbility(
                         activeAbilityId,
-                        config.ActiveCooldownTurns);
+                        config.ActiveCooldownTurns,
+                        triggerRules,
+                        ResourceRequirements);
+            }
+        }
+
+        private sealed class ResourceConsumptionTestTriggerRule
+            : ICombatTriggerRule
+        {
+            private readonly List<int> matchedPartySlots;
+
+            public ResourceConsumptionTestTriggerRule(
+                CharacterBattleState owner,
+                BossBattleState boss,
+                CombatActionIdSequence actionIds,
+                List<int> matchedPartySlots)
+            {
+                Owner = owner;
+                Boss = boss;
+                ActionIds = actionIds;
+                this.matchedPartySlots = matchedPartySlots;
+            }
+
+            public CharacterBattleState Owner { get; }
+            public BossBattleState Boss { get; }
+            public CombatActionIdSequence ActionIds { get; }
+            public int EvaluationCount { get; private set; }
+
+            public IReadOnlyList<CombatAction> CreateDerivedActions(
+                CombatActionTriggerContext context)
+            {
+                EvaluationCount++;
+                if (!(context.CompletedResult is
+                        ConsumeResourceActionResult consumption)
+                    || consumption.ConsumptionRecord == null
+                    || !string.Equals(
+                        consumption.ConsumptionRecord.ResourceId,
+                        TriggerInputResourceId,
+                        StringComparison.Ordinal))
+                {
+                    return Array.Empty<CombatAction>();
+                }
+
+                matchedPartySlots.Add(Owner.PartySlotIndex);
+                return new CombatAction[]
+                {
+                    new AddResourceAction(
+                        ActionIds.Next(),
+                        ActionOrigin.System,
+                        Boss,
+                        TriggerOutputResourceId,
+                        amount: 1,
+                        rootActionId: context.RootActionId,
+                        sourceActionId: context.ActionId)
+                };
             }
         }
 
@@ -450,8 +1011,35 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             }
         }
 
+        private interface ITestCharacterCombatConfig
+        {
+            bool HasActiveAbility { get; }
+            int ActiveCooldownTurns { get; }
+        }
+
         private sealed class TestCharacterCombatConfig
-            : CombatConfigDefinition
+            : CombatConfigDefinition, ITestCharacterCombatConfig
+        {
+            public bool HasActiveAbility { get; private set; }
+            public int ActiveCooldownTurns { get; private set; }
+
+            public void Initialize(
+                bool hasActiveAbility,
+                int activeCooldownTurns)
+            {
+                HasActiveAbility = hasActiveAbility;
+                ActiveCooldownTurns = activeCooldownTurns;
+            }
+
+            public override bool TryValidate(out string errorMessage)
+            {
+                errorMessage = string.Empty;
+                return ActiveCooldownTurns >= 0;
+            }
+        }
+
+        private sealed class AlternateTestCharacterCombatConfig
+            : CombatConfigDefinition, ITestCharacterCombatConfig
         {
             public bool HasActiveAbility { get; private set; }
             public int ActiveCooldownTurns { get; private set; }

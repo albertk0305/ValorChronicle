@@ -167,7 +167,7 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
-        public void CompositionUsesInjectedCooldownAndWaterMaximum()
+        public void CompositionUsesInjectedCooldownAndStandardWaterMaximum()
         {
             CharacterDefinition source = AssetDatabase.LoadAssetAtPath<
                 CharacterDefinition>(MareaAssetPath);
@@ -176,7 +176,7 @@ namespace ValorChronicle.Tests.EditMode
             MareaBluefangCombatConfig config =
                 MareaBluefangTestConfig.Create(
                     activeCooldownTurns: 4,
-                    waterElementMaxAmount: 7);
+                    waterElementMaxAmount: 5);
             MareaBluefangTestConfig.Assign(marea, config);
             BossDefinition boss = LoadBoss();
             boss.TryGetDifficultyStats(
@@ -196,7 +196,9 @@ namespace ValorChronicle.Tests.EditMode
 
                 Assert.That(composition.Boss.Resources.Get(
                         WaterElementResource.Id).MaxAmount,
-                    Is.EqualTo(7));
+                    Is.EqualTo(WaterElementResource.MaxAmount));
+                Assert.That(composition.Boss.Resources.Count,
+                    Is.EqualTo(1));
                 Assert.That(composition.FlowSetup.ActiveAbilityCooldowns,
                     Is.EqualTo(new[] { 4 }));
             }

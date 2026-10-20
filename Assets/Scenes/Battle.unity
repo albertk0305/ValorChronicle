@@ -14483,6 +14483,7 @@ MonoBehaviour:
     - root: {fileID: 14650490}
       iconImage: {fileID: 142893950}
       valueText: {fileID: 1090881013}
+  characterPresentationCatalog: {fileID: 11400000, guid: 052cabf3c40342dc836b7f083f5d74a8, type: 2}
   elementSpriteSet: {fileID: 11400000, guid: 2ec94a39f3644900bc3a6deaeb61ab58, type: 2}
   partyStatusSlots:
   - root: {fileID: 1990309791}

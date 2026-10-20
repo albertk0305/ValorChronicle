@@ -961,8 +961,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
                                 if (!combatBridge
                                     .TryGetNextMatchCombatAction(
-                                        out CharacterBattleState
-                                            actingCharacter,
+                                        out _,
                                         out CombatAction nextAction))
                                 {
                                     break;
@@ -970,10 +969,12 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
                                 if (nextAction is DamageAction damageAction)
                                 {
+                                    CharacterBattleState projectileAttacker =
+                                        damageAction.ContextRequest.Attacker;
                                     var request =
                                         new MatchDamageProjectileRequest(
-                                            actingCharacter.PartySlotIndex,
-                                            actingCharacter.CharacterId,
+                                            projectileAttacker.PartySlotIndex,
+                                            projectileAttacker.CharacterId,
                                             damageAction.ContextRequest
                                                 .AttackElement);
                                     bool presentationCompleted = false;

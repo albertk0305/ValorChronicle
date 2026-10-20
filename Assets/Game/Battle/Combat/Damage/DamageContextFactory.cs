@@ -49,6 +49,10 @@ namespace ValorChronicle.Battle.Combat.Damage
                 modifiers.DealtDamageIncreaseRateSum,
                 request.ActionLocalDealtDamageIncreaseRate,
                 "Dealt damage increase rate sum");
+            double attackTypeDamageIncreaseRateSum = AddFinite(
+                modifiers.AttackTypeDamageIncreaseRateSum,
+                request.ActionLocalAttackTypeDamageIncreaseRate,
+                "Attack type damage increase rate sum");
 
             return new DamageContext(
                 request.Attacker.Attack,
@@ -61,7 +65,7 @@ namespace ValorChronicle.Battle.Combat.Damage
                 isCritical,
                 criticalDamageMultiplier,
                 modifiers.ElementDamageIncreaseRateSum,
-                modifiers.AttackTypeDamageIncreaseRateSum,
+                attackTypeDamageIncreaseRateSum,
                 dealtDamageIncreaseRateSum
                     - modifiers.DealtDamageReductionRateSum,
                 request.AttackElement,

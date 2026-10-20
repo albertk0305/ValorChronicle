@@ -5,6 +5,7 @@ using System.Reflection;
 using NUnit.Framework;
 using TMPro;
 using UnityEngine;
+using UnityEngine.TestTools;
 using UnityEngine.UI;
 using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Board.Presentation;
@@ -19,11 +20,14 @@ using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
+using ValorChronicle.Characters.Runtime;
+using ValorChronicle.Characters.Serena;
 using ValorChronicle.Core.Random;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Localization;
 using ValorChronicle.Party.Battle;
+using ValorChronicle.Party.Presentation;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 {
@@ -51,6 +55,12 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         private Sprite eruptionIntentSprite;
         private Sprite compressionIntentSprite;
         private Sprite collapseIntentSprite;
+        private Sprite mareaFaceSprite;
+        private Sprite serenaFaceSprite;
+        private Sprite chaseIconSprite;
+        private Sprite characterZeroFaceSprite;
+        private Sprite characterTwoFaceSprite;
+        private CharacterPresentationCatalog characterPresentationCatalog;
         private BattleBossIntentSlotView[] bossIntentSlots;
         private BattleMatchEventSlotView[] matchEventSlots;
         private BattleStatusIconView[] bossStatusSlots;
@@ -130,10 +140,44 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             compressionIntentSprite = CreateSprite(
                 "CompressionIntentSprite");
             collapseIntentSprite = CreateSprite("CollapseIntentSprite");
+            mareaFaceSprite = CreateSprite("MareaFaceSprite");
+            serenaFaceSprite = CreateSprite("SerenaFaceSprite");
+            chaseIconSprite = CreateSprite("ChaseIconSprite");
+            characterZeroFaceSprite = CreateSprite(
+                "CharacterZeroFaceSprite");
+            characterTwoFaceSprite = CreateSprite(
+                "CharacterTwoFaceSprite");
+            characterPresentationCatalog =
+                CreateCharacterPresentationCatalog(
+                    CreateCharacterPresentation(
+                        MareaBluefangRules.CharacterId,
+                        mareaFaceSprite),
+                    CreateCharacterPresentation(
+                        SerenaCoralspearRules.CharacterId,
+                        serenaFaceSprite),
+                    CreateCharacterPresentation(
+                        "character_0",
+                        characterZeroFaceSprite),
+                    CreateCharacterPresentation(
+                        "character_1",
+                        characterZeroFaceSprite),
+                    CreateCharacterPresentation(
+                        "character_2",
+                        characterTwoFaceSprite),
+                    CreateCharacterPresentation(
+                        "character_3",
+                        characterTwoFaceSprite),
+                    CreateCharacterPresentation(
+                        "character_4",
+                        characterZeroFaceSprite));
             SetField(elementSpriteSet, "fire", fireSprite);
             SetField(elementSpriteSet, "water", waterSprite);
             SetField(elementSpriteSet, "dark", darkSprite);
             SetField(hudController, "elementSpriteSet", elementSpriteSet);
+            SetField(
+                hudController,
+                "characterPresentationCatalog",
+                characterPresentationCatalog);
             SetField(hudController, "resourceFallbackIcon", waterSprite);
             presentationDatabase = CreatePresentationDatabase(
                 includeIcons: true,
@@ -852,6 +896,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             InvokePrivate(hudController, "Start");
 
             Assert.That(occupiedSlot.CharacterImage.enabled, Is.True);
+            Assert.That(occupiedSlot.CharacterImage.sprite,
+                Is.SameAs(mareaFaceSprite));
             Assert.That(occupiedSlot.TypeImage.gameObject.activeSelf, Is.True);
             Assert.That(occupiedSlot.TypeImage.sprite, Is.SameAs(waterSprite));
             Assert.That(occupiedSlot.CooldownText.gameObject.activeSelf,
@@ -866,6 +912,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Assert.That(characterSlots[index].Root.activeSelf, Is.True);
                 Assert.That(characterSlots[index].CharacterImage.enabled,
                     Is.False);
+                Assert.That(characterSlots[index].CharacterImage.sprite,
+                    Is.Null);
                 Assert.That(characterSlots[index].TypeImage.gameObject.activeSelf,
                     Is.False);
                 Assert.That(characterSlots[index].CooldownText.gameObject.activeSelf,
@@ -875,6 +923,120 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Assert.That(characterSlots[index].ActiveButton.interactable,
                     Is.False);
             }
+        }
+
+        [Test]
+        public void CharacterFacesFollowRuntimePartySlotOrder()
+        {
+            InvokePrivate(hudController, "OnEnable");
+            InitializeCombatWithPartySlots(new[] { 2, 0 });
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+
+            Assert.That(characterSlots[0].CharacterId,
+                Is.EqualTo("character_0"));
+            Assert.That(characterSlots[0].CharacterImage.sprite,
+                Is.SameAs(characterZeroFaceSprite));
+            Assert.That(characterSlots[0].CharacterImage.enabled, Is.True);
+            Assert.That(characterSlots[2].CharacterId,
+                Is.EqualTo("character_2"));
+            Assert.That(characterSlots[2].CharacterImage.sprite,
+                Is.SameAs(characterTwoFaceSprite));
+            Assert.That(characterSlots[2].CharacterImage.enabled, Is.True);
+            Assert.That(characterSlots[1].CharacterImage.sprite, Is.Null);
+            Assert.That(characterSlots[1].CharacterImage.enabled, Is.False);
+        }
+
+        [Test]
+        public void SlotReplacesAndClearsPreviousCharacterFace()
+        {
+            occupiedSlot.RenderCharacter(
+                "character_0",
+                characterZeroFaceSprite,
+                fireSprite,
+                3,
+                false);
+            Assert.That(occupiedSlot.CharacterImage.sprite,
+                Is.SameAs(characterZeroFaceSprite));
+
+            occupiedSlot.RenderCharacter(
+                "character_2",
+                characterTwoFaceSprite,
+                waterSprite,
+                0,
+                true);
+
+            Assert.That(occupiedSlot.CharacterId,
+                Is.EqualTo("character_2"));
+            Assert.That(occupiedSlot.CharacterImage.sprite,
+                Is.SameAs(characterTwoFaceSprite));
+            Assert.That(occupiedSlot.TypeImage.sprite,
+                Is.SameAs(waterSprite));
+            Assert.That(occupiedSlot.ActiveButton.interactable, Is.True);
+
+            occupiedSlot.RenderEmpty();
+
+            Assert.That(occupiedSlot.CharacterId, Is.Null);
+            Assert.That(occupiedSlot.CharacterImage.sprite, Is.Null);
+            Assert.That(occupiedSlot.CharacterImage.enabled, Is.False);
+            Assert.That(occupiedSlot.TypeImage.sprite, Is.Null);
+            Assert.That(occupiedSlot.ActiveButton.interactable, Is.False);
+        }
+
+        [Test]
+        public void MissingPresentationClearsFaceWithoutBlockingActiveState()
+        {
+            SetField(
+                hudController,
+                "characterPresentationCatalog",
+                CreateCharacterPresentationCatalog());
+            LogAssert.Expect(
+                LogType.Warning,
+                "[BattleHudController] No character presentation was found "
+                    + $"for '{MareaBluefangRules.CharacterId}'.");
+
+            InvokePrivate(hudController, "OnEnable");
+            InitializeCombat();
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+
+            Assert.That(occupiedSlot.CharacterId,
+                Is.EqualTo(MareaBluefangRules.CharacterId));
+            Assert.That(occupiedSlot.CharacterImage.sprite, Is.Null);
+            Assert.That(occupiedSlot.CharacterImage.enabled, Is.True);
+            Assert.That(occupiedSlot.CharacterImage.color.a, Is.Zero);
+            Assert.That(occupiedSlot.TypeImage.sprite, Is.SameAs(waterSprite));
+            Assert.That(occupiedSlot.ActiveButton.interactable, Is.True);
+        }
+
+        [Test]
+        public void NullFaceSpriteClearsImageWithoutBlockingActiveState()
+        {
+            SetField(
+                hudController,
+                "characterPresentationCatalog",
+                CreateCharacterPresentationCatalog(
+                    CreateCharacterPresentation(
+                        MareaBluefangRules.CharacterId,
+                        null)));
+            LogAssert.Expect(
+                LogType.Warning,
+                "[BattleHudController] Character presentation "
+                    + $"'{MareaBluefangRules.CharacterId}' has no "
+                    + "FaceSprite.");
+
+            InvokePrivate(hudController, "OnEnable");
+            InitializeCombat();
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+
+            Assert.That(occupiedSlot.CharacterId,
+                Is.EqualTo(MareaBluefangRules.CharacterId));
+            Assert.That(occupiedSlot.CharacterImage.sprite, Is.Null);
+            Assert.That(occupiedSlot.CharacterImage.enabled, Is.True);
+            Assert.That(occupiedSlot.CharacterImage.color.a, Is.Zero);
+            Assert.That(occupiedSlot.TypeImage.sprite, Is.SameAs(waterSprite));
+            Assert.That(occupiedSlot.ActiveButton.interactable, Is.True);
         }
 
         [Test]
@@ -1178,6 +1340,97 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(bossStatusSlots[1].ValueText.text, Is.EqualTo("3"));
             Assert.That(bossStatusSlots[2].ValueText.text, Is.EqualTo("2"));
             Assert.That(bossStatusSlots[3].Root.activeSelf, Is.False);
+        }
+
+        [Test]
+        public void SerenaCombatStatusUsesActualSlotAndCoexistsWithEffect()
+        {
+            InvokePrivate(hudController, "OnEnable");
+            BattleSceneCombatComposition composition =
+                CreateSerenaProductionComposition(partySlotIndex: 4);
+            SetProperty(
+                combatBootstrap,
+                "CombatComposition",
+                composition);
+            flowController.Initialize(
+                composition.FlowSetup,
+                coordinator => composition.CreateBridge(coordinator));
+            bridge = composition.Bridge;
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+
+            BattleCharacterSlotView serenaSlot = characterSlots[4];
+            Assert.That(serenaSlot.CharacterId,
+                Is.EqualTo(SerenaCoralspearRules.CharacterId));
+            Assert.That(serenaSlot.GetStatusSlot(0).Root.activeSelf,
+                Is.False);
+            Assert.That(characterSlots[0].GetStatusSlot(0).Root.activeSelf,
+                Is.False);
+            Assert.That(composition.CombatStatusSources,
+                Has.Count.EqualTo(1));
+            SerenaCoralspearBattleState state = composition
+                .CombatStatusSources[0] as SerenaCoralspearBattleState;
+            Assert.That(state, Is.Not.Null);
+
+            for (int expected = 1; expected <= 3; expected++)
+            {
+                Assert.That(state.TryGrantEmpoweredChase(), Is.True);
+                hudController.RefreshInitialSnapshot();
+                BattleStatusIconView chaseStatus =
+                    serenaSlot.GetStatusSlot(0);
+                Assert.That(chaseStatus.Root.activeSelf, Is.True);
+                Assert.That(chaseStatus.IconImage.sprite,
+                    Is.SameAs(chaseIconSprite));
+                Assert.That(chaseStatus.ValueText.text,
+                    Is.EqualTo(expected.ToString(
+                        CultureInfo.InvariantCulture)));
+            }
+
+            Assert.That(state.TryGrantEmpoweredChase(), Is.False);
+            hudController.RefreshInitialSnapshot();
+            Assert.That(serenaSlot.GetStatusSlot(0).ValueText.text,
+                Is.EqualTo("3"));
+
+            root.SetActive(true);
+            Assert.That(hudController.TryResolvePlayerProjectileAnchors(
+                    4,
+                    SerenaCoralspearRules.CharacterId,
+                    out RectTransform serenaSource,
+                    out RectTransform serenaTarget),
+                Is.True);
+            Assert.That(serenaSource,
+                Is.SameAs(serenaSlot.CharacterImage.rectTransform));
+            Assert.That(serenaTarget,
+                Is.SameAs(hudController.BossImage.rectTransform));
+            Assert.That(flowController.TryUseActive(0), Is.True);
+            Assert.That(serenaSlot.GetStatusSlot(0).IconImage.sprite,
+                Is.SameAs(darkSprite));
+            Assert.That(serenaSlot.GetStatusSlot(0).ValueText.text,
+                Is.EqualTo("3"));
+            Assert.That(serenaSlot.GetStatusSlot(1).IconImage.sprite,
+                Is.SameAs(chaseIconSprite));
+            Assert.That(serenaSlot.GetStatusSlot(1).ValueText.text,
+                Is.EqualTo("3"));
+
+            Assert.That(state.TryConsumeEmpoweredChase(), Is.True);
+            Assert.That(state.TryConsumeEmpoweredChase(), Is.True);
+            Assert.That(state.TryConsumeEmpoweredChase(), Is.True);
+            hudController.RefreshInitialSnapshot();
+            Assert.That(serenaSlot.GetStatusSlot(0).IconImage.sprite,
+                Is.SameAs(darkSprite));
+            Assert.That(serenaSlot.GetStatusSlot(1).Root.activeSelf,
+                Is.False);
+
+            Assert.That(state.TryGrantEmpoweredChase(), Is.True);
+            hudController.RefreshInitialSnapshot();
+            Assert.That(serenaSlot.GetStatusSlot(1).Root.activeSelf,
+                Is.True);
+            Assert.That(flowController.Coordinator.NotifyBossDefeated(),
+                Is.True);
+            Assert.That(serenaSlot.GetStatusSlot(0).Root.activeSelf,
+                Is.True);
+            Assert.That(serenaSlot.GetStatusSlot(1).Root.activeSelf,
+                Is.False);
         }
 
         [Test]
@@ -2238,6 +2491,67 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 BattleResultBalanceDefaults.Create());
         }
 
+        private BattleSceneCombatComposition
+            CreateSerenaProductionComposition(int partySlotIndex)
+        {
+            BossDefinition bossDefinition =
+                ScriptableObject.CreateInstance<BossDefinition>();
+            createdObjects.Add(bossDefinition);
+            SetField(bossDefinition, "id", KragmorRules.BossId);
+            SetField(bossDefinition, "element", ElementType.Fire);
+            SetField(bossDefinition, "turnLimit", 25);
+            var difficulty = new BossDifficultyStats(
+                "difficulty_normal",
+                66000,
+                100d);
+            SetField(
+                bossDefinition,
+                "difficultyStats",
+                new[] { difficulty });
+            KragmorCombatConfig kragmorConfig =
+                KragmorTestConfig.Create();
+            createdObjects.Add(kragmorConfig);
+            KragmorTestConfig.Assign(
+                bossDefinition,
+                kragmorConfig);
+
+            CharacterDefinition serenaDefinition =
+                ScriptableObject.CreateInstance<CharacterDefinition>();
+            createdObjects.Add(serenaDefinition);
+            SetField(
+                serenaDefinition,
+                "id",
+                SerenaCoralspearRules.CharacterId);
+            SetField(serenaDefinition, "element", ElementType.Water);
+            SetField(serenaDefinition, "level1Hp", 870);
+            SetField(serenaDefinition, "level1Attack", 170);
+            SetField(serenaDefinition, "level100Hp", 3200);
+            SetField(serenaDefinition, "level100Attack", 980);
+            SerenaCoralspearCombatConfig config =
+                ScriptableObject.CreateInstance<
+                    SerenaCoralspearCombatConfig>();
+            createdObjects.Add(config);
+            SetField(serenaDefinition, "combatConfig", config);
+
+            return new BattleSceneCombatComposition(
+                new[]
+                {
+                    new BattlePartyMemberInput(
+                        serenaDefinition.Id,
+                        partySlotIndex,
+                        level: 1,
+                        awakening: 0,
+                        characterDefinition: serenaDefinition)
+                },
+                CharacterRuntimeRegistrationCatalog.CreateDefault()
+                    .CreateCombatRegistrarCatalog(),
+                bossDefinition,
+                kragmorConfig,
+                difficulty,
+                new SeededRandomSource(1),
+                BattleResultBalanceDefaults.Create());
+        }
+
         private MatchEventExecution BeginSingleWaterMatch(
             int blockCount = 3)
         {
@@ -2734,9 +3048,16 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             SkillDefinition collapse = CreateSkillDefinition(
                 KragmorRules.EarthCollapseSkillId,
                 includeIcons ? collapseIntentSprite : null);
+            SkillDefinition serenaPassive = CreateSkillDefinition(
+                SerenaCoralspearRules.EmpoweredChaseStatusId,
+                includeIcons ? chaseIconSprite : null,
+                SkillKind.Passive);
 
             EffectDefinition mareaEffect = CreateEffectDefinition(
                 MareaBluefangRules.ActiveEffectId,
+                includeIcons ? darkSprite : null);
+            EffectDefinition serenaEffect = CreateEffectDefinition(
+                SerenaCoralspearRules.ActiveEffectId,
                 includeIcons ? darkSprite : null);
             EffectDefinition carapaceEffect = CreateEffectDefinition(
                 KragmorRules.VolcanicCarapaceEffectId,
@@ -2761,13 +3082,21 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             SetField(
                 database,
                 "skills",
-                new[] { fist, eruption, compression, collapse });
+                new[]
+                {
+                    fist,
+                    eruption,
+                    compression,
+                    collapse,
+                    serenaPassive
+                });
             SetField(
                 database,
                 "effects",
                 new[]
                 {
                     mareaEffect,
+                    serenaEffect,
                     carapaceEffect,
                     compressionEffect,
                     exposureEffect
@@ -2780,14 +3109,15 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 
         private SkillDefinition CreateSkillDefinition(
             string id,
-            Sprite icon)
+            Sprite icon,
+            SkillKind skillKind = SkillKind.BossAction)
         {
             SkillDefinition definition =
                 ScriptableObject.CreateInstance<SkillDefinition>();
             createdObjects.Add(definition);
             SetField(definition, "id", id);
             SetField(definition, "icon", icon);
-            SetField(definition, "skillKind", SkillKind.BossAction);
+            SetField(definition, "skillKind", skillKind);
             return definition;
         }
 
@@ -2851,6 +3181,32 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             sprite.name = name;
             createdObjects.Add(sprite);
             return sprite;
+        }
+
+        private CharacterPresentationDefinition CreateCharacterPresentation(
+            string characterId,
+            Sprite faceSprite)
+        {
+            CharacterPresentationDefinition definition =
+                ScriptableObject.CreateInstance<
+                    CharacterPresentationDefinition>();
+            createdObjects.Add(definition);
+            SetField(definition, "characterId", characterId);
+            SetField(definition, "faceSprite", faceSprite);
+            return definition;
+        }
+
+        private CharacterPresentationCatalog
+            CreateCharacterPresentationCatalog(
+                params CharacterPresentationDefinition[] definitions)
+        {
+            CharacterPresentationCatalog catalog =
+                ScriptableObject.CreateInstance<
+                    CharacterPresentationCatalog>();
+            createdObjects.Add(catalog);
+            SetField(catalog, "definitions", definitions);
+            catalog.Initialize();
+            return catalog;
         }
 
         private static EffectInstance CreateEffect(

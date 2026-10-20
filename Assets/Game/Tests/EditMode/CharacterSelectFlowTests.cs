@@ -87,9 +87,13 @@ namespace ValorChronicle.Tests.EditMode
 
                 view.CellViews[0].Button.onClick.Invoke();
 
+                Assert.That(database.TryGetCharacter(
+                        "character_marea_bluefang",
+                        out CharacterDefinition marea),
+                    Is.True);
                 ResolvedCharacterBuild stats =
                     CharacterBuildResolverFactory.CreateDefault().Resolve(
-                        database.Characters[0],
+                        marea,
                         50,
                         3);
                 Assert.That(party.CurrentEditSession.PreviewCharacterId,

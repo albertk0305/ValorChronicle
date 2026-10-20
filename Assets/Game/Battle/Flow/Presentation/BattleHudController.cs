@@ -12,9 +12,11 @@ using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Core.Bootstrap;
+using ValorChronicle.Core.Logging;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Localization;
+using ValorChronicle.Party.Presentation;
 
 namespace ValorChronicle.Battle.Flow.Presentation
 {
@@ -81,6 +83,10 @@ namespace ValorChronicle.Battle.Flow.Presentation
             Array.Empty<BattleCharacterSlotView>();
 
         [SerializeField]
+        private CharacterPresentationCatalog characterPresentationCatalog =
+            null;
+
+        [SerializeField]
         private BoardElementSpriteSet elementSpriteSet = null;
 
         [SerializeField]
@@ -113,6 +119,11 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private LocalizationService localizationService;
         private GameBootstrapper subscribedLocalizationBootstrapper;
         private bool localeSubscribed;
+        private bool presentationCatalogInitializationFailed;
+        private readonly HashSet<string> missingPresentationIds =
+            new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> missingFaceSpriteIds =
+            new HashSet<string>(StringComparer.Ordinal);
         public BattleFlowController BattleFlowController =>
             battleFlowController;
         public BattleSceneCombatBootstrap BattleSceneCombatBootstrap =>
@@ -139,6 +150,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         public int BossStatusSlotCount => bossStatusSlots?.Length ?? 0;
         public int MatchEventSlotCount => matchEventSlots?.Length ?? 0;
         public int CharacterSlotCount => characterSlots?.Length ?? 0;
+        public CharacterPresentationCatalog CharacterPresentationCatalog =>
+            characterPresentationCatalog;
         public BoardElementSpriteSet ElementSpriteSet => elementSpriteSet;
         public int PartyStatusSlotCount => partyStatusSlots?.Length ?? 0;
 
@@ -625,6 +638,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 resultHudFrozen = true;
                 RefreshCombatState();
                 RefreshActiveAvailability();
+                RefreshStatusSnapshot();
                 return;
             }
 
@@ -1135,6 +1149,15 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     RenderEffect(slot.GetStatusSlot(index), effects[index]);
                 }
 
+                if (!IsNormalTerminalResult(
+                        battleFlowController.Context.Result))
+                {
+                    renderedCount = RenderCharacterCombatStatuses(
+                        slot,
+                        character,
+                        renderedCount);
+                }
+
                 for (int index = renderedCount;
                     index < slot.StatusSlotCount;
                     index++)
@@ -1142,6 +1165,49 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     slot.GetStatusSlot(index)?.SetVisible(false);
                 }
             }
+        }
+
+        private int RenderCharacterCombatStatuses(
+            BattleCharacterSlotView slot,
+            CharacterBattleState character,
+            int renderedCount)
+        {
+            BattleSceneCombatComposition composition =
+                battleSceneCombatBootstrap?.CombatComposition;
+            if (composition == null
+                || !ReferenceEquals(composition.Bridge, subscribedBridge))
+            {
+                return renderedCount;
+            }
+
+            IReadOnlyList<ICharacterCombatStatusSource> sources =
+                composition.CombatStatusSources;
+            for (int index = 0;
+                index < sources.Count
+                    && renderedCount < slot.StatusSlotCount;
+                index++)
+            {
+                ICharacterCombatStatusSource source = sources[index];
+                if (!source.IsVisible
+                    || source.CurrentCount <= 0
+                    || source.PartySlotIndex
+                        != character.PartySlotIndex
+                    || !string.Equals(
+                        source.CharacterId,
+                        character.CharacterId,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                slot.GetStatusSlot(renderedCount)?.Render(
+                    ResolveCombatStatusIcon(source.StatusId),
+                    source.CurrentCount,
+                    badgeVisible: true);
+                renderedCount++;
+            }
+
+            return renderedCount;
         }
 
         private void RenderEffects(
@@ -1201,6 +1267,22 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 && database.TryGetEffect(
                     effectId,
                     out EffectDefinition definition))
+            {
+                return definition.Icon;
+            }
+
+            return null;
+        }
+
+        private Sprite ResolveCombatStatusIcon(string statusId)
+        {
+            DefinitionDatabase database =
+                battleSceneCombatBootstrap?.DefinitionDatabase;
+            if (database != null
+                && database.IsInitialized
+                && database.TryGetSkill(
+                    statusId,
+                    out SkillDefinition definition))
             {
                 return definition.Icon;
             }
@@ -1346,11 +1428,74 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 Sprite elementSprite = elementSpriteSet != null
                     ? elementSpriteSet.GetSprite(character.Element)
                     : null;
+                Sprite characterSprite = ResolveCharacterFaceSprite(
+                    character.CharacterId);
                 slot.RenderCharacter(
                     character.CharacterId,
+                    characterSprite,
                     elementSprite,
                     remainingCooldown,
                     available);
+            }
+        }
+
+        private Sprite ResolveCharacterFaceSprite(string characterId)
+        {
+            if (!TryInitializeCharacterPresentationCatalog())
+            {
+                return null;
+            }
+
+            if (!characterPresentationCatalog.TryGet(
+                    characterId,
+                    out CharacterPresentationDefinition presentation))
+            {
+                if (missingPresentationIds.Add(characterId))
+                {
+                    GameLogger.Warning(
+                        "[BattleHudController] No character presentation "
+                            + $"was found for '{characterId}'.",
+                        this);
+                }
+
+                return null;
+            }
+
+            if (presentation.FaceSprite == null
+                && missingFaceSpriteIds.Add(characterId))
+            {
+                GameLogger.Warning(
+                    "[BattleHudController] Character presentation "
+                        + $"'{characterId}' has no FaceSprite.",
+                    this);
+            }
+
+            return presentation.FaceSprite;
+        }
+
+        private bool TryInitializeCharacterPresentationCatalog()
+        {
+            if (characterPresentationCatalog == null
+                || presentationCatalogInitializationFailed)
+            {
+                return false;
+            }
+
+            if (characterPresentationCatalog.IsInitialized)
+            {
+                return true;
+            }
+
+            try
+            {
+                characterPresentationCatalog.Initialize();
+                return true;
+            }
+            catch (Exception exception)
+            {
+                presentationCatalogInitializationFailed = true;
+                GameLogger.Exception(exception, this);
+                return false;
             }
         }
 

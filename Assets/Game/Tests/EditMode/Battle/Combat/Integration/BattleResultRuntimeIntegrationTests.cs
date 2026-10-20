@@ -5,6 +5,7 @@ using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Battle.Combat.Damage;
+using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
@@ -52,6 +53,247 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(
                 battle.Bridge.LastMatchExecutionResult.ActionResults,
                 Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void ProviderAdditionalUsesSeparateModifiersAndSharedCalculator()
+        {
+            RuntimeBattle battle = CreateBattle(
+                bossHp: 10000L,
+                matchProvider: new DelegateMatchEventActionProvider(context =>
+                {
+                    DamageAction match =
+                        CombatIntegrationTestSupport.MatchDamage(
+                            context,
+                            1.013d);
+                    return new CombatAction[]
+                    {
+                        match,
+                        CombatIntegrationTestSupport.AdditionalMatchDamage(
+                            context,
+                            match,
+                            1.013d)
+                    };
+                }));
+            CharacterBattleState attacker =
+                battle.Bridge.Party.Characters[0];
+            attacker.Effects.ApplyEffect(AttackTypeEffect(
+                1,
+                "match_damage",
+                0.10d,
+                AttackTypeMask.Match));
+            attacker.Effects.ApplyEffect(AttackTypeEffect(
+                2,
+                "additional_damage",
+                0.20d,
+                AttackTypeMask.Additional));
+            attacker.Effects.ApplyEffect(AttackTypeEffect(
+                3,
+                "chase_damage",
+                0.40d,
+                AttackTypeMask.Chase));
+            attacker.Effects.ApplyEffect(ElementEffect(
+                4,
+                "fire_damage",
+                0.30d,
+                ElementType.Fire));
+            attacker.Effects.ApplyEffect(Effect(
+                5,
+                "dealt_damage",
+                EffectModifierType.DealtDamageIncrease,
+                0.05d));
+            long hpBefore = battle.Bridge.Boss.CurrentHp;
+
+            BeginSingleMatch(battle.Coordinator);
+            battle.Coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution);
+            Assert.That(battle.Bridge.ResolveMatchEvent(execution), Is.True);
+
+            var match = (DamageActionResult)battle.Bridge
+                .LastMatchExecutionResult.ActionResults[0];
+            var additional = (DamageActionResult)battle.Bridge
+                .LastMatchExecutionResult.ActionResults[1];
+            Assert.That(match.Context.AttackTypeDamageIncreaseRateSum,
+                Is.EqualTo(0.10d));
+            Assert.That(additional.Context.AttackTypeDamageIncreaseRateSum,
+                Is.EqualTo(0.20d));
+            Assert.That(match.Context.ElementDamageIncreaseRateSum,
+                Is.EqualTo(0.30d));
+            Assert.That(additional.Context.ElementDamageIncreaseRateSum,
+                Is.EqualTo(0.30d));
+            Assert.That(match.Context.DealtDamageIncreaseRateSum,
+                Is.EqualTo(0.05d));
+            Assert.That(additional.Context.DealtDamageIncreaseRateSum,
+                Is.EqualTo(0.05d));
+            Assert.That(match.DamageResult.FinalDamage,
+                Is.EqualTo((long)Math.Floor(match.DamageResult.RawDamage)));
+            Assert.That(additional.DamageResult.FinalDamage,
+                Is.EqualTo((long)Math.Floor(
+                    additional.DamageResult.RawDamage)));
+            long appliedDamage = match.AppliedDamage
+                + additional.AppliedDamage;
+            Assert.That(battle.Bridge.Boss.CurrentHp,
+                Is.EqualTo(hpBefore - appliedDamage));
+            Assert.That(battle.Bridge.DamageScore,
+                Is.EqualTo(appliedDamage));
+        }
+
+        [Test]
+        public void LethalMatchStopsQueuedProviderAdditional()
+        {
+            RuntimeBattle battle = CreateBattle(
+                bossHp: 50L,
+                matchProvider: new DelegateMatchEventActionProvider(context =>
+                {
+                    DamageAction match = Damage(context, 1d);
+                    return new CombatAction[]
+                    {
+                        match,
+                        CombatIntegrationTestSupport.AdditionalMatchDamage(
+                            context,
+                            match,
+                            1d)
+                    };
+                }));
+
+            BeginSingleMatch(battle.Coordinator);
+            battle.Coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution);
+            Assert.That(battle.Bridge.ResolveMatchEvent(execution), Is.True);
+
+            Assert.That(
+                battle.Bridge.LastMatchExecutionResult.CompletedActionCount,
+                Is.EqualTo(1));
+            Assert.That(
+                battle.Bridge.LastMatchExecutionResult.ClearedRemainingActions,
+                Is.True);
+            Assert.That(battle.Bridge.DamageScore, Is.EqualTo(50L));
+        }
+
+        [Test]
+        public void LethalProviderAdditionalStopsLaterProviderAction()
+        {
+            RuntimeBattle battle = CreateBattle(
+                bossHp: 150L,
+                matchProvider: new DelegateMatchEventActionProvider(context =>
+                {
+                    DamageAction match = Damage(context, 1d);
+                    return new CombatAction[]
+                    {
+                        match,
+                        CombatIntegrationTestSupport.AdditionalMatchDamage(
+                            context,
+                            match,
+                            1d),
+                        Damage(context, 1d)
+                    };
+                }));
+
+            BeginSingleMatch(battle.Coordinator);
+            battle.Coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution);
+            Assert.That(battle.Bridge.ResolveMatchEvent(execution), Is.True);
+
+            Assert.That(
+                battle.Bridge.LastMatchExecutionResult.CompletedActionCount,
+                Is.EqualTo(2));
+            Assert.That(
+                battle.Bridge.LastMatchExecutionResult.ActionResults[1]
+                    .Action.Origin,
+                Is.EqualTo(ActionOrigin.Additional));
+            Assert.That(
+                battle.Bridge.LastMatchExecutionResult.ClearedRemainingActions,
+                Is.True);
+            Assert.That(battle.Bridge.DamageScore, Is.EqualTo(150L));
+        }
+
+        [Test]
+        public void TriggerDerivedActionRunsBeforeQueuedProviderAdditional()
+        {
+            RuntimeBattle battle = CreateBattle(
+                bossHp: 1000L,
+                matchProvider: new DelegateMatchEventActionProvider(context =>
+                {
+                    DamageAction match = Damage(context, 1d);
+                    return new CombatAction[]
+                    {
+                        match,
+                        CombatIntegrationTestSupport.AdditionalMatchDamage(
+                            context,
+                            match,
+                            1d)
+                    };
+                }),
+                triggerRuleFactory: actionIds =>
+                    new ICombatTriggerRule[]
+                    {
+                        new DelegateIntegrationTriggerRule(context =>
+                        {
+                            if (!(context.CompletedAction
+                                    is DamageAction damage)
+                                || damage.Origin != ActionOrigin.Match)
+                            {
+                                return Array.Empty<CombatAction>();
+                            }
+
+                            return new CombatAction[]
+                            {
+                                new AddResourceAction(
+                                    actionIds.Next(),
+                                    ActionOrigin.System,
+                                    context.Boss,
+                                    "trigger_marker",
+                                    1,
+                                    context.RootActionId,
+                                    context.ActionId)
+                            };
+                        })
+                    });
+            battle.Bridge.Boss.Resources.Register("trigger_marker", 1);
+
+            BeginSingleMatch(battle.Coordinator);
+            battle.Coordinator.TryBeginNextMatchEvent(
+                out MatchEventExecution execution);
+            Assert.That(battle.Bridge.ResolveMatchEvent(execution), Is.True);
+
+            IReadOnlyList<CombatActionResult> results = battle.Bridge
+                .LastMatchExecutionResult.ActionResults;
+            Assert.That(results, Has.Count.EqualTo(3));
+            Assert.That(results[0].Action, Is.TypeOf<DamageAction>());
+            Assert.That(results[1].Action, Is.TypeOf<AddResourceAction>());
+            Assert.That(results[2].Action, Is.TypeOf<DamageAction>());
+            var match = (DamageAction)results[0].Action;
+            var triggerAction = (AddResourceAction)results[1].Action;
+            var additional = (DamageAction)results[2].Action;
+
+            Assert.That(results[0].ExecutionOrder, Is.EqualTo(1));
+            Assert.That(match.ActionId, Is.EqualTo(1));
+            Assert.That(match.RootActionId, Is.EqualTo(1));
+            Assert.That(match.SourceActionId, Is.Null);
+            Assert.That(match.Origin, Is.EqualTo(ActionOrigin.Match));
+            Assert.That(match.ContextRequest.AttackType,
+                Is.EqualTo(AttackType.Match));
+
+            Assert.That(results[1].ExecutionOrder, Is.EqualTo(2));
+            Assert.That(triggerAction.ActionId, Is.EqualTo(3));
+            Assert.That(triggerAction.RootActionId, Is.EqualTo(1));
+            Assert.That(triggerAction.SourceActionId, Is.EqualTo(1));
+            Assert.That(triggerAction.Origin,
+                Is.EqualTo(ActionOrigin.System));
+            Assert.That(triggerAction.ResourceId,
+                Is.EqualTo("trigger_marker"));
+
+            Assert.That(results[2].ExecutionOrder, Is.EqualTo(3));
+            Assert.That(additional.ActionId, Is.EqualTo(2));
+            Assert.That(additional.RootActionId, Is.EqualTo(1));
+            Assert.That(additional.SourceActionId, Is.EqualTo(1));
+            Assert.That(additional.Origin,
+                Is.EqualTo(ActionOrigin.Additional));
+            Assert.That(additional.ContextRequest.AttackType,
+                Is.EqualTo(AttackType.Additional));
+            Assert.That(
+                battle.Bridge.Boss.Resources.GetAmount("trigger_marker"),
+                Is.EqualTo(1));
         }
 
         [Test]
@@ -307,6 +549,59 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                     false),
                 context.RootActionId,
                 context.ActionId);
+        }
+
+        private static EffectInstance AttackTypeEffect(
+            long id,
+            string effectId,
+            double magnitude,
+            AttackTypeMask attackTypeMask)
+        {
+            return new EffectInstance(
+                id,
+                effectId,
+                "test",
+                EffectCategory.Buff,
+                EffectModifierType.AttackTypeDamageIncrease,
+                magnitude,
+                2,
+                id,
+                attackTypeMask: attackTypeMask);
+        }
+
+        private static EffectInstance ElementEffect(
+            long id,
+            string effectId,
+            double magnitude,
+            ElementType element)
+        {
+            return new EffectInstance(
+                id,
+                effectId,
+                "test",
+                EffectCategory.Buff,
+                EffectModifierType.ElementDamageIncrease,
+                magnitude,
+                2,
+                id,
+                elementFilter: element);
+        }
+
+        private static EffectInstance Effect(
+            long id,
+            string effectId,
+            EffectModifierType modifierType,
+            double magnitude)
+        {
+            return new EffectInstance(
+                id,
+                effectId,
+                "test",
+                EffectCategory.Buff,
+                modifierType,
+                magnitude,
+                2,
+                id);
         }
 
         private sealed class DamageActiveProvider

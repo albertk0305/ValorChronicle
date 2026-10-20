@@ -60,12 +60,18 @@ namespace ValorChronicle.Battle.Combat.Integration
             BattlePartyMemberInput member,
             CharacterBattleState character,
             BossBattleState boss,
+            CombatActionIdSequence actionIds,
             MatchEventActionProviderRegistry matchProviders,
             ActiveAbilityActionProviderRegistry activeProviders)
         {
             if (member == null)
             {
                 throw new ArgumentNullException(nameof(member));
+            }
+
+            if (actionIds == null)
+            {
+                throw new ArgumentNullException(nameof(actionIds));
             }
 
             CombatConfigDefinition config =
@@ -89,6 +95,7 @@ namespace ValorChronicle.Battle.Combat.Integration
                     member,
                     character,
                     boss,
+                    actionIds,
                     matchProviders,
                     activeProviders)
                 ?? throw new InvalidOperationException(

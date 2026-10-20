@@ -47,6 +47,7 @@ MonoBehaviour:
     weight: 10
   characterPoolIds:
   - character_marea_bluefang
+  - character_serena_coralspear
   relicPoolIds:
   - relic_victors_broken_sword
   - relic_world_tree_bark
