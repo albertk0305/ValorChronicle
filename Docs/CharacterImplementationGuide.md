@@ -1,18 +1,60 @@
 # Valor Chronicle 신규 캐릭터 구현 가이드
 
-> 상태: 세레나 구현 구조 반영  
-> 기준: 2-1~2-6B와 세레나 4-1~4-6B 구현 및 4-6C 정적 검증 기준  
-> 범위: 캐릭터 전용 코드·콘텐츠·테스트를 추가하는 절차. 공통 전투 공식을 새로 만들거나 복제하는 절차가 아니다.
+> **상태:** 공식 기준 문서
+> **최종 코드 대조:** 2026-10-21 / 마레아·세레나, 세레나 4-6D Chase projectile, 가챠·교환소 등록 정책 반영
+> **범위:** 캐릭터 전용 코드·콘텐츠·테스트·연출·기록. 공통 전투 공식을 캐릭터별로 복제하지 않는다.
+> **주의:** 이 문서는 전체 프로젝트 탐색을 최소화하는 지도다. 새로운 공통 엔진 기능이나 변경된 API가 필요할 때만 해당 의존성의 구현·호출부·테스트를 좁혀 다시 확인한다.
 
 ## 문서 사용 원칙
 
-이 문서에서 **현재 구현**은 저장소에서 확인한 동작, **구현 절차**는 신규 캐릭터가 따라야 할 규칙, **미구현/확인 필요**는 아직 코드로 검증되지 않은 설계를 뜻한다. 설계 문서와 코드가 다르면 현재 런타임 동작은 코드를 기준으로 판단하고, 차이는 임의로 숨기지 않는다.
+이 문서에서 **현재 구현**은 로컬 코드·에셋·테스트로 확인된 동작, **구현 절차**는 신규 캐릭터가 따라야 할 규칙, **설계 결정 필요**는 아직 정책이 확정되지 않은 확장 지점을 뜻한다. 설계 문서와 코드가 다르면 최신 로컬 코드와 Inspector에 실제 연결된 ScriptableObject를 런타임 기준으로 삼고 차이를 기록한다. `Assets/Game/...`은 코드, `Assets/Data/...`는 콘텐츠 에셋, `Docs/...`는 설명과 결정 기록이다.
 
 주요 설계 근거는 `Docs/Design/Valor Chronicle 공통 규칙 확정안.docx`, `Docs/Design/Valor Chronicle 기능 구현 구조 및 데이터 관리 가이드.docx`, `Docs/Design/캐릭터 설계.docx`, `Docs/Design/Character/마레아 블루팽 캐릭터 템플릿.docx`, `Docs/Design/Character/세레나 코랄스피어 캐릭터 템플릿.docx`이다.
 
 공통 시스템은 캐릭터별로 복제하지 않는다. 특히 `DamageCalculator`, `DamageContextFactory`, `MatchEventCombatActionFactory`, `CombatActionExecutionSession`, `CombatTriggerResolver`, `CombatResourceRequirementMerger`, `BattleSceneCombatComposition`, `BattleHudController`에 캐릭터 ID 분기를 추가하지 않는 것이 기본 원칙이다.
 
 ---
+
+## 먼저 읽기: 이 문서 하나로 시작하는 방법
+
+1. 아래 경로 지도에서 수정 대상을 찾는다.
+2. 제15장의 기믹 분류표로 책임 계층을 고른다.
+3. 제1~14장의 계약대로 구현한다.
+4. 제17장의 등록표와 제19장의 완료 게이트를 통과한다.
+
+기존 마레아·세레나와 다른 엔진 동작이 필요할 때만 관련 공통 타입을 조사한다. 전체 프로젝트를 처음부터 다시 읽거나 이름만 바꾼 공통 계산을 캐릭터 폴더에 복제하지 않는다.
+
+### 참조 우선순위
+
+1. 로컬 최신 C# 코드와 Inspector에 연결된 실제 에셋
+2. 자동화 테스트, Unity Test Runner 결과, 실제 플레이 재현
+3. 캐릭터별 설계 템플릿과 공통 규칙 문서
+4. 이 가이드
+
+마레아는 단일 Match·공유 물 원소·조건부 합산 피해의 기준이고, 세레나는 별도 Additional·소비 Trigger 기반 Chase·전투별 강화 스택·읽기 전용 HUD 상태의 기준이다. 현재 에셋에서 세레나는 캐릭터 가챠에 수동 편입되어 있지만 교환소에는 편입되어 있지 않다. 이후 캐릭터의 획득 경로는 각 에셋에서 따로 결정한다.
+
+### 주요 경로 지도
+
+| 책임 | 실제 시작 경로 | 핵심 계약 |
+|---|---|---|
+| 기본 데이터 | `Assets/Data/Characters/<id>.asset`, `Assets/Game/Data/Definitions/CharacterDefinition.cs` | ID·원소·Lv1/100 HP/ATK·스킬·CombatConfig |
+| 전투 수치 | `Assets/Game/Characters/<Name>/<Name>CombatConfig.cs`, `Assets/Data/CombatConfigs/<Name>/` | `CombatConfigDefinition.TryValidate(...)` |
+| 영구 HP/ATK 각성 | `Assets/Game/Characters/Build/ICharacterBuildModifier.cs`와 캐릭터 구현 | `GetStatMultipliers(int awakening)` |
+| Match/Active | `Assets/Game/Battle/Combat/Integration/IMatchEventActionProvider.cs`, `IActiveAbilityActionProvider.cs`와 캐릭터 Provider | `CreateRootActions(...)` |
+| 완료 이벤트 반응 | `Assets/Game/Battle/Combat/Actions/ICombatTriggerRule.cs` | `CreateDerivedActions(CombatActionTriggerContext)` |
+| 전투별 고유 상태 | 캐릭터 `<Name>BattleState.cs` | 원본 상태·상한·증감, 필요 시 `ICharacterCombatStatusSource` |
+| 전투 연결 | `Assets/Game/Battle/Combat/Integration/ICharacterCombatProviderRegistrar.cs`, 캐릭터 Registrar | Provider 등록과 Trigger/Resource/Status 기여 |
+| 동적 설명 | 캐릭터 Lookup Provider, `Assets/Game/Characters/Presentation/CharacterLookupDescription.cs` | `ResolveSkill(...)`, `ResolveAwakening(...)` |
+| 코드 등록 | `Assets/Game/Characters/Runtime/CharacterRuntimeRegistrationCatalog.cs` | `CreateDefault()`의 Build/Combat/Lookup Factory |
+| 정의 조회 | `Assets/Game/Data/Database/DefinitionDatabase.cs`, `Assets/Data/Database/DefinitionDatabase.asset` | `TryGetCharacter/Skill/Effect/Resource/Gacha`; 교환소는 `ExchangeCatalog` 속성 |
+| 초상화 | `Assets/Data/CharacterPresentations/`, `Assets/Data/Party/CharacterPresentationCatalog.asset` | 동일 CharacterId와 FaceSprite |
+| 획득 경로 | `Assets/Data/Gachas/`, `Assets/Data/Exchange/ExchangeCatalogDefinition.asset` | 명시적 ID만 수동 편입 |
+| Save→전투 파티 | `Assets/Game/Party/Battle/BattlePartyResolver.cs` | `Resolve(ProfileSaveData)` |
+| Composition | `Assets/Game/Battle/Flow/Presentation/BattleSceneCombatBootstrap.cs`, `BattleSceneCombatComposition.cs` | 상태 생성, Registrar 결과 병합 |
+| projectile | `Assets/Game/Battle/Flow/Presentation/BattleFlowController.cs` → `BattleCombatPresentationController.cs` → `BattleHudController.cs` | 실행 DamageAction 공격자 → `TryResolvePlayerProjectileAnchors(...)` |
+| 검증 | `Assets/Game/Data/Validation/DataValidator.cs`, `Assets/Game/Editor/Validation/CharacterContentRegistrationValidator.cs`, 관련 Tests | 데이터·코드·Presentation 교차 검증 |
+
+캐릭터별 파일명은 기믹에 따라 달라질 수 있다. 유사 이름으로 경로를 추측해 새 에셋을 만들지 말고 실제 GUID 참조와 Database 연결을 확인한다.
 
 ## 제1장. 신규 캐릭터 구현 전체 흐름
 
@@ -129,7 +171,7 @@ Match Provider가 반환한 모든 Action은 한 번의 호출에서 공용 ID S
 
 ## 제5장. Active Action Provider
 
-`Assets/Game/Battle/Combat/Integration/IActiveAbilityActionProvider.cs`의 `CreateRootActions(ActiveAbilityActionContext context)`를 구현한다. Context는 활성 바인딩, 캐릭터, 파티, 보스, 공용 Action ID Sequence를 제공한다.
+`Assets/Game/Battle/Combat/Integration/IActiveAbilityActionProvider.cs`의 `CreateRootActions(ActiveAbilityActionContext context)`를 구현한다. Context는 활성 바인딩, 캐릭터, 파티, 보스, 공용 Action ID Sequence를 제공한다. 실제 생성·검증·쿨타임 사용 진입점은 `ActiveAbilityCombatExecutor`다.
 
 ### 등록과 실행
 
@@ -156,11 +198,11 @@ Match Provider가 반환한 모든 Action은 한 번의 호출에서 공용 ID S
 
 ### 자원 소비 Trigger 표준
 
-1. `CombatActionTriggerContext.ActionResult`가 `ConsumeResourceActionResult`인지 확인한다.
+1. `CombatActionTriggerContext.CompletedResult`가 `ConsumeResourceActionResult`인지 확인한다.
 2. `ConsumptionRecord`가 null이 아닌지 확인한다. 요청량이 아니라 `ConsumedAmount`를 사용한다.
 3. `ResourceId`, 대상, 소비 주체를 검증한다.
 4. “다른 아군” 조건이면 `ConsumerId`와 Trigger 소유 캐릭터 ID가 다른지 확인한다.
-5. 조건이 맞으면 `context.ActionIds.Next()`로 파생 Action ID를 발급한다.
+5. 조건이 맞으면 Registrar가 Rule 생성자에 주입한 전투 공용 `CombatActionIdSequence`의 `Next()`로 파생 Action ID를 발급한다. `CombatActionTriggerContext`에는 `ActionIds`가 없다.
 6. 파생 Action의 `RootActionId`는 `context.RootActionId`, `SourceActionId`는 `context.ActionId`로 둔다.
 
 Registrar가 만든 Trigger Rule 인스턴스를 `CharacterCombatProviderRegistrationResult.TriggerRules`로 반환하면, `BattleSceneCombatComposition`이 실제 파티 슬롯 순서대로 수집해 Resolver에 전달한다. 파티에 없는 캐릭터의 Registrar는 실행되지 않으므로 Rule도 등록되지 않는다. Factory 기반 Registrar 생성으로 전투 사이에 Rule 인스턴스 상태를 공유하지 않는다.
@@ -210,7 +252,7 @@ Composition은 실제 파티 Registrar의 요구사항만 모아 `CombatResource
 - 이미 `ResourceCollection`에 등록된 ID를 다시 등록하지 않는다.
 - 해당 자원을 요구하는 캐릭터가 파티에 없으면 그 요구사항으로 자원을 만들지 않는다.
 
-마레아 Registrar는 `WaterElementResource.ResourceId`와 `WaterElementResource.MaxAmount`를 요구한다. 앞으로 같은 물 원소를 쓰는 캐릭터도 동일 요구사항을 반환해야 하며, 마레아의 존재에 의존해서는 안 된다.
+마레아 Registrar는 `WaterElementResource.Id`와 `WaterElementResource.MaxAmount`를 요구한다. 앞으로 같은 물 원소를 쓰는 캐릭터도 동일 요구사항을 반환해야 하며, 마레아의 존재에 의존해서는 안 된다.
 
 책임을 분리한다.
 
@@ -233,7 +275,7 @@ Composition은 실제 파티 Registrar의 요구사항만 모아 `CombatResource
 - 공유 자원 요구사항 목록
 - HUD가 읽을 캐릭터 고유 전투 상태 목록
 
-`Register`가 받는 `CombatActionIdSequence`는 전투 전체의 공용 인스턴스다. Registrar나 Provider가 새 Sequence를 만들지 않는다. 파티원 `CharacterBattleState`, 공용 `PartyBattleState`, `BossBattleState`를 현재 전투 인스턴스 그대로 Provider/Rule에 연결한다.
+`Register(BattlePartyMemberInput member, CharacterBattleState character, BossBattleState boss, CombatActionIdSequence actionIds, MatchEventActionProviderRegistry matchProviders, ActiveAbilityActionProviderRegistry activeProviders)`가 받는 ID Sequence는 전투 전체의 공용 인스턴스다. Registrar나 Provider가 새 Sequence를 만들지 않는다. Registrar 시그니처에는 `PartyBattleState`가 없으며, Trigger 실행 시 `CombatActionTriggerContext.Party`로 현재 파티가 전달된다.
 
 마레아 예시는 `Assets/Game/Characters/Marea/MareaBluefangCombatProviderRegistrar.cs`와 `MareaBluefangCombatProviderRegistration.cs`다. Match와 Active Provider를 Registry에 등록한 뒤 `CharacterCombatProviderRegistrationResult.WithActiveAbility(...)`로 액티브 정보, 빈 Trigger 목록, 물 원소 요구사항을 반환한다.
 
@@ -279,7 +321,7 @@ new CharacterRuntimeRegistration(
 4. Character와 Skill 에셋을 `Assets/Game/Data/Database/DefinitionDatabase.cs`가 참조하는 Database 에셋에 등록한다.
 5. `CharacterPresentationDefinition`에 같은 CharacterId와 `FaceSprite`를 설정하고 `CharacterPresentationCatalog`에 등록한다.
 6. 필요한 Effect가 정의 기반 표시를 요구하면 `EffectDefinition`과 Database 참조를 연결한다.
-7. 실제 획득 가능 정책에 따라 `GachaDefinition.CharacterPoolIds` 또는 `ExchangeCatalogDefinition.CharacterIds`에 포함할지 결정한다.
+7. 실제 획득 가능 정책에 따라 `GachaDefinition.CharacterPoolIds` 또는 `ExchangeCatalogDefinition.CharacterIds`에 수동 편입할지 결정한다. RuntimeRegistration만으로 자동 추가하지 않는다.
 
 `Assets/Game/Battle/Flow/Presentation/BattleHudController.cs`는 실제 파티 슬롯의 CharacterId로 `CharacterPresentationCatalog`를 조회해 FaceSprite를 `BattleCharacterSlotView`에 전달한다. 캐릭터가 바뀌거나 정의/스프라이트가 누락되면 이전 이미지를 지우고 전투 기능은 계속 유지한다. 따라서 신규 캐릭터마다 HUD Controller에 ID 분기나 Sprite 하드코딩을 추가하지 않는다.
 
@@ -287,7 +329,7 @@ new CharacterRuntimeRegistration(
 
 Sprite 참조는 GUID 존재 여부만으로 검증하지 않는다. 실제 에셋을 `AssetDatabase`로 로드해 참조가 null이 아닌지, 기대 경로의 단일 Sprite인지 확인한다. Inspector에서 연결한 `fileID`가 잘못되면 GUID가 유효해도 런타임 참조가 비어 있을 수 있다.
 
-Localization 키와 아이콘은 기존 에셋 명명·등록 규칙을 따른다. ID가 같더라도 CharacterDefinition, RuntimeRegistration, Presentation, Gacha/Exchange 참조 중 하나가 빠지면 플레이 가능 캐릭터로 완성된 것이 아니다.
+Localization 키와 아이콘은 기존 에셋 명명·등록 규칙을 따른다. CharacterDefinition, RuntimeRegistration, Presentation은 전투 사용의 필수 연결이다. Gacha/Exchange는 선택적 획득 경로이므로 미편입 자체를 구현 실패로 보지 않고 전투 완성과 출시·획득 가능 상태를 따로 기록한다.
 
 ## 제12장. 등록 무결성 검증
 
@@ -300,7 +342,7 @@ Localization 키와 아이콘은 기존 에셋 명명·등록 규칙을 따른�
 - `Assets/Game/Tests/EditMode/Characters/Runtime/CharacterContentRegistrationValidationTests.cs`
   - Editor 전용 `CharacterContentRegistrationValidator`를 통해 코드·Definition·Presentation·획득 경로의 교차 등록을 검증한다.
 
-현재 플레이 가능 캐릭터 판정 집합은 다음 합집합이다.
+현재 교차 등록 무결성 검증 대상은 다음 합집합이다. 이 집합은 가챠·교환소 필수 편입 목록이 아니다.
 
 ```text
 RuntimeRegistration의 CharacterId
@@ -308,7 +350,7 @@ RuntimeRegistration의 CharacterId
 ∪ ExchangeCatalogDefinition.characterIds
 ```
 
-이 집합의 캐릭터는 CharacterDefinition, RuntimeRegistration, 올바른 CombatConfig 타입, 유효한 SkillDefinition 참조, PresentationDefinition과 비어 있지 않은 FaceSprite를 갖춰야 한다. 미완성 개발용 정의가 위 세 경로 어디에도 포함되지 않으면 완성된 전투 등록을 강제하지 않는다. 반대로 개발 중 캐릭터를 RuntimeRegistration에 먼저 넣으면 플레이 가능 대상으로 간주되므로 관련 콘텐츠를 함께 준비하거나 등록 시점을 늦춘다.
+이 집합의 캐릭터는 CharacterDefinition, RuntimeRegistration, 올바른 CombatConfig 타입, 유효한 SkillDefinition 참조, PresentationDefinition과 비어 있지 않은 FaceSprite를 갖춰야 한다. 가챠·교환소에 없어도 RuntimeRegistration만으로 검증 대상이 된다. 미완성 개발용 정의가 세 경로 어디에도 포함되지 않으면 완성된 전투 등록을 강제하지 않는다. 개발 중 캐릭터를 RuntimeRegistration에 먼저 넣었다면 관련 콘텐츠를 함께 준비하거나 등록 시점을 늦춘다.
 
 향후 이벤트 보상, 상점 등 새로운 획득 경로가 생기면 해당 ID 공급원을 `CharacterContentRegistrationValidator`의 플레이 가능 집합 정책에 추가해야 한다. 자동 검증이 새 획득 경로를 저절로 발견한다고 가정하지 않는다.
 
@@ -342,7 +384,7 @@ ID 발급 일반 규칙, Queue FIFO/`EnqueueNextRange`, Resolver의 일반 계�
 ### UI·PlayMode·수동 확인
 
 - EditMode: Presentation Catalog 조회, CharacterId별 다른 Sprite, null/누락 시 잔상 제거, 액티브/쿨타임/원소 아이콘 회귀.
-- PlayMode: 실제 `Battle.unity` Composition, 파티 슬롯 순서와 빈 슬롯, 액티브 클릭, 보스 사망 중단, 전투 결과 반영, Effect와 캐릭터 고유 상태의 슬롯 이동을 검증한다.
+- PlayMode: 실제 `Battle.unity` Composition, 파티 슬롯 순서와 빈 슬롯, 액티브 클릭, 보스 사망 중단, 전투 결과 반영, Effect와 캐릭터 고유 상태의 슬롯 이동을 검증한다. 파생 Additional/Chase projectile은 원인 캐릭터가 아니라 실제 `DamageAction.ContextRequest.Attacker`의 초상화에서 출발해야 한다.
 - 수동 Editor: 실제 에셋 참조, Localization 표시, FaceSprite와 스킬 아이콘, 1080×1920 및 Safe Area, 캐릭터를 포함/제외·순서 변경한 파티를 확인한다.
 
 자동 테스트를 실행하지 못했으면 정적 검토와 구분해 미실행으로 보고한다. 치명타 때문에 후속 Action이 중단되었다고 가정하지 말고, 보스 실제 사망 여부를 별도로 제어한다.
@@ -381,7 +423,7 @@ ID 발급 일반 규칙, Queue FIFO/`EnqueueNextRange`, Resolver의 일반 계�
 - [ ] CharacterPresentationCatalog에 같은 CharacterId로 등록했다.
 - [ ] 표시명·스킬명·설명 Localization을 등록했다.
 - [ ] 필요한 스킬·효과·원소 UI 아이콘과 EffectDefinition을 연결했다.
-- [ ] 가챠·교환소 포함 여부를 명시적으로 결정했다.
+- [ ] 가챠·교환소·기타 획득 경로 포함 여부를 의도적인 정책으로 기록했다(미편입 허용).
 - [ ] HUD나 Composition에 캐릭터별 하드코딩을 추가하지 않았다.
 
 ### 테스트와 실제 확인
@@ -396,6 +438,7 @@ ID 발급 일반 규칙, Queue FIFO/`EnqueueNextRange`, Resolver의 일반 계�
 - [ ] 관련 PlayMode 테스트가 통과한다.
 - [ ] 실제 Battle 화면에서 이미지, 원소, 액티브, 쿨타임을 확인했다.
 - [ ] 파티 미편성, 단독 편성, 다른 캐릭터와 동시 편성, 슬롯 순서 변경을 확인했다.
+- [ ] 파생 Additional/Chase가 있다면 projectile Source가 해당 DamageAction의 Attacker인지 확인했다.
 - [ ] 보스가 중간 Action에서 사망할 때 남은 Action/Trigger가 중단되는지 확인했다.
 
 ---
@@ -417,4 +460,149 @@ ID 발급 일반 규칙, Queue FIFO/`EnqueueNextRange`, Resolver의 일반 계�
 - HUD는 Effect를 먼저, 캐릭터 고유 상태를 남은 슬롯에 표시한다. 슬롯은 표시 위치일 뿐 특정 상태의 영구 소유물이 아니므로 Effect 만료 뒤 상태 아이콘이 앞쪽으로 이동할 수 있다.
 - 보스 사망은 남은 Action과 Trigger를 중단한다. 강화 Chase 자체가 보스를 처치하면 그 Chase의 완료 Trigger가 생략되어 종료 직후 BattleState에 예약된 횟수가 남을 수 있지만, 종료된 Composition과 함께 폐기된다. 이 값을 영구 데이터나 다음 전투로 전달하지 않는다.
 - 세레나 전용 동작은 캐릭터 Provider와 Trigger에 머물러야 한다. 위 패턴을 재사용하더라도 세레나의 계수, 강화 추격 의미, HUD 상태 ID를 공통 시스템 규칙으로 일반화하지 않는다.
+
+---
+
+## 제15장. 신규 기믹 책임 결정표
+
+기능 이름이 아니라 이벤트와 데이터 수명으로 구현 계층을 고른다.
+
+| 기믹 | 수치·원본 | 실행·판정 | 표시·검증 | 공통 확장 여부 |
+|---|---|---|---|---|
+| 3/4/5매칭 계수·조건부 피해 | CombatConfig + Rule Resolver | Match Provider의 Match `DamageAction` | Match Provider 테스트 | 기존 Action이면 불필요 |
+| 매칭 뒤 별도 추가타 | CombatConfig | Match Provider의 `Additional` | 계보·공격자·projectile 테스트 | 불필요 |
+| 다른 아군의 실제 자원 소비 추격 | CombatConfig | Trigger가 `ConsumptionRecord` 검증 후 `Chase` 생성 | Trigger/씬 테스트 | 불필요 |
+| 턴제 공격·속성 강화 | CombatConfig + EffectDefinition | `ApplyEffectAction`, `EffectCollection` | 아이콘·재적용·만료 테스트 | 기존 Modifier 확인 |
+| 전투별 충전/소비 횟수 | CombatConfig 상한 + 캐릭터 고유 BattleState | Registrar가 상태를 만들고 Rule/Provider가 같은 인스턴스 변경 | StatusSource·0/상한·전투 재진입 | 불필요 |
+| 기존 공용 자원 사용 | 기존 Resource ID/상한 | Registrar Requirement + Resource Action | Merge·상한·실소비 테스트 | 불필요 |
+| 새 공용 자원 | ResourceDefinition + ID/상한 정책 | Requirement, Resource Action/Collection | Database·HUD·병합 | 기존 표현으로 부족할 때만 |
+| 영구 HP/ATK 각성 | CharacterDefinition 기본치 | Build Modifier/Resolver | Lv1/100·각성 경계 | 불필요 |
+| 보드 고정·변환·파괴·리롤 | 캐릭터 설계의 타일 계약 | Board 계층의 기존 변경 경로 | Board/Match 회귀 | 보드 공통 확장 검토 |
+| 새 피해 연산 범주 | 별도 설계 승인 | 기존 Context/Modifier로 표현 가능한지 먼저 검토 | 공통 공식 + 전 캐릭터 회귀 | 필요성이 확인될 때만 |
+| 전투 밖 메타 진행도 | Save DTO 정책·버전 | SaveService/마이그레이션 | 로드·백업·마이그레이션 | 저장 스키마 심사 필수 |
+
+구현 전에 발동 시점, 실제 공격자, 스냅샷 시점, Action 종류, Root/Source와 실행 순서, 상태 소유권, 상한·만료·전투 초기화, HUD 슬롯·아이콘·projectile, 검증 시나리오를 확정한다. 기존 Action/Trigger/Effect/Resource/StatusSource 조합으로 표현 가능하면 캐릭터 폴더에서 끝낸다. 공통 인터페이스·Action·Modifier가 새로 필요할 때만 영향 경로와 회귀 범위를 먼저 문서화하고 별도 공통 시스템 작업으로 분리한다.
+
+## 제16장. 실행 흐름과 데이터 수명
+
+```text
+ProfileSaveData
+  → BattlePartyResolver.Resolve(ProfileSaveData)
+  → BattlePartyMemberInput
+  → BattleSceneCombatBootstrap / BattleSceneCombatComposition
+     → CharacterRuntimeRegistrationCatalog.CreateDefault()
+     → CharacterBuildResolver
+     → ICharacterCombatProviderRegistrar.Register(...)
+        → Match/Active Registry
+        → TriggerRules
+        → ResourceRequirements → CombatResourceRequirementMerger
+        → CombatStatusSources → HUD 읽기 전용
+     → 전투별 Character/Party/Boss 상태와 Bridge
+```
+
+```text
+MatchEvent
+  → IMatchEventActionProvider.CreateRootActions(...)
+  → CombatActionExecutionSession
+  → ActionResult
+  → CombatTriggerResolver
+  → 파생 Action을 현재 큐 앞에 삽입
+  → CombatActionStepApplied
+  → BattleHudController가 Effect/Resource/Status 원본 재조회
+```
+
+Active는 `ActiveAbilityCombatExecutor`가 `IActiveAbilityActionProvider.CreateRootActions(...)`를 호출한 뒤 같은 Action 실행·Trigger·Effect 경로에 합류한다. HUD가 스킬 로직이나 상태 복사본을 소유하지 않는다.
+
+| 데이터 | 원본 | 전투 중 변경 | 전투 후 저장 |
+|---|---|---|---|
+| ID·원소·Lv1/100 능력치 | CharacterDefinition | 아니오 | 프로젝트 콘텐츠 |
+| 계수·쿨타임·상한 | CombatConfig | 아니오 | 프로젝트 콘텐츠 |
+| 레벨·각성·보유·파티 | Profile Save DTO | 전투 외에서만 | 예 |
+| 최종 ATK/MaxHP | Resolved Build/CharacterBattleState | 계산 결과 사용 | 아니오 |
+| 현재 HP·Effect·쿨타임 | 전투 상태 | 예 | 아니오 |
+| 캐릭터 고유 충전 | 캐릭터 고유 BattleState | 예 | 아니오 |
+| 공유 물 원소 | Boss `ResourceCollection` | 예 | 아니오 |
+| HUD 숫자·아이콘 | 원본 Effect/Status + Definition Icon | 표시만 | 아니오 |
+
+### Chase projectile의 실제 공격자
+
+세레나 4-6D로 확정된 연결은 다음과 같다.
+
+```text
+마레아 Match → 마레아 ConsumeResourceAction
+  → 세레나 Trigger의 Chase DamageAction
+     (Root = 마레아 root, Source = 실제 consume, Attacker = 세레나)
+  → BattleFlowController가 실행 DamageAction.ContextRequest.Attacker로
+     MatchDamageProjectileRequest(slot, characterId, element) 생성
+  → BattleCombatPresentationController.TryResolvePlayerPositions(...)
+  → BattleHudController.TryResolvePlayerProjectileAnchors(...)
+  → 세레나 CharacterImage RectTransform → BossImage RectTransform
+```
+
+루트 매칭 실행 세션의 `currentCharacter`는 원인 캐릭터일 수 있으므로 파생 공격의 projectile 요청에 사용하지 않는다. `TryResolvePlayerProjectileAnchors(int partySlotIndex, string characterId, out RectTransform source, out RectTransform target)`는 전투 파티와 HUD 슬롯의 Slot/CharacterId가 일치하고 CharacterImage·BossImage가 활성일 때만 성공한다. Action 공격자 검증과 실제 Source Anchor 검증을 별도로 테스트한다.
+
+앞 DamageAction이 보스를 처치하면 뒤 Resource Action과 Trigger는 실행되지 않는다. 강화 Chase 완료 전에 전투가 끝나 예약 충전이 남더라도 새 Composition에서 Registrar가 새 BattleState를 만들어야 하며 전역이나 Save로 넘기지 않는다.
+
+## 제17장. 등록 완료 매트릭스
+
+완료 보고에는 해당하지 않는 행도 `미사용(설계상)`으로 남긴다.
+
+| 등록 지점 | 필수성 | 확인 내용 |
+|---|---|---|
+| ID 상수, CombatConfig 코드/에셋 | 필수 | 같은 ID, `TryValidate`, 수치·상한 |
+| CharacterDefinition | 필수 | HP/ATK/원소/스킬/CombatConfig |
+| Skill/EffectDefinition | 설계에 따라 | 고유 ID, Kind, Icon, Localization |
+| Build/Match/Active/Trigger | 설계에 따라 | 공격자·유형·계보·결과 시점 |
+| Registrar | 필수 | Provider/Trigger/Resource/Status의 동일 전투 연결 |
+| Runtime Catalog | 필수 | Build/Combat/Lookup Factory 각 1개 |
+| Presentation Catalog | 필수 | 같은 CharacterId, FaceSprite |
+| DefinitionDatabase | 필수 | Character/Skill/Effect/Resource/Gacha 참조 |
+| Gacha/Exchange | 선택 | 사용자가 승인한 명시적 ID만 편입 |
+| Save DTO | 보통 변경 없음 | 기존 구조가 새 ID의 보유·편성을 수용하는지 |
+| HUD/projectile | 표시 기능 사용 시 | Effect/Status 우선순위와 실제 공격자 Anchor |
+
+`ICharacterCombatStatusSource`는 별도 파일이 아니라 `Assets/Game/Battle/Combat/Integration/CharacterCombatProviderRegistrationResult.cs`에, `ICharacterLookupDescriptionProvider`는 `Assets/Game/Characters/Presentation/CharacterLookupDescription.cs`에 선언되어 있다. StatusId로 스킬 ID를 사용하는 현재 세레나 패턴은 `DefinitionDatabase.TryGetSkill(StatusId, ...)`로 아이콘을 찾는다. 단순 횟수 표시를 위해 가짜 EffectInstance를 만들지 않는다.
+
+가챠 풀은 신규 캐릭터 완성으로 자동 확장하지 않는다. `GachaDefinitionTests`는 고정 CharacterId 목록이 아니라 비어 있음·중복·참조·확률 합계·비용·천장·보상 규칙을 검증한다. 교환소는 `ExchangeCatalogDefinition.CharacterIds`의 명시 항목만 사용한다. 현재 에셋은 세레나를 `gacha_character_standard.asset`에 포함하지만 `ExchangeCatalogDefinition.asset`에는 포함하지 않는다. 정의 배열 위치(`database.Characters[0]`)에 의존하지 말고 안정 ID로 조회한다.
+
+## 제18장. 설계와 구현 기록 위치
+
+| 변경 내용 | 기록 위치 |
+|---|---|
+| 캐릭터 수치·기믹·각성 의도 | `Docs/Design/Character/<캐릭터> 캐릭터 템플릿.docx` |
+| 모든 캐릭터에 적용되는 Action/Trigger/상태/등록 계약 | 이 가이드의 해당 장 |
+| 실제 콘텐츠 편입 | 캐릭터 설계/작업 기록과 해당 Gacha/Exchange 에셋 |
+| 재사용 가능한 버그 교훈 | 재현 테스트와 이 가이드의 주의사항 |
+
+`Docs/CharacterImplementations/<character_id>.md` 형태의 개별 구현 기록은 현재 저장소에 없는 **선택적 운영 제안**이다. 팀이 채택하기 전에는 필수 경로나 구현된 프로세스로 간주하지 않는다. 채택한다면 상태/행동 계약, 실제 파일·ID, 검증 결과, 열린 결정을 기록하고 기존 이력 체계가 있으면 그쪽으로 통일한다.
+
+이 가이드는 공통 계약, 경로, 등록 방식, 완료 판정이 바뀌거나 재사용 가능한 실수 예방 규칙이 생길 때 갱신한다. 개별 계수·스킬명만 바뀌면 캐릭터 Config와 설계 문서만 갱신한다.
+
+## 제19장. Codex 작업 시작·완료 기준
+
+전체 프로젝트 스캔 대신 다음만 먼저 확인한다.
+
+1. `git status --short`와 기존 사용자 변경
+2. 이 가이드, 대상 설계 템플릿, 대상 캐릭터 폴더
+3. `CharacterRuntimeRegistrationCatalog`와 실제 Database/Presentation 에셋
+4. 제15장에서 고른 계층의 마레아 또는 세레나 대응 파일 하나
+5. 공통 확장이 필요할 때만 그 의존성의 구현·호출부·테스트
+
+완료 전에는 Lv1/100, 각성 0~6, 빈 슬롯과 슬롯 0/1/4, 자원 0/상한, 3/4/5매칭, 액티브 첫 사용·쿨타임·만료, 실제 소비 0/복수, 보스 사망·파티 전멸, 후속 연쇄 차단, 전투 재진입 격리, 상태 슬롯 포화, projectile 공격자/대상, Database/Presentation/Localization/GUID+fileID, 획득 경로 정책을 해당 기능 범위에서 확인한다. 컴파일 성공과 NUnit 통과, 정적 검토와 Unity Editor/기기 검증을 구분해 보고한다.
+
+다음 경우에만 이 문서 바깥의 관련 공통 의존성을 추가 조사한다.
+
+- 새 Action 타입, 전역 Modifier 범주, 턴 Phase, Save Schema가 필요하다.
+- 보드·Boss·UI·Save를 동시에 바꾸는 기믹이다.
+- 실제 코드 시그니처나 테스트가 이 문서와 달라졌다.
+
+## 제20장. 확정 정책과 미확정 영역
+
+- 마레아 4매칭의 조건부 피해는 별도 Additional이 아닌 단일 Match이고, 5매칭은 물 원소를 실제 소비한다.
+- 세레나의 강화 추격 횟수는 Registrar가 전투마다 만든 고유 BattleState에 있고 Trigger와 StatusSource가 같은 인스턴스를 공유한다.
+- projectile Source는 원인 Match 캐릭터가 아니라 실행 `DamageAction.ContextRequest.Attacker` 기준이다.
+- RuntimeRegistration과 가챠·교환소 편입은 독립적이며 획득 풀은 수동 관리한다.
+- Effect가 캐릭터 상태 슬롯을 먼저 채우고 고유 StatusSource가 남은 슬롯을 사용한다. 현재 슬롯이 모두 차면 원본 상태는 유지되지만 아이콘은 숨겨진다.
+
+상태 슬롯 포화 시 필수 상태 우선 표시, 공격 유형별 projectile 스타일, 새 획득 경로의 교차 검증 포함 여부는 아직 별도 설계 결정이 필요하다. 확인 전에는 구현된 정책처럼 확정하지 않는다.
 
