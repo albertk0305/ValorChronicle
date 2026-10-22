@@ -4,6 +4,7 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using ValorChronicle.Battle.Combat.Actions;
+using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Data.Definitions;
@@ -30,12 +31,37 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(active.TriggerRules, Is.Empty);
             Assert.That(active.ResourceRequirements, Is.Empty);
             Assert.That(active.CombatStatusSources, Is.Empty);
+            Assert.That(active.InitialPartyEffects, Is.Empty);
             Assert.That(passive.HasActiveAbility, Is.False);
             Assert.That(passive.ActiveAbilityId, Is.Empty);
             Assert.That(passive.ActiveCooldownTurns, Is.Zero);
             Assert.That(passive.TriggerRules, Is.Empty);
             Assert.That(passive.ResourceRequirements, Is.Empty);
             Assert.That(passive.CombatStatusSources, Is.Empty);
+            Assert.That(passive.InitialPartyEffects, Is.Empty);
+        }
+
+        [Test]
+        public void InitialPartyEffectsAreCopiedWithoutChangingOtherMetadata()
+        {
+            InitialPartyEffectDefinition effect = InitialWaterEffect(
+                "character_test",
+                "initial_water");
+            InitialPartyEffectDefinition[] source = { effect };
+
+            CharacterCombatProviderRegistrationResult result =
+                CharacterCombatProviderRegistrationResult
+                    .WithActiveAbility("active_id", 8)
+                    .WithInitialPartyEffects(source);
+            source[0] = InitialWaterEffect(
+                "character_test",
+                "replacement");
+
+            Assert.That(result.HasActiveAbility, Is.True);
+            Assert.That(result.ActiveAbilityId, Is.EqualTo("active_id"));
+            Assert.That(result.ActiveCooldownTurns, Is.EqualTo(8));
+            Assert.That(result.InitialPartyEffects,
+                Is.EqualTo(new[] { effect }));
         }
 
         [Test]
@@ -119,6 +145,39 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                         rules,
                         requirements,
                         new ICharacterCombatStatusSource[] { null }));
+            Assert.Throws<ArgumentNullException>(() =>
+                CharacterCombatProviderRegistrationResult
+                    .WithoutActiveAbility()
+                    .WithInitialPartyEffects(null));
+            Assert.Throws<ArgumentException>(() =>
+                CharacterCombatProviderRegistrationResult
+                    .WithoutActiveAbility()
+                    .WithInitialPartyEffects(
+                        new InitialPartyEffectDefinition[] { null }));
+        }
+
+        [Test]
+        public void InitialPartyEffectDefinitionRejectsInvalidEffectData()
+        {
+            Assert.Throws<ArgumentException>(() =>
+                InitialWaterEffect(" ", "initial_water"));
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                new InitialPartyEffectDefinition(
+                    "initial_water",
+                    "character_test",
+                    EffectCategory.Buff,
+                    EffectModifierType.ElementDamageIncrease,
+                    double.NaN,
+                    remainingTurns: null,
+                    elementFilter: ElementType.Water));
+            Assert.Throws<ArgumentException>(() =>
+                new InitialPartyEffectDefinition(
+                    "initial_water",
+                    "character_test",
+                    EffectCategory.Buff,
+                    EffectModifierType.ElementDamageIncrease,
+                    0.08d,
+                    remainingTurns: null));
         }
 
         [Test]
@@ -211,6 +270,21 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             {
                 return Array.Empty<CombatAction>();
             }
+        }
+
+        private static InitialPartyEffectDefinition InitialWaterEffect(
+            string sourceId,
+            string effectId)
+        {
+            return new InitialPartyEffectDefinition(
+                effectId,
+                sourceId,
+                EffectCategory.Buff,
+                EffectModifierType.ElementDamageIncrease,
+                0.08d,
+                remainingTurns: null,
+                EffectStackPolicy.Unique,
+                elementFilter: ElementType.Water);
         }
 
         private sealed class TestCombatStatusSource

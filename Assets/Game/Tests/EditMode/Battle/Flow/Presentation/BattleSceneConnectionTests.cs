@@ -669,6 +669,30 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Is.EqualTo(backgroundRect.anchoredPosition));
             Assert.That(panelRect.sizeDelta,
                 Is.EqualTo(backgroundRect.sizeDelta));
+
+            var boardControllerObject = new SerializedObject(boardController);
+            var boardView = boardControllerObject.FindProperty("boardView")
+                .objectReferenceValue as BattleBoardView;
+            Assert.That(boardView, Is.Not.Null);
+            var boardViewObject = new SerializedObject(boardView);
+            GameObject shuffleText = boardViewObject
+                .FindProperty("shuffleText").objectReferenceValue
+                as GameObject;
+            GameObject shuffleIcon = boardViewObject
+                .FindProperty("shuffleIcon").objectReferenceValue
+                as GameObject;
+            Assert.That(shuffleText, Is.Not.Null);
+            Assert.That(shuffleIcon, Is.Not.Null);
+            Assert.That(shuffleText.name, Is.EqualTo("ShuffleText"));
+            Assert.That(shuffleIcon.name, Is.EqualTo("ShuffleIcon"));
+            Assert.That(shuffleText.transform.parent,
+                Is.SameAs(panel.transform));
+            Assert.That(shuffleIcon.transform.parent,
+                Is.SameAs(panel.transform));
+            Assert.That(shuffleText.activeSelf, Is.False);
+            Assert.That(shuffleIcon.activeSelf, Is.False);
+            Assert.That(shuffleText.GetComponent<TMP_Text>().text,
+                Is.EqualTo("No Match Available\nShuffling..."));
         }
 
         private static bool IsBelowSafeArea(Transform transform)

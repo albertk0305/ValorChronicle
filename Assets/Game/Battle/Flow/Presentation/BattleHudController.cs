@@ -700,6 +700,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
 
             RefreshActiveAvailability();
+            RefreshStatusSnapshot();
         }
 
         private void HandlePresentationMatchQueueChanged()

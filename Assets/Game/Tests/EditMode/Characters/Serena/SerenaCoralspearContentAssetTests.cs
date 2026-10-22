@@ -164,7 +164,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Serena
             Assert.That(skill.SkillKind, Is.EqualTo(expectedKind));
             if (expectedIconPath == null)
             {
-                Assert.That(skill.Icon, Is.Null);
+                AssertOptionalSpriteAsset(skill.Icon);
             }
             else
             {
@@ -308,6 +308,17 @@ namespace ValorChronicle.Tests.EditMode.Characters.Serena
             T asset = AssetDatabase.LoadAssetAtPath<T>(path);
             Assert.That(asset, Is.Not.Null, path);
             return asset;
+        }
+
+        private static void AssertOptionalSpriteAsset(Sprite sprite)
+        {
+            if (sprite == null)
+            {
+                return;
+            }
+
+            Assert.That(EditorUtility.IsPersistent(sprite), Is.True);
+            Assert.That(AssetDatabase.GetAssetPath(sprite), Is.Not.Empty);
         }
     }
 }

@@ -5,8 +5,12 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using ValorChronicle.Battle.Combat.Actions;
+using ValorChronicle.Battle.Combat.Attacks;
+using ValorChronicle.Battle.Combat.Damage;
+using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Battle.Combat.Healing;
 using ValorChronicle.Battle.Combat.Integration;
+using ValorChronicle.Battle.Combat.Modifiers;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Combat.Shields;
 using ValorChronicle.Battle.Flow;
@@ -108,6 +112,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(memberB.Awakening, Is.EqualTo(2));
             Assert.That(memberC.Awakening, Is.EqualTo(3));
             Assert.That(composition.Boss.Resources.Count, Is.Zero);
+            Assert.That(composition.Party.Effects.GetActiveEffects(),
+                Is.Empty);
         }
 
         [Test]
@@ -660,6 +666,289 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 Array.Empty<BattlePartyMemberInput>()));
         }
 
+        [Test]
+        public void CompositionAppliesInitialPartyEffectsInPartySlotOrder()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar();
+            registrar.AddInitialPartyEffect(
+                "right",
+                InitialWaterEffect("right", "right_water", 0.03d));
+            registrar.AddInitialPartyEffect(
+                "left",
+                InitialWaterEffect("left", "left_water", 0.08d));
+
+            using BattleSceneCombatComposition composition = Compose(
+                new[]
+                {
+                    Member("right", 4, 1, 0, 5),
+                    Member("left", 0, 1, 0, 3)
+                },
+                registrar);
+
+            IReadOnlyList<EffectInstance> effects =
+                composition.Party.Effects.GetActiveEffects();
+            Assert.That(effects, Has.Count.EqualTo(2));
+            Assert.That(
+                effects.Select(effect => effect.EffectId),
+                Is.EqualTo(new[] { "left_water", "right_water" }));
+            Assert.That(effects[0].RuntimeId, Is.GreaterThan(0));
+            Assert.That(effects[1].RuntimeId,
+                Is.GreaterThan(effects[0].RuntimeId));
+            Assert.That(effects[0].CreationOrder,
+                Is.EqualTo(effects[0].RuntimeId));
+            Assert.That(effects[1].CreationOrder,
+                Is.EqualTo(effects[1].RuntimeId));
+            Assert.That(composition.ActionIds.LastIssuedId, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void InitialPartyEffectAppliesBeforeFirstAttackByElement()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar();
+            registrar.AddInitialPartyEffect(
+                "water_hero",
+                InitialWaterEffect(
+                    "water_hero",
+                    "initial_water",
+                    0.08d));
+            using BattleSceneCombatComposition composition = Compose(
+                new[] { MemberWithoutActive("water_hero", 0) },
+                registrar);
+            CharacterBattleState attacker =
+                composition.Party.Characters[0];
+
+            DamageActionResult water = ExecuteDamage(
+                composition,
+                attacker,
+                ElementType.Water);
+            DamageActionResult fire = ExecuteDamage(
+                composition,
+                attacker,
+                ElementType.Fire);
+
+            Assert.That(water.Context.ElementDamageIncreaseRateSum,
+                Is.EqualTo(0.08d));
+            Assert.That(water.DamageResult.ElementDamageMultiplier,
+                Is.EqualTo(1.08d));
+            Assert.That(fire.Context.ElementDamageIncreaseRateSum, Is.Zero);
+            Assert.That(fire.DamageResult.ElementDamageMultiplier,
+                Is.EqualTo(1d));
+        }
+
+        [Test]
+        public void CompositionCollectsInitialEffectsFromMultipleRegistrars()
+        {
+            var first = new TestCharacterCombatProviderRegistrar();
+            first.AddInitialPartyEffect(
+                "first",
+                InitialWaterEffect("first", "first_water", 0.08d));
+            var second = new TestCharacterCombatProviderRegistrar(
+                typeof(AlternateTestCharacterCombatConfig));
+            second.AddInitialPartyEffect(
+                "second",
+                InitialWaterEffect("second", "second_water", 0.10d));
+
+            using BattleSceneCombatComposition composition =
+                ComposeWithRegistrars(
+                    new[]
+                    {
+                        AlternateMember("second", 3, 5),
+                        Member("first", 1, 1, 0, 3)
+                    },
+                    new ICharacterCombatProviderRegistrar[]
+                    {
+                        first,
+                        second
+                    });
+
+            Assert.That(
+                composition.Party.Effects.GetActiveEffects()
+                    .Select(effect => effect.EffectId),
+                Is.EqualTo(new[] { "first_water", "second_water" }));
+        }
+
+        [Test]
+        public void InitialIndefiniteAndFinitePartyEffectsCoexistAtTurnEnd()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar();
+            registrar.AddInitialPartyEffect(
+                "hero",
+                InitialWaterEffect("hero", "permanent_water", 0.08d));
+            using BattleSceneCombatComposition composition = Compose(
+                new[] { Member("hero", 0, 1, 0, 3) },
+                registrar);
+            var finite = new EffectInstance(
+                10,
+                "finite_water",
+                "test",
+                EffectCategory.Buff,
+                EffectModifierType.ElementDamageIncrease,
+                0.12d,
+                remainingTurns: 2,
+                creationOrder: 10,
+                EffectStackPolicy.RefreshDuration,
+                elementFilter: ElementType.Water);
+            composition.Party.Effects.ApplyEffect(finite);
+            var processor = new BattleTurnEndProcessor(
+                composition.Party,
+                composition.Boss);
+
+            processor.ProcessTurnEnd();
+
+            IReadOnlyList<EffectInstance> effects =
+                composition.Party.Effects.GetActiveEffects();
+            Assert.That(effects, Has.Count.EqualTo(2));
+            Assert.That(effects.Single(effect =>
+                    effect.EffectId == "permanent_water").RemainingTurns,
+                Is.Null);
+            Assert.That(finite.RemainingTurns, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void InitialPartyEffectsSumAndDoNotRunActionsOrAdvanceFlow()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar();
+            registrar.AddInitialPartyEffect(
+                "hero",
+                InitialWaterEffect("hero", "water_one", 0.08d));
+            registrar.AddInitialPartyEffect(
+                "hero",
+                InitialWaterEffect("hero", "water_two", 0.12d));
+            using BattleSceneCombatComposition composition = Compose(
+                new[] { Member("hero", 0, 1, 0, 3) },
+                registrar);
+            var coordinator = new BattleFlowCoordinator(
+                composition.FlowSetup.TurnLimit,
+                composition.FlowSetup.ActiveAbilityCooldowns);
+
+            Assert.That(composition.ActionIds.LastIssuedId, Is.EqualTo(1));
+            Assert.That(coordinator.Context.Phase,
+                Is.EqualTo(BattlePhase.NotStarted));
+            Assert.That(coordinator.Context.CurrentTurn, Is.Zero);
+            Assert.That(
+                CombatModifierCollector
+                    .CollectAllyDamage(
+                        composition.Party.Characters[0],
+                        composition.Party,
+                        composition.Boss,
+                        ElementType.Water)
+                    .ElementDamageIncreaseRateSum,
+                Is.EqualTo(0.20d).Within(0.000000001d));
+        }
+
+        [Test]
+        public void InitialPartyEffectSumsWithExistingCharacterWaterBuff()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar();
+            registrar.AddInitialPartyEffect(
+                "hero",
+                InitialWaterEffect("hero", "initial_water", 0.08d));
+            using BattleSceneCombatComposition composition = Compose(
+                new[] { MemberWithoutActive("hero", 0) },
+                registrar);
+            CharacterBattleState character =
+                composition.Party.Characters[0];
+            character.Effects.ApplyEffect(new EffectInstance(
+                runtimeId: 10,
+                effectId: "existing_active_water",
+                sourceId: "hero",
+                EffectCategory.Buff,
+                EffectModifierType.ElementDamageIncrease,
+                magnitude: 0.12d,
+                remainingTurns: 2,
+                creationOrder: 10,
+                EffectStackPolicy.RefreshDuration,
+                elementFilter: ElementType.Water));
+
+            Assert.That(
+                CombatModifierCollector.CollectAllyDamage(
+                        character,
+                        composition.Party,
+                        composition.Boss,
+                        ElementType.Water)
+                    .ElementDamageIncreaseRateSum,
+                Is.EqualTo(0.20d).Within(0.000000001d));
+        }
+
+        [Test]
+        public void RegistrarContributionOutsidePartyIsNotApplied()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar();
+            registrar.AddInitialPartyEffect(
+                "absent",
+                InitialWaterEffect("absent", "absent_water", 0.08d));
+
+            using BattleSceneCombatComposition composition = Compose(
+                new[] { Member("present", 0, 1, 0, 3) },
+                registrar);
+
+            Assert.That(composition.Party.Effects.GetActiveEffects(),
+                Is.Empty);
+        }
+
+        [Test]
+        public void SeparateCompositionsDoNotShareInitialPartyEffects()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar();
+            registrar.AddInitialPartyEffect(
+                "hero",
+                InitialWaterEffect("hero", "initial_water", 0.08d));
+
+            using BattleSceneCombatComposition first = Compose(
+                new[] { Member("hero", 0, 1, 0, 3) },
+                registrar);
+            using BattleSceneCombatComposition second = Compose(
+                new[] { Member("hero", 0, 1, 0, 3) },
+                registrar);
+
+            EffectInstance firstEffect =
+                first.Party.Effects.GetActiveEffects()[0];
+            EffectInstance secondEffect =
+                second.Party.Effects.GetActiveEffects()[0];
+            Assert.That(second.Party, Is.Not.SameAs(first.Party));
+            Assert.That(secondEffect, Is.Not.SameAs(firstEffect));
+            Assert.That(secondEffect.RuntimeId,
+                Is.EqualTo(firstEffect.RuntimeId));
+        }
+
+        [Test]
+        public void CompositionRejectsInitialEffectWithForeignSource()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar();
+            registrar.AddInitialPartyEffect(
+                "hero",
+                InitialWaterEffect("other", "invalid_source", 0.08d));
+
+            InvalidOperationException exception =
+                Assert.Throws<InvalidOperationException>(() => Compose(
+                    new[] { Member("hero", 0, 1, 0, 3) },
+                    registrar));
+
+            Assert.That(exception.Message, Does.Contain("invalid_source"));
+            Assert.That(exception.Message, Does.Contain("source ID"));
+        }
+
+        [Test]
+        public void CreatingBridgeDoesNotReapplyInitialPartyEffects()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar();
+            registrar.AddInitialPartyEffect(
+                "hero",
+                InitialWaterEffect("hero", "initial_water", 0.08d));
+            using BattleSceneCombatComposition composition = Compose(
+                new[] { Member("hero", 0, 1, 0, 3) },
+                registrar);
+            var coordinator = new BattleFlowCoordinator(
+                composition.FlowSetup.TurnLimit,
+                composition.FlowSetup.ActiveAbilityCooldowns);
+
+            composition.CreateBridge(coordinator);
+            Assert.That(
+                () => composition.CreateBridge(coordinator),
+                Throws.TypeOf<InvalidOperationException>());
+            Assert.That(composition.Party.Effects.Count, Is.EqualTo(1));
+        }
+
         private BattleSceneCombatComposition Compose(
             IReadOnlyList<BattlePartyMemberInput> members,
             ICharacterCombatProviderRegistrar registrar = null)
@@ -715,6 +1004,49 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 consumerId: "test_consumer",
                 mode: ResourceConsumptionMode.Amount,
                 amount: 1);
+        }
+
+        private static DamageActionResult ExecuteDamage(
+            BattleSceneCombatComposition composition,
+            CharacterBattleState attacker,
+            ElementType element)
+        {
+            long actionId = composition.ActionIds.Next();
+            CombatActionExecutionResult result = composition.Executor.Execute(
+                new CombatActionQueue(new CombatAction[]
+                {
+                    new DamageAction(
+                        actionId,
+                        ActionOrigin.System,
+                        new DamageContextBuildRequest(
+                            attacker,
+                            composition.Party,
+                            composition.Boss,
+                            element,
+                            AttackType.Match,
+                            AttackTag.None,
+                            skillCoefficient: 1d,
+                            appliesCombo: false,
+                            finalComboCount: 0,
+                            canCritical: false))
+                }));
+            return (DamageActionResult)result.ActionResults[0];
+        }
+
+        private static InitialPartyEffectDefinition InitialWaterEffect(
+            string sourceId,
+            string effectId,
+            double magnitude)
+        {
+            return new InitialPartyEffectDefinition(
+                effectId,
+                sourceId,
+                EffectCategory.Buff,
+                EffectModifierType.ElementDamageIncrease,
+                magnitude,
+                remainingTurns: null,
+                EffectStackPolicy.Unique,
+                elementFilter: ElementType.Water);
         }
 
         private BattlePartyMemberInput Member(
@@ -874,10 +1206,30 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             public List<int> MatchedPartySlots { get; }
             public List<CombatResourceRequirement> ResourceRequirements
                 { get; } = new List<CombatResourceRequirement>();
+            private Dictionary<string, List<InitialPartyEffectDefinition>>
+                InitialPartyEffectsByCharacter { get; } =
+                    new Dictionary<string,
+                        List<InitialPartyEffectDefinition>>(
+                            StringComparer.Ordinal);
 
             public Type SupportedCombatConfigType =>
                 supportedCombatConfigType;
             public string CharacterId => "test_character";
+
+            public void AddInitialPartyEffect(
+                string characterId,
+                InitialPartyEffectDefinition effect)
+            {
+                if (!InitialPartyEffectsByCharacter.TryGetValue(
+                    characterId,
+                    out List<InitialPartyEffectDefinition> effects))
+                {
+                    effects = new List<InitialPartyEffectDefinition>();
+                    InitialPartyEffectsByCharacter.Add(characterId, effects);
+                }
+
+                effects.Add(effect);
+            }
 
             public CharacterCombatProviderRegistrationResult Register(
                 BattlePartyMemberInput member,
@@ -906,25 +1258,37 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     triggerRules = new ICombatTriggerRule[] { rule };
                 }
 
+                if (!InitialPartyEffectsByCharacter.TryGetValue(
+                    member.CharacterId,
+                    out List<InitialPartyEffectDefinition> initialEffects))
+                {
+                    initialEffects = new List<InitialPartyEffectDefinition>();
+                }
+
+                CharacterCombatProviderRegistrationResult result;
                 if (!config.HasActiveAbility)
                 {
-                    return CharacterCombatProviderRegistrationResult
+                    result = CharacterCombatProviderRegistrationResult
                         .WithoutActiveAbility(
                             triggerRules,
                             ResourceRequirements);
                 }
-
-                string activeAbilityId = $"{member.CharacterId}_active";
-                activeProviders.Register(
-                    member.CharacterId,
-                    activeAbilityId,
-                    new EmptyActiveProvider());
-                return CharacterCombatProviderRegistrationResult
-                    .WithActiveAbility(
+                else
+                {
+                    string activeAbilityId = $"{member.CharacterId}_active";
+                    activeProviders.Register(
+                        member.CharacterId,
                         activeAbilityId,
-                        config.ActiveCooldownTurns,
-                        triggerRules,
-                        ResourceRequirements);
+                        new EmptyActiveProvider());
+                    result = CharacterCombatProviderRegistrationResult
+                        .WithActiveAbility(
+                            activeAbilityId,
+                            config.ActiveCooldownTurns,
+                            triggerRules,
+                            ResourceRequirements);
+                }
+
+                return result.WithInitialPartyEffects(initialEffects);
             }
         }
 

@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a06fbad1347e40d1b83d9caa60df8248, type: 3}
+  m_Name: shimotsuki_miyuki_combat_config
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Characters.Miyuki.ShimotsukiMiyukiCombatConfig
+  match3Coefficient: 0.55
+  match4Coefficient: 0.9
+  match5Coefficient: 1.45
+  match3WaterAmount: 1
+  match4WaterAmount: 2
+  match5WaterAmount: 3
+  passiveWaterDamageIncreaseRate: 0.08
+  enhancedPassiveWaterDamageIncreaseRate: 0.1
+  match5WaterDamageIncreaseRate: 0.12
+  match5EffectDurationTurns: 2
+  enhancedMatch3Coefficient: 0.6
+  enhancedMatch4Coefficient: 1
+  activeCooldownTurns: 8
+  activeBlockConversionCount: 4
+  enhancedActiveBlockConversionCount: 5
+  awakening6ExtraWaterAmount: 1
+  waterElementMaxAmount: 5

@@ -155,7 +155,8 @@ namespace ValorChronicle.Battle.Combat.Integration
             ActiveAbilityActionProviderRegistry activeProviders,
             IBattleBoardMutationSink boardMutationSink,
             string difficultyId,
-            BattleResultBalance resultBalance)
+            BattleResultBalance resultBalance,
+            IBattleBoardElementConversionSink boardElementConversionSink = null)
         {
             this.coordinator = coordinator
                 ?? throw new ArgumentNullException(nameof(coordinator));
@@ -205,7 +206,10 @@ namespace ValorChronicle.Battle.Combat.Integration
                 executor,
                 actionIds,
                 activeBindings,
-                activeProviders);
+                activeProviders,
+                boardElementConversionSink
+                    ?? boardMutationSink
+                        as IBattleBoardElementConversionSink);
             turnEndProcessor = new BattleTurnEndProcessor(party, boss);
             coordinator.ResultReached += HandleResultReached;
         }

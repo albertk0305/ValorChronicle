@@ -24,6 +24,8 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
         private BattleBoardView boardView;
         private BlockViewPool pool;
         private BattleBoardController controller;
+        private GameObject shuffleText;
+        private GameObject shuffleIcon;
 
         [SetUp]
         public void SetUp()
@@ -81,6 +83,16 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                 BoardConstants.CellCount);
             boardView = root.AddComponent<BattleBoardView>();
             boardView.Configure(spriteSet, pool);
+            shuffleText = new GameObject("ShuffleText", typeof(RectTransform));
+            shuffleText.transform.SetParent(root.transform, false);
+            shuffleText.SetActive(false);
+            createdObjects.Add(shuffleText);
+            shuffleIcon = new GameObject("ShuffleIcon", typeof(RectTransform));
+            shuffleIcon.transform.SetParent(root.transform, false);
+            shuffleIcon.SetActive(false);
+            createdObjects.Add(shuffleIcon);
+            SetField(boardView, "shuffleText", shuffleText);
+            SetField(boardView, "shuffleIcon", shuffleIcon);
 
             controller = root.AddComponent<BattleBoardController>();
             SetField(controller, "boardView", boardView);
@@ -204,6 +216,9 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             object generator = GetField(controller, "boardGenerator");
             object refiller = GetField(controller, "boardRefiller");
             object shuffler = GetField(controller, "boardShuffler");
+            object conversionResolver = GetField(
+                controller,
+                "elementConversionResolver");
             object resolver = GetField(controller, "swapActionResolver");
             Assert.That(GetField(controller, "randomSource"),
                 Is.SameAs(randomSource));
@@ -212,6 +227,8 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(GetField(refiller, "randomSource"),
                 Is.SameAs(randomSource));
             Assert.That(GetField(shuffler, "randomSource"),
+                Is.SameAs(randomSource));
+            Assert.That(GetField(conversionResolver, "randomSource"),
                 Is.SameAs(randomSource));
             Assert.That(GetField(generator, "idGenerator"),
                 Is.SameAs(idGenerator));
@@ -227,6 +244,8 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                 Is.SameAs(generator));
             Assert.That(GetField(controller, "swapActionResolver"),
                 Is.SameAs(resolver));
+            Assert.That(GetField(controller, "elementConversionResolver"),
+                Is.SameAs(conversionResolver));
         }
 
         [UnityTest]
@@ -747,6 +766,515 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                 completion = result);
             Assert.That(CountRocks(controller.CurrentBoard), Is.EqualTo(6));
             Assert.That(completion.Result.CreatedCount, Is.Zero);
+            Assert.That(shuffleText.activeSelf, Is.False);
+            Assert.That(shuffleIcon.activeSelf, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator RockMutationShuffleWaitsForPresentationAndCompletesOnce()
+        {
+            SetAllDurationsToZero();
+            SetField(controller, "shuffleDuration", 0.05f);
+            controller.Initialize();
+            yield return null;
+            // Initialize installs runtime time sources. Override them after
+            // initialization so the presentation frame count is deterministic.
+            boardView.ConfigureBlockAnimationTimeSources(
+                () => false,
+                () => 0.01f);
+            BoardState sourceBoard = CreateOneMoveBoard();
+            SetProperty(controller, "CurrentBoard", sourceBoard);
+            SetProperty(controller, "IsBoardReady", true);
+            boardView.Render(sourceBoard);
+            SetField(controller, "rockMutationResolver",
+                CreateForcedShuffleRockResolver());
+            var command = new BattleBoardMutationCommand(
+                BattleBoardMutationKind.CreateRock,
+                requestedCount: 3,
+                maximumCount: 6);
+            BattleBoardMutationCompletion completion = null;
+            int completionCount = 0;
+
+            Assert.That(controller.TryExecuteMutation(command, result =>
+            {
+                completion = result;
+                completionCount++;
+            }), Is.True);
+
+            Assert.That(completion, Is.Null);
+            Assert.That(controller.LastRockMutationResult, Is.Not.Null);
+            Assert.That(controller.LastRockMutationResult.WasShuffled,
+                Is.True);
+            Assert.That(controller.LastRockMutationResult.ShuffleResult,
+                Is.Not.Null);
+            Assert.That(
+                controller.LastRockMutationResult.ShuffleResult.WasShuffled,
+                Is.True);
+            Assert.That(shuffleText.activeSelf, Is.True);
+            Assert.That(shuffleIcon.activeSelf, Is.True);
+            Assert.That(controller.IsBoardReady, Is.False);
+            Assert.That(controller.TryExecuteMutation(command, _ => { }),
+                Is.False);
+            Assert.That(controller.TryConvertElements(
+                ElementType.Water,
+                4,
+                out _), Is.False);
+            Assert.That(controller.TryExecuteSwap(
+                new BoardPosition(0, 0),
+                new BoardPosition(0, 1)), Is.False);
+
+            int presentationVersion =
+                (int)GetField(controller, "actionVersion");
+            // EditMode advances StartCoroutine to its first yield, but does
+            // not reliably resume that MonoBehaviour coroutine. Continue the
+            // same controller presentation iterator deterministically.
+            controller.StopAllCoroutines();
+            var presentation = (IEnumerator)InvokePrivate(
+                controller,
+                "RunRockMutationPresentation",
+                presentationVersion);
+            int remainingPresentationFrames = 0;
+            while (presentation.MoveNext())
+            {
+                remainingPresentationFrames++;
+                Assert.That(completion, Is.Null);
+                Assert.That(shuffleText.activeSelf, Is.True);
+                Assert.That(shuffleIcon.activeSelf, Is.True);
+            }
+
+            Assert.That(remainingPresentationFrames, Is.EqualTo(5));
+            Assert.That(completion, Is.Not.Null);
+            Assert.That(completion.Succeeded, Is.True);
+            Assert.That(completionCount, Is.EqualTo(1));
+            Assert.That(completion.Result.WasShuffled, Is.True);
+            Assert.That(controller.IsBoardReady, Is.True);
+            Assert.That(controller.CanAcceptBoardInput, Is.True);
+            Assert.That(boardView.MatchesBoard(controller.CurrentBoard),
+                Is.True);
+            Assert.That(shuffleText.activeSelf, Is.False);
+            Assert.That(shuffleIcon.activeSelf, Is.False);
+            Assert.That(CountRocks(controller.CurrentBoard), Is.EqualTo(3));
+            foreach (BoardRockPlacement placement
+                in completion.Result.Placements)
+            {
+                Assert.That(controller.CurrentBoard.Get(placement.Position),
+                    Is.SameAs(placement.RockBlock));
+                Assert.That(boardView.TryGetView(
+                    placement.RockBlock.RuntimeId,
+                    out BlockView view), Is.True);
+                Assert.That(view.Position, Is.EqualTo(placement.Position));
+            }
+
+            yield return null;
+            Assert.That(completionCount, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator InterruptedRockMutationShuffleFailsOnceAndCleansUi()
+        {
+            SetAllDurationsToZero();
+            SetField(controller, "shuffleDuration", 1f);
+            controller.Initialize();
+            yield return null;
+            BoardState sourceBoard = CreateOneMoveBoard();
+            SetProperty(controller, "CurrentBoard", sourceBoard);
+            SetProperty(controller, "IsBoardReady", true);
+            boardView.Render(sourceBoard);
+            SetField(controller, "rockMutationResolver",
+                CreateForcedShuffleRockResolver());
+            var command = new BattleBoardMutationCommand(
+                BattleBoardMutationKind.CreateRock,
+                requestedCount: 3,
+                maximumCount: 6);
+            BattleBoardMutationCompletion completion = null;
+            int completionCount = 0;
+            controller.TryExecuteMutation(command, result =>
+            {
+                completion = result;
+                completionCount++;
+            });
+            Assert.That(shuffleText.activeSelf, Is.True);
+
+            InvokePrivate(controller, "OnDisable");
+            yield return null;
+
+            Assert.That(completion, Is.Not.Null);
+            Assert.That(completion.Succeeded, Is.False);
+            Assert.That(completion.Failure, Is.Not.Null);
+            Assert.That(completionCount, Is.EqualTo(1));
+            Assert.That(shuffleText.activeSelf, Is.False);
+            Assert.That(shuffleIcon.activeSelf, Is.False);
+            Assert.That(boardView.IsAnimating, Is.False);
+            Assert.That(boardView.MatchesBoard(controller.CurrentBoard),
+                Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator ElementConversion_FourUpdatesBoardViewAndSprite()
+        {
+            yield return InitializeReadyBoard();
+            Sprite waterSprite = ConfigureDistinctElementSprites();
+            BoardState sourceBoard = CreateElementConversionBoard();
+            ConfigureElementConversion(sourceBoard, new SequenceRandomSource(
+                new[] { 0, 1, 2, 4 }));
+            int startedCount = 0;
+            int finishedCount = 0;
+            controller.BoardActionStarted += _ => startedCount++;
+            controller.BoardActionFinished += _ => finishedCount++;
+
+            Assert.That(controller.TryConvertElements(
+                ElementType.Water,
+                4,
+                out BoardElementConversionResult result), Is.True);
+
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(result.ConvertedCount, Is.EqualTo(4));
+            Assert.That(controller.CurrentBoard, Is.SameAs(result.Board));
+            Assert.That(controller.LastElementConversionResult,
+                Is.SameAs(result));
+            Assert.That(controller.IsBoardReady, Is.True);
+            Assert.That(controller.CanAcceptBoardInput, Is.True);
+            Assert.That(boardView.MatchesBoard(controller.CurrentBoard),
+                Is.True);
+            Assert.That(startedCount, Is.Zero);
+            Assert.That(finishedCount, Is.Zero);
+            Assert.That(shuffleText.activeSelf, Is.False);
+            Assert.That(shuffleIcon.activeSelf, Is.False);
+
+            foreach (BoardElementConversionEntry entry in result.Entries)
+            {
+                BoardBlock before = sourceBoard.Get(entry.Position);
+                BoardBlock after = controller.CurrentBoard.Get(entry.Position);
+                Assert.That(after.RuntimeId, Is.EqualTo(before.RuntimeId));
+                Assert.That(after.BlockType, Is.EqualTo(before.BlockType));
+                Assert.That(boardView.TryGetView(
+                    after.RuntimeId,
+                    out BlockView view), Is.True);
+                Assert.That(view.Position, Is.EqualTo(entry.Position));
+                Assert.That(view.Image.sprite, Is.SameAs(waterSprite));
+            }
+
+            Assert.That(BoardMatchFinder.FindMatches(controller.CurrentBoard),
+                Is.Not.Empty);
+        }
+
+        [UnityTest]
+        public IEnumerator ElementConversion_FiveConvertsExactlyFive()
+        {
+            yield return InitializeReadyBoard();
+            ConfigureElementConversion(
+                CreateElementConversionBoard(),
+                new SequenceRandomSource(new[] { 0, 1, 2, 3, 4 }));
+
+            Assert.That(controller.TryConvertElements(
+                ElementType.Water,
+                5,
+                out BoardElementConversionResult result), Is.True);
+
+            Assert.That(result.ConvertedCount, Is.EqualTo(5));
+            Assert.That(boardView.MatchesBoard(controller.CurrentBoard),
+                Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator ElementConversion_ResolverFailurePreservesBoardAndView()
+        {
+            yield return InitializeReadyBoard();
+            BoardState sourceBoard = CreateUniformBoard(ElementType.Water);
+            ConfigureElementConversion(
+                sourceBoard,
+                new SequenceRandomSource(Array.Empty<int>()));
+            BoardBlock[] original = Capture(sourceBoard);
+            var originalViews = new Dictionary<long, BlockView>(
+                boardView.ActiveViews);
+
+            Assert.That(controller.TryConvertElements(
+                ElementType.Water,
+                4,
+                out BoardElementConversionResult result), Is.False);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Failure,
+                Is.EqualTo(BoardElementConversionFailure.NoCandidates));
+            Assert.That(controller.CurrentBoard, Is.SameAs(sourceBoard));
+            Assert.That(controller.IsBoardReady, Is.True);
+            Assert.That(boardView.MatchesBoard(sourceBoard), Is.True);
+            AssertOriginalUnchanged(sourceBoard, original);
+            foreach (KeyValuePair<long, BlockView> pair in originalViews)
+            {
+                Assert.That(boardView.TryGetView(
+                    pair.Key,
+                    out BlockView current), Is.True);
+                Assert.That(current, Is.SameAs(pair.Value));
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ElementConversion_FewerCandidatesRemainUnchangedWhenUnplayable()
+        {
+            yield return InitializeReadyBoard();
+            BoardState sourceBoard = CreateUniformBoard(ElementType.Water);
+            SetElement(sourceBoard, 0, 0, ElementType.Fire);
+            SetElement(sourceBoard, 1, 0, ElementType.Grass);
+            ConfigureElementConversion(
+                sourceBoard,
+                new SequenceRandomSource(new[] { 0, 1 }),
+                maxRandomSelectionAttempts: 1);
+
+            Assert.That(controller.TryConvertElements(
+                ElementType.Water,
+                4,
+                out BoardElementConversionResult result), Is.False);
+
+            Assert.That(result.Failure,
+                Is.EqualTo(
+                    BoardElementConversionFailure.NoPlayableCombination));
+            Assert.That(result.DeterministicCombinationCount, Is.EqualTo(1));
+            Assert.That(controller.CurrentBoard, Is.SameAs(sourceBoard));
+            Assert.That(boardView.MatchesBoard(sourceBoard), Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator ElementConversion_ValidSwapProcessesExistingAndNewMatch()
+        {
+            yield return InitializeReadyBoard();
+            ConfigureElementConversion(
+                CreateElementConversionBoard(),
+                new SequenceRandomSource(new[] { 0, 1, 2, 4 }));
+            Assert.That(controller.TryConvertElements(
+                ElementType.Water,
+                4,
+                out _), Is.True);
+            IReadOnlyList<BoardMatch> existingMatches =
+                BoardMatchFinder.FindMatches(controller.CurrentBoard);
+            Assert.That(existingMatches, Is.Not.Empty);
+            BoardSwap swap = FindValidSwap(controller.CurrentBoard);
+
+            Assert.That(controller.TryExecuteSwap(swap), Is.True);
+
+            BoardSwapActionResult action = controller.LastSwapActionResult;
+            Assert.That(action.Status,
+                Is.EqualTo(BoardSwapActionStatus.Resolved));
+            Assert.That(action.Cascade.Steps, Is.Not.Empty);
+            BoardMatch firstResolvedMatch =
+                action.Cascade.Steps[0].Matches[0];
+            foreach (BoardPosition position in existingMatches[0].Positions)
+            {
+                Assert.That(
+                    ContainsPosition(firstResolvedMatch.Positions, position),
+                    Is.True);
+            }
+
+            Assert.That(
+                ContainsPosition(firstResolvedMatch.Positions, swap.First)
+                    || ContainsPosition(
+                        firstResolvedMatch.Positions,
+                        swap.Second),
+                Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator ElementConversion_InvalidSwapKeepsConvertedElements()
+        {
+            yield return InitializeReadyBoard();
+            ConfigureElementConversion(
+                CreateElementConversionBoard(),
+                new SequenceRandomSource(new[] { 0, 1, 2, 4 }));
+            Assert.That(controller.TryConvertElements(
+                ElementType.Water,
+                4,
+                out BoardElementConversionResult conversion), Is.True);
+            BoardSwap noMatchSwap = FindNoMatchSwap(controller.CurrentBoard);
+
+            Assert.That(controller.TryExecuteSwap(noMatchSwap), Is.True);
+
+            Assert.That(controller.LastSwapActionResult.Status,
+                Is.EqualTo(BoardSwapActionStatus.NoMatch));
+            foreach (BoardElementConversionEntry entry in conversion.Entries)
+            {
+                BoardBlock block = controller.CurrentBoard.Get(entry.Position);
+                Assert.That(block.RuntimeId, Is.EqualTo(entry.RuntimeId));
+                Assert.That(block.Element, Is.EqualTo(ElementType.Water));
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ElementConversion_RejectsUnavailableInputStates()
+        {
+            Assert.That(controller.TryConvertElements(
+                ElementType.Water,
+                4,
+                out _), Is.False);
+
+            SetAllDurationsToZero();
+            controller.Initialize();
+            Assert.That(controller.TryConvertElements(
+                ElementType.Water,
+                4,
+                out _), Is.False);
+            yield return null;
+
+            controller.IsExternalInputEnabled = false;
+            Assert.That(controller.TryConvertElements(
+                ElementType.Water,
+                4,
+                out _), Is.False);
+            controller.IsExternalInputEnabled = true;
+
+            SetField(controller, "isActionInProgress", true);
+            Assert.That(controller.TryConvertElements(
+                ElementType.Water,
+                4,
+                out _), Is.False);
+            SetField(controller, "isActionInProgress", false);
+        }
+
+        [UnityTest]
+        public IEnumerator ElementConversion_ReentrantRequestIsRejected()
+        {
+            yield return InitializeReadyBoard();
+            BoardState sourceBoard = CreateElementConversionBoard();
+            bool nestedAccepted = true;
+            BoardElementConversionResult nestedResult = null;
+            var random = new ReentrantRandomSource(() =>
+            {
+                nestedAccepted = controller.TryConvertElements(
+                    ElementType.Water,
+                    4,
+                    out nestedResult);
+            });
+            ConfigureElementConversion(
+                sourceBoard,
+                random,
+                maxRandomSelectionAttempts: 1);
+
+            Assert.That(controller.TryConvertElements(
+                ElementType.Water,
+                4,
+                out BoardElementConversionResult result), Is.True);
+
+            Assert.That(nestedAccepted, Is.False);
+            Assert.That(nestedResult, Is.Null);
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(boardView.MatchesBoard(controller.CurrentBoard),
+                Is.True);
+        }
+
+        private void ConfigureElementConversion(
+            BoardState board,
+            IRandomSource conversionRandom,
+            int maxRandomSelectionAttempts =
+                BoardElementConversionResolver
+                    .DefaultMaxRandomSelectionAttempts)
+        {
+            SetProperty(controller, "CurrentBoard", board);
+            SetProperty(controller, "IsBoardReady", true);
+            boardView.Render(board);
+            SetField(
+                controller,
+                "elementConversionResolver",
+                new BoardElementConversionResolver(
+                    conversionRandom,
+                    new BoardMoveAnalyzer(),
+                    maxRandomSelectionAttempts));
+        }
+
+        private Sprite ConfigureDistinctElementSprites()
+        {
+            var texture = new Texture2D(2, 2);
+            createdObjects.Add(texture);
+            Sprite fire = CreateSprite(texture);
+            Sprite water = CreateSprite(texture);
+            Sprite grass = CreateSprite(texture);
+            Sprite light = CreateSprite(texture);
+            Sprite dark = CreateSprite(texture);
+            var spriteSet = (BoardElementSpriteSet)GetField(
+                boardView,
+                "spriteSet");
+            spriteSet.Configure(fire, water, grass, light, dark, fire);
+            return water;
+        }
+
+        private Sprite CreateSprite(Texture2D texture)
+        {
+            Sprite sprite = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, 2f, 2f),
+                new Vector2(0.5f, 0.5f));
+            createdObjects.Add(sprite);
+            return sprite;
+        }
+
+        private static BoardState CreateElementConversionBoard()
+        {
+            int[] elements =
+            {
+                3, 0, 2, 1, 0,
+                0, 2, 3, 1, 2,
+                4, 4, 0, 2, 4,
+                1, 2, 0, 0, 4,
+                0, 1, 2, 1, 2,
+                0, 4, 4, 0, 3
+            };
+            var board = new BoardState();
+            for (int x = 0; x < BoardConstants.Width; x++)
+            {
+                for (int y = 0; y < BoardConstants.Height; y++)
+                {
+                    var position = new BoardPosition(x, y);
+                    board.Set(position, new BoardBlock(
+                        position.ToIndex() + 1,
+                        BoardBlockType.Normal,
+                        (ElementType)elements[
+                            (x * BoardConstants.Height) + y]));
+                }
+            }
+
+            return board;
+        }
+
+        private static BoardState CreateUniformBoard(ElementType element)
+        {
+            var board = new BoardState();
+            for (int index = 0; index < BoardConstants.CellCount; index++)
+            {
+                BoardPosition position = BoardPosition.FromIndex(index);
+                board.Set(position, new BoardBlock(
+                    index + 1,
+                    BoardBlockType.Normal,
+                    element));
+            }
+
+            return board;
+        }
+
+        private static void SetElement(
+            BoardState board,
+            int x,
+            int y,
+            ElementType element)
+        {
+            var position = new BoardPosition(x, y);
+            BoardBlock previous = board.Get(position);
+            board.Set(position, new BoardBlock(
+                previous.RuntimeId,
+                previous.BlockType,
+                element));
+        }
+
+        private static bool ContainsPosition(
+            IReadOnlyList<BoardPosition> positions,
+            BoardPosition target)
+        {
+            for (int index = 0; index < positions.Count; index++)
+            {
+                if (positions[index] == target)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static BoardState CreateBoard(IRandomSource source)
@@ -896,6 +1424,67 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             return count;
         }
 
+        private static BoardState CreateOneMoveBoard()
+        {
+            int[] elements =
+            {
+                4, 3, 1, 4, 0,
+                4, 1, 0, 4, 0,
+                1, 3, 0, 3, 2,
+                0, 2, 4, 2, 0,
+                3, 3, 1, 4, 1,
+                4, 2, 0, 0, 2
+            };
+            var board = new BoardState();
+            for (int x = 0; x < BoardConstants.Width; x++)
+            {
+                for (int y = 0; y < BoardConstants.Height; y++)
+                {
+                    var position = new BoardPosition(x, y);
+                    board.Set(position, new BoardBlock(
+                        position.ToIndex() + 1,
+                        BoardBlockType.Normal,
+                        (ElementType)elements[
+                            (x * BoardConstants.Height) + y]));
+                }
+            }
+
+            Assert.That(BoardMatchFinder.FindMatches(board), Is.Empty);
+            Assert.That(new BoardMoveAnalyzer().FindValidSwaps(board),
+                Has.Count.EqualTo(1));
+            return board;
+        }
+
+        private static BoardRockMutationResolver
+            CreateForcedShuffleRockResolver()
+        {
+            var values = new List<int> { 0, 1, 4 };
+            for (int index = 26; index >= 1; index--)
+            {
+                values.Add(index);
+            }
+
+            values.AddRange(new[]
+            {
+                4, 1, 3, 3, 0, 2, 0, 0, 2,
+                1, 3, 0, 1, 1, 2, 1, 4, 4,
+                3, 3, 4, 2, 3, 2, 4, 2, 3
+            });
+            var random = new SequenceRandomSource(values);
+            var analyzer = new BoardMoveAnalyzer();
+            var shuffler = new BoardShuffler(
+                random,
+                analyzer,
+                maxPermutationAttempts: 1,
+                maxRegenerationAttempts: 1);
+            return new BoardRockMutationResolver(
+                random,
+                new BoardBlockIdGenerator(1000),
+                analyzer,
+                shuffler,
+                maxPlacementAttempts: 1);
+        }
+
         private static void SetField(object target, string name, object value)
         {
             target.GetType().GetField(
@@ -991,6 +1580,68 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             public float NextFloat()
             {
                 return source.NextFloat();
+            }
+        }
+
+        private sealed class SequenceRandomSource : IRandomSource
+        {
+            private readonly IReadOnlyList<int> values;
+            private int index;
+
+            public SequenceRandomSource(IReadOnlyList<int> values)
+            {
+                this.values = values;
+            }
+
+            public int Next(int minInclusive, int maxExclusive)
+            {
+                if (index >= values.Count)
+                {
+                    throw new InvalidOperationException(
+                        "The deterministic random sequence was exhausted.");
+                }
+
+                int value = values[index++];
+                if (value < minInclusive || value >= maxExclusive)
+                {
+                    throw new InvalidOperationException(
+                        $"Random value {value} is outside "
+                            + $"[{minInclusive}, {maxExclusive}).");
+                }
+
+                return value;
+            }
+
+            public float NextFloat()
+            {
+                return 0f;
+            }
+        }
+
+        private sealed class ReentrantRandomSource : IRandomSource
+        {
+            private readonly Action onFirstNext;
+            private bool invoked;
+
+            public ReentrantRandomSource(Action onFirstNext)
+            {
+                this.onFirstNext = onFirstNext;
+            }
+
+            public int Next(int minInclusive, int maxExclusive)
+            {
+                if (!invoked)
+                {
+                    invoked = true;
+                    onFirstNext();
+                }
+
+                return minInclusive;
+            }
+
+            public float NextFloat()
+            {
+                return 0f;
             }
         }
     }

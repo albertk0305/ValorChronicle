@@ -5,6 +5,7 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using ValorChronicle.Characters.Marea;
+using ValorChronicle.Characters.Miyuki;
 using ValorChronicle.Characters.Presentation;
 using ValorChronicle.Characters.Runtime;
 using ValorChronicle.Characters.Serena;
@@ -164,12 +165,15 @@ namespace ValorChronicle.Tests.EditMode.Characters.Serena
             Assert.That(registration.CreateLookupProvider(),
                 Is.TypeOf<SerenaCoralspearLookupDescriptionProvider>());
             Assert.That(isolatedCatalog.Registrations.Count, Is.EqualTo(1));
-            Assert.That(defaultCatalog.Registrations.Count, Is.EqualTo(2));
+            Assert.That(defaultCatalog.Registrations.Count, Is.EqualTo(3));
             Assert.That(defaultCatalog.Registrations.Any(item =>
                 item.CharacterId == MareaBluefangRules.CharacterId),
                 Is.True);
             Assert.That(defaultCatalog.Registrations.Any(item =>
                 item.CharacterId == SerenaCoralspearRules.CharacterId),
+                Is.True);
+            Assert.That(defaultCatalog.Registrations.Any(item =>
+                item.CharacterId == ShimotsukiMiyukiRules.CharacterId),
                 Is.True);
         }
 

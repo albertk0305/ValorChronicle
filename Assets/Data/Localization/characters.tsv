@@ -55,3 +55,33 @@ serena.awakening.5.description	Encore Aria's Additional and Chase damage increas
 serena.awakening.6.description	Water Element attached after a 5 Match changes from {water_before} to {water_after}.	5매치 피해 후 부착하는 물 원소가 {water_before}개에서 {water_after}개로 변경됩니다.
 effect.serena.encore_aria.name	Encore Aria	앙코르 아리아
 effect.serena.encore_aria.description	Encore Aria's Additional and Chase damage increase is active.	앙코르 아리아의 Additional 및 Chase 피해 증가가 적용 중입니다.
+miyuki	Shimotsuki Miyuki	시모츠키 미유키
+miyuki.skill.match3.name	Frost Thorn - 3 Match	서리 가시 - 3매치
+miyuki.skill.match3.description	Deals {coefficient}% ATK as Water damage, then attaches {water_gain} Water Element.	공격력의 {coefficient}%만큼 물속성 피해를 준 후 물 원소 {water_gain}개를 부착합니다.
+miyuki.skill.match4.name	Chained Snowflakes - 4 Match	연쇄설화 - 4매치
+miyuki.skill.match4.description	Deals {coefficient}% ATK as Water damage, then attaches {water_gain} Water Elements.	공격력의 {coefficient}%만큼 물속성 피해를 준 후 물 원소 {water_gain}개를 부착합니다.
+miyuki.skill.match5.name	Full Bloom Blizzard - 5 Match	만경빙화 - 5매치
+miyuki.skill.match5.description	Deals {coefficient}% ATK as Water damage, attaches {water_gain} Water Elements, and increases the party's Water damage by {damage_increase}% for {duration} turns.	공격력의 {coefficient}%만큼 물속성 피해를 주고 물 원소 {water_gain}개를 부착하며, {duration}턴 동안 파티의 물속성 피해를 {damage_increase}% 증가시킵니다.
+miyuki.skill.passive.name	Realm of Frozen Scents	설향진경
+miyuki.skill.passive.description	Increases the party's Water damage by {damage_increase}% until battle ends.	전투 종료까지 파티의 물속성 피해를 {damage_increase}% 증가시킵니다.
+miyuki.skill.active.name	Illusionary Snow	환영설향
+miyuki.skill.active.description	Converts {block_count} random non-Water Normal blocks into Water blocks. Cooldown: {cooldown} turns.	무작위 비물속성 일반 블록 {block_count}개를 물 블록으로 변환합니다. 재사용 대기시간: {cooldown}턴.
+miyuki.skill.frost_echo.grant	A successful use grants one Echo of Frost Seal until Miyuki's next Water Match, adding {water_gain} Water Element when it resolves.	사용에 성공하면 미유키의 다음 물속성 매칭까지 빙각의 잔향 1회를 획득하며, 해당 매칭 해결 시 물 원소 {water_gain}개를 추가로 부착합니다.
+miyuki.status.frost_echo.name	Echo of Frost Seal	빙각의 잔향
+miyuki.status.frost_echo.description	Miyuki's next Water Match attaches one additional Water Element and consumes this status, even when Water Element is already at maximum.	미유키의 다음 물속성 매칭이 물 원소 1개를 추가로 부착하고 이 상태를 소모합니다. 물 원소가 이미 최대여도 소모됩니다.
+miyuki.awakening.1.name	Fortified Snow Aura	설기연련
+miyuki.awakening.1.description	HP multiplier increases from {multiplier_before}% to {multiplier_after}%.	HP 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+miyuki.awakening.2.name	Frigid Resonance	냉기공명
+miyuki.awakening.2.description	ATK multiplier increases from {multiplier_before}% to {multiplier_after}%.	공격력 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+miyuki.awakening.3.name	Realm of Abundant Snow	만설의 영역
+miyuki.awakening.3.description	Realm of Frozen Scents' Water damage increase changes from {passive_before}% to {passive_after}%.	설향진경의 물속성 피해 증가량이 {passive_before}%에서 {passive_after}%로 변경됩니다.
+miyuki.awakening.4.name	Mastery of Frost Flowers	빙화숙련
+miyuki.awakening.4.description	3 Match changes from {match3_before}% to {match3_after}% ATK, and 4 Match changes from {match4_before}% to {match4_after}% ATK.	3매칭 공격력 계수가 {match3_before}%에서 {match3_after}%로, 4매칭 공격력 계수가 {match4_before}%에서 {match4_after}%로 변경됩니다.
+miyuki.awakening.5.name	Bursting Snowflakes	설화만발
+miyuki.awakening.5.description	Illusionary Snow's converted block count changes from {blocks_before} to {blocks_after}.	환영설향의 변환 블록 수가 {blocks_before}개에서 {blocks_after}개로 변경됩니다.
+miyuki.awakening.6.name	Echo of Frost Seal	빙각의 잔향
+miyuki.awakening.6.description	A successful Illusionary Snow grants one Echo of Frost Seal. Miyuki's next Water Match attaches {water_gain} additional Water Element and consumes it.	환영설향 사용에 성공하면 빙각의 잔향 1회를 획득합니다. 미유키의 다음 물속성 매칭이 물 원소 {water_gain}개를 추가로 부착하고 이를 소모합니다.
+effect.miyuki.ice_mirror.name	Realm of Frozen Scents	설향진경
+effect.miyuki.ice_mirror.description	The party's Water damage increase is active until battle ends.	전투 종료까지 파티의 물속성 피해 증가가 적용 중입니다.
+effect.miyuki.crystal_light.name	Full Bloom Blizzard	만경빙화
+effect.miyuki.crystal_light.description	The party's Water damage increase from Full Bloom Blizzard is active.	만경빙화로 인한 파티의 물속성 피해 증가가 적용 중입니다.

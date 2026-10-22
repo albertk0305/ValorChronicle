@@ -19,6 +19,12 @@ namespace ValorChronicle.Battle.Board.Presentation
         [SerializeField]
         private BlockViewPool pool;
 
+        [SerializeField]
+        private GameObject shuffleText;
+
+        [SerializeField]
+        private GameObject shuffleIcon;
+
         private readonly Dictionary<long, BlockView> viewsByRuntimeId =
             new Dictionary<long, BlockView>();
         private readonly List<RenderItem> renderItems =
@@ -78,6 +84,11 @@ namespace ValorChronicle.Battle.Board.Presentation
 
                 return readOnlyViews;
             }
+        }
+
+        private void Awake()
+        {
+            SetShuffleIndicatorVisible(false);
         }
 
         public void Configure(
@@ -462,6 +473,7 @@ namespace ValorChronicle.Battle.Board.Presentation
 
         private void OnDisable()
         {
+            SetShuffleIndicatorVisible(false);
             ActiveAnimation interruptedAnimation = activeAnimation;
             bool requiresSwapBack = activeSwapRequiresBack;
             animationVersion++;
@@ -1856,55 +1868,63 @@ namespace ValorChronicle.Battle.Board.Presentation
             ActiveAnimation animation,
             string contextPrefix)
         {
-            float phaseDuration = duration * 0.5f;
-            if (phaseDuration > 0f)
+            SetShuffleIndicatorVisible(true);
+            try
             {
-                float elapsed = 0f;
-                while (elapsed < phaseDuration
-                    && IsAnimationCurrent(version, animation))
+                float phaseDuration = duration * 0.5f;
+                if (phaseDuration > 0f)
                 {
-                    UpdateShuffleScales(
-                        elapsed / phaseDuration,
-                        true);
-                    yield return null;
-                    elapsed += GetBlockAnimationDeltaTime();
+                    float elapsed = 0f;
+                    while (elapsed < phaseDuration
+                        && IsAnimationCurrent(version, animation))
+                    {
+                        UpdateShuffleScales(
+                            elapsed / phaseDuration,
+                            true);
+                        yield return null;
+                        elapsed += GetBlockAnimationDeltaTime();
+                    }
                 }
-            }
 
-            if (!IsAnimationCurrent(version, animation))
-            {
-                yield break;
-            }
-
-            SetShuffleScale(Vector3.zero);
-            ApplyShuffleSprites(plan);
-            ValidateViewDictionaryIntegrity(
-                plan.Board,
-                $"{contextPrefix}.ShrinkComplete",
-                true);
-            if (phaseDuration > 0f)
-            {
-                float elapsed = 0f;
-                while (elapsed < phaseDuration
-                    && IsAnimationCurrent(version, animation))
+                if (!IsAnimationCurrent(version, animation))
                 {
-                    UpdateShuffleScales(
-                        elapsed / phaseDuration,
-                        false);
-                    yield return null;
-                    elapsed += GetBlockAnimationDeltaTime();
+                    yield break;
                 }
-            }
 
-            if (!IsAnimationCurrent(version, animation))
+                SetShuffleScale(Vector3.zero);
+                ApplyShuffleSprites(plan);
+                ValidateViewDictionaryIntegrity(
+                    plan.Board,
+                    $"{contextPrefix}.ShrinkComplete",
+                    true);
+                if (phaseDuration > 0f)
+                {
+                    float elapsed = 0f;
+                    while (elapsed < phaseDuration
+                        && IsAnimationCurrent(version, animation))
+                    {
+                        UpdateShuffleScales(
+                            elapsed / phaseDuration,
+                            false);
+                        yield return null;
+                        elapsed += GetBlockAnimationDeltaTime();
+                    }
+                }
+
+                if (!IsAnimationCurrent(version, animation))
+                {
+                    yield break;
+                }
+
+                SetShuffleScale(Vector3.one);
+                ValidateCurrentViewLayout(
+                    plan.Board,
+                    $"{contextPrefix}.Complete");
+            }
+            finally
             {
-                yield break;
+                SetShuffleIndicatorVisible(false);
             }
-
-            SetShuffleScale(Vector3.one);
-            ValidateCurrentViewLayout(
-                plan.Board,
-                $"{contextPrefix}.Complete");
         }
 
         private void UpdateShuffleScales(float progress, bool shrinking)
@@ -2188,6 +2208,7 @@ namespace ValorChronicle.Battle.Board.Presentation
 
         private void CompleteShuffle()
         {
+            SetShuffleIndicatorVisible(false);
             shuffleViewItems.Clear();
             try
             {
@@ -2229,6 +2250,7 @@ namespace ValorChronicle.Battle.Board.Presentation
 
         private void CompleteActionSequence()
         {
+            SetShuffleIndicatorVisible(false);
             swapViewItems.Clear();
             ClearCascadeViewItems();
             shuffleViewItems.Clear();
@@ -2283,6 +2305,7 @@ namespace ValorChronicle.Battle.Board.Presentation
 
         private void ForceClearPresentationState()
         {
+            SetShuffleIndicatorVisible(false);
             animationVersion++;
             swapViewItems.Clear();
             ClearCascadeViewItems();
@@ -2295,6 +2318,19 @@ namespace ValorChronicle.Battle.Board.Presentation
             activeSpawnInputEnabled = false;
             activeAnimation = ActiveAnimation.None;
             IsAnimating = false;
+        }
+
+        private void SetShuffleIndicatorVisible(bool visible)
+        {
+            if (shuffleText != null)
+            {
+                shuffleText.SetActive(visible);
+            }
+
+            if (shuffleIcon != null)
+            {
+                shuffleIcon.SetActive(visible);
+            }
         }
 
         private void ClearCascadeViewItems()

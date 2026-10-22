@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Characters.Build;
 using ValorChronicle.Characters.Marea;
+using ValorChronicle.Characters.Miyuki;
 using ValorChronicle.Characters.Presentation;
 using ValorChronicle.Characters.Serena;
 using ValorChronicle.Data.Database;
@@ -75,7 +76,12 @@ namespace ValorChronicle.Characters.Runtime
                         SerenaCoralspearRules.CharacterId,
                         () => new SerenaCoralspearBuildModifier(),
                         () => new SerenaCoralspearCombatProviderRegistrar(),
-                        () => new SerenaCoralspearLookupDescriptionProvider())
+                        () => new SerenaCoralspearLookupDescriptionProvider()),
+                    new CharacterRuntimeRegistration(
+                        ShimotsukiMiyukiRules.CharacterId,
+                        () => new ShimotsukiMiyukiBuildModifier(),
+                        () => new ShimotsukiMiyukiCombatProviderRegistrar(),
+                        () => new ShimotsukiMiyukiLookupDescriptionProvider())
                 });
         }
 

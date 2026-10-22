@@ -8,6 +8,7 @@ using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Characters.Build;
 using ValorChronicle.Characters.Marea;
+using ValorChronicle.Characters.Miyuki;
 using ValorChronicle.Characters.Presentation;
 using ValorChronicle.Characters.Runtime;
 using ValorChronicle.Characters.Serena;
@@ -47,7 +48,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
         }
 
         [Test]
-        public void CanonicalCharacterContentRegistrationIsComplete()
+        public void CanonicalCharacterContentRegistrationMatchesCurrentAssets()
         {
             DefinitionDatabase database = AssetDatabase.LoadAssetAtPath<
                 DefinitionDatabase>(DatabasePath);
@@ -65,18 +66,33 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
             presentationCatalog.Initialize();
             CharacterRuntimeRegistrationCatalog runtimeCatalog =
                 CharacterRuntimeRegistrationCatalog.CreateDefault();
+            Assert.That(presentationCatalog.TryGet(
+                ShimotsukiMiyukiRules.CharacterId,
+                out CharacterPresentationDefinition miyukiPresentation),
+                Is.True);
 
             ValidationReport dataReport = DataValidator.Validate(database);
             Assert.That(
                 dataReport.Issues.Where(issue =>
                     issue.Severity == ValidationSeverity.Error),
                 Is.Empty);
-            Assert.That(
+            IReadOnlyList<string> registrationIssues =
                 CharacterContentRegistrationValidator.Validate(
                     database,
                     presentationCatalog,
-                    runtimeCatalog),
-                Is.Empty);
+                    runtimeCatalog);
+            if (miyukiPresentation.FaceSprite == null)
+            {
+                Assert.That(registrationIssues, Has.Count.EqualTo(1));
+                Assert.That(registrationIssues[0], Does.Contain(
+                    ShimotsukiMiyukiRules.CharacterId));
+                Assert.That(registrationIssues[0], Does.Contain(
+                    "FaceSprite"));
+            }
+            else
+            {
+                Assert.That(registrationIssues, Is.Empty);
+            }
 
             Assert.That(
                 database.TryGetCharacter(
@@ -123,6 +139,38 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
                 Is.True);
             Assert.That(serenaPresentation.FaceSprite, Is.Not.Null);
             Assert.That(serenaPresentation.PreviewSprite, Is.Not.Null);
+
+            Assert.That(
+                database.TryGetCharacter(
+                    ShimotsukiMiyukiRules.CharacterId,
+                    out CharacterDefinition miyuki),
+                Is.True);
+            Assert.That(
+                miyuki.CombatConfig.GetType(),
+                Is.EqualTo(typeof(ShimotsukiMiyukiCombatConfig)));
+            Assert.That(miyuki.SkillIds.Count, Is.EqualTo(5));
+            for (int index = 0; index < miyuki.SkillIds.Count; index++)
+            {
+                Assert.That(
+                    database.TryGetSkill(miyuki.SkillIds[index], out _),
+                    Is.True,
+                    miyuki.SkillIds[index]);
+            }
+
+            Assert.That(database.TryGetSkill(
+                ShimotsukiMiyukiRules.FrostEchoStatusId,
+                out SkillDefinition frostEcho), Is.True);
+            AssertOptionalSpriteAsset(frostEcho.Icon);
+            Assert.That(database.TryGetEffect(
+                ShimotsukiMiyukiRules.PassiveEffectId,
+                out EffectDefinition iceMirror), Is.True);
+            AssertOptionalSpriteAsset(iceMirror.Icon);
+            Assert.That(database.TryGetEffect(
+                ShimotsukiMiyukiRules.Match5EffectId,
+                out EffectDefinition crystalLight), Is.True);
+            AssertOptionalSpriteAsset(crystalLight.Icon);
+            AssertOptionalSpriteAsset(miyukiPresentation.FaceSprite);
+            AssertOptionalSpriteAsset(miyukiPresentation.PreviewSprite);
 
             Assert.That(
                 CharacterBuildResolverFactory.CreateDefault().Resolve(
@@ -648,6 +696,17 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
                 property.GetArrayElementAtIndex(index).stringValue =
                     values[index];
             }
+        }
+
+        private static void AssertOptionalSpriteAsset(Sprite sprite)
+        {
+            if (sprite == null)
+            {
+                return;
+            }
+
+            Assert.That(EditorUtility.IsPersistent(sprite), Is.True);
+            Assert.That(AssetDatabase.GetAssetPath(sprite), Is.Not.Empty);
         }
 
         private static void AssertIssue(

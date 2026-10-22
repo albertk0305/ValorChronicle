@@ -8,8 +8,11 @@ namespace ValorChronicle.Battle.Combat.Integration
         private readonly Dictionary<ProviderKey, IActiveAbilityActionProvider>
             providers =
                 new Dictionary<ProviderKey, IActiveAbilityActionProvider>();
+        private readonly Dictionary<ProviderKey, IActiveAbilityBoardPlanProvider>
+            boardProviders =
+                new Dictionary<ProviderKey, IActiveAbilityBoardPlanProvider>();
 
-        public int Count => providers.Count;
+        public int Count => providers.Count + boardProviders.Count;
 
         public void Register(
             string characterId,
@@ -24,7 +27,7 @@ namespace ValorChronicle.Battle.Combat.Integration
             }
 
             var key = new ProviderKey(characterId, activeAbilityId);
-            if (providers.ContainsKey(key))
+            if (providers.ContainsKey(key) || boardProviders.ContainsKey(key))
             {
                 throw new InvalidOperationException(
                     $"An active provider is already registered for "
@@ -32,6 +35,29 @@ namespace ValorChronicle.Battle.Combat.Integration
             }
 
             providers.Add(key, provider);
+        }
+
+        public void RegisterBoard(
+            string characterId,
+            string activeAbilityId,
+            IActiveAbilityBoardPlanProvider provider)
+        {
+            ValidateId(characterId, nameof(characterId));
+            ValidateId(activeAbilityId, nameof(activeAbilityId));
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            var key = new ProviderKey(characterId, activeAbilityId);
+            if (providers.ContainsKey(key) || boardProviders.ContainsKey(key))
+            {
+                throw new InvalidOperationException(
+                    $"An active provider is already registered for "
+                        + $"'{characterId}/{activeAbilityId}'.");
+            }
+
+            boardProviders.Add(key, provider);
         }
 
         public bool TryResolve(
@@ -42,6 +68,18 @@ namespace ValorChronicle.Battle.Combat.Integration
             ValidateId(characterId, nameof(characterId));
             ValidateId(activeAbilityId, nameof(activeAbilityId));
             return providers.TryGetValue(
+                new ProviderKey(characterId, activeAbilityId),
+                out provider);
+        }
+
+        public bool TryResolveBoard(
+            string characterId,
+            string activeAbilityId,
+            out IActiveAbilityBoardPlanProvider provider)
+        {
+            ValidateId(characterId, nameof(characterId));
+            ValidateId(activeAbilityId, nameof(activeAbilityId));
+            return boardProviders.TryGetValue(
                 new ProviderKey(characterId, activeAbilityId),
                 out provider);
         }

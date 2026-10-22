@@ -252,7 +252,19 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 return coordinator.TryUseActiveAbility(activeIndex);
             }
 
-            if (!combatBridge.TryBeginActiveCombat(activeIndex))
+            bool beganActiveCombat;
+            try
+            {
+                beganActiveCombat = combatBridge.TryBeginActiveCombat(
+                    activeIndex);
+            }
+            catch (Exception exception)
+            {
+                GameLogger.Exception(exception, this);
+                return false;
+            }
+
+            if (!beganActiveCombat)
             {
                 return false;
             }

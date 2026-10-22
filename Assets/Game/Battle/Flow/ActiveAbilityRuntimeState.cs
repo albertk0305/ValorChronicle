@@ -45,5 +45,17 @@ namespace ValorChronicle.Battle.Flow
             UsedThisTurn = true;
             return true;
         }
+
+        internal bool TryRollbackUse()
+        {
+            if (!UsedThisTurn || RemainingCooldown != CooldownTurns)
+            {
+                return false;
+            }
+
+            RemainingCooldown = 0;
+            UsedThisTurn = false;
+            return true;
+        }
     }
 }

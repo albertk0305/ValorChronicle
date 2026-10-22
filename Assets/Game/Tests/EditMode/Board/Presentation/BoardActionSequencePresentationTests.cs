@@ -22,6 +22,8 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
         private BattleBoardView boardView;
         private BlockViewPool pool;
         private BoardElementSpriteSet spriteSet;
+        private GameObject shuffleText;
+        private GameObject shuffleIcon;
         private float previousTimeScale;
 
         [SetUp]
@@ -60,6 +62,10 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                 BoardConstants.CellCount);
             boardView = root.AddComponent<BattleBoardView>();
             boardView.Configure(spriteSet, pool);
+            shuffleText = CreateShuffleIndicator("ShuffleText");
+            shuffleIcon = CreateShuffleIndicator("ShuffleIcon");
+            SetPrivateField("shuffleText", shuffleText);
+            SetPrivateField("shuffleIcon", shuffleIcon);
         }
 
         [TearDown]
@@ -100,8 +106,64 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
 
             Assert.That(animation.MoveNext(), Is.False);
             Assert.That(boardView.IsAnimating, Is.False);
+            Assert.That(shuffleText.activeSelf, Is.False);
+            Assert.That(shuffleIcon.activeSelf, Is.False);
             Assert.That(pool.TotalCreatedCount, Is.EqualTo(createdCount));
             AssertSameViews(views);
+        }
+
+        [Test]
+        public void ShuffleTransition_ShowsIndicatorsOnlyWhileAnimating()
+        {
+            BoardShuffleResult result =
+                BoardShufflePresentationTestSupport.CreateChanged(
+                    BoardShuffleKind.Permutation,
+                    out BoardState board);
+            boardView.Render(board);
+
+            IEnumerator animation = boardView.PlayShuffleTransition(
+                board,
+                result,
+                1f);
+
+            Assert.That(shuffleText.activeSelf, Is.False);
+            Assert.That(shuffleIcon.activeSelf, Is.False);
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(shuffleText.activeSelf, Is.True);
+            Assert.That(shuffleIcon.activeSelf, Is.True);
+
+            Dispose(animation);
+
+            Assert.That(shuffleText.activeSelf, Is.False);
+            Assert.That(shuffleIcon.activeSelf, Is.False);
+            Assert.That(boardView.IsAnimating, Is.False);
+            AssertViewsMatchBoard(result.Board);
+            AssertAllInput(true);
+        }
+
+        [Test]
+        public void ShuffleTransition_OnDisableHidesIndicatorsAndRestoresInput()
+        {
+            BoardShuffleResult result =
+                BoardShufflePresentationTestSupport.CreateChanged(
+                    BoardShuffleKind.Regeneration,
+                    out BoardState board);
+            boardView.Render(board);
+            IEnumerator animation = boardView.PlayShuffleTransition(
+                board,
+                result,
+                1f);
+            Assert.That(animation.MoveNext(), Is.True);
+            Assert.That(shuffleText.activeSelf, Is.True);
+
+            InvokeOnDisable();
+            Dispose(animation);
+
+            Assert.That(shuffleText.activeSelf, Is.False);
+            Assert.That(shuffleIcon.activeSelf, Is.False);
+            Assert.That(boardView.IsAnimating, Is.False);
+            AssertViewsMatchBoard(result.Board);
+            AssertAllInput(true);
         }
 
         [TestCase(BoardShuffleKind.Permutation)]
@@ -704,6 +766,24 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
                 BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, name);
             return field.GetValue(boardView);
+        }
+
+        private void SetPrivateField(string name, object value)
+        {
+            FieldInfo field = typeof(BattleBoardView).GetField(
+                name,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, name);
+            field.SetValue(boardView, value);
+        }
+
+        private GameObject CreateShuffleIndicator(string name)
+        {
+            var indicator = new GameObject(name, typeof(RectTransform));
+            indicator.transform.SetParent(root.transform, false);
+            indicator.SetActive(false);
+            createdObjects.Add(indicator);
+            return indicator;
         }
 
         private Dictionary<long, Vector2> CapturePositions()

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Damage;
+using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Results;
@@ -19,6 +20,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
 {
     public sealed class BattleSceneCombatComposition : IDisposable
     {
+        private const long InitialPartyEffectRuntimeIdBase = 1L << 62;
+
         private readonly IReadOnlyList<ActiveAbilityBinding> activeBindings;
         private readonly IReadOnlyList<ICharacterCombatStatusSource>
             combatStatusSources;
@@ -187,6 +190,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 new List<CombatResourceRequirement>();
             var statusSources =
                 new List<ICharacterCombatStatusSource>();
+            var initialPartyEffects =
+                new List<InitialPartyEffectDefinition>();
             var statusSourceKeys = new HashSet<string>(
                 StringComparer.Ordinal);
             for (int index = 0; index < Party.Characters.Count; index++)
@@ -305,15 +310,52 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     statusSources.Add(source);
                 }
 
+                IReadOnlyList<InitialPartyEffectDefinition>
+                    registeredInitialEffects =
+                        registration.InitialPartyEffects
+                        ?? throw new InvalidOperationException(
+                            $"The registrar for '{character.CharacterId}' "
+                                + "returned a null initial Party Effect "
+                                + "collection.");
+                for (int effectIndex = 0;
+                    effectIndex < registeredInitialEffects.Count;
+                    effectIndex++)
+                {
+                    InitialPartyEffectDefinition effect =
+                        registeredInitialEffects[effectIndex]
+                        ?? throw new InvalidOperationException(
+                            $"The registrar for "
+                                + $"'{character.CharacterId}' returned a "
+                                + "null initial Party Effect at index "
+                                + $"{effectIndex}.");
+                    if (!string.Equals(
+                            effect.SourceId,
+                            character.CharacterId,
+                            StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException(
+                            $"Initial Party Effect '{effect.EffectId}' must "
+                                + "use its registered character ID as the "
+                                + "source ID.");
+                    }
+
+                    initialPartyEffects.Add(effect);
+                }
+
                 if (!registration.HasActiveAbility)
                 {
                     continue;
                 }
 
-                if (!ActiveProviders.TryResolve(
+                bool hasCombatProvider = ActiveProviders.TryResolve(
                     character.CharacterId,
                     registration.ActiveAbilityId,
-                    out _))
+                    out _);
+                bool hasBoardProvider = ActiveProviders.TryResolveBoard(
+                    character.CharacterId,
+                    registration.ActiveAbilityId,
+                    out _);
+                if (!hasCombatProvider && !hasBoardProvider)
                 {
                     throw new InvalidOperationException(
                         $"The registrar for '{character.CharacterId}' did "
@@ -327,6 +369,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     activeAbilityId: registration.ActiveAbilityId));
                 cooldowns.Add(registration.ActiveCooldownTurns);
             }
+
+            ApplyInitialPartyEffects(initialPartyEffects);
 
             IReadOnlyList<CombatResourceRequirement>
                 mergedResourceRequirements =
@@ -370,6 +414,25 @@ namespace ValorChronicle.Battle.Flow.Presentation
             FlowSetup = new BattleFlowSetup(
                 bossDefinition.TurnLimit,
                 cooldowns);
+        }
+
+        private void ApplyInitialPartyEffects(
+            IReadOnlyList<InitialPartyEffectDefinition> definitions)
+        {
+            var instances = new EffectInstance[definitions.Count];
+            for (int index = 0; index < definitions.Count; index++)
+            {
+                long identity = checked(
+                    InitialPartyEffectRuntimeIdBase + index);
+                instances[index] = definitions[index].CreateInstance(
+                    identity,
+                    identity);
+            }
+
+            for (int index = 0; index < instances.Length; index++)
+            {
+                Party.Effects.ApplyEffect(instances[index]);
+            }
         }
 
         public BattleFlowSetup FlowSetup { get; }

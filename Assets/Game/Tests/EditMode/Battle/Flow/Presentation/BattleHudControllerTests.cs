@@ -20,6 +20,7 @@ using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
+using ValorChronicle.Characters.Miyuki;
 using ValorChronicle.Characters.Runtime;
 using ValorChronicle.Characters.Serena;
 using ValorChronicle.Core.Random;
@@ -28,6 +29,7 @@ using ValorChronicle.Data.Definitions;
 using ValorChronicle.Localization;
 using ValorChronicle.Party.Battle;
 using ValorChronicle.Party.Presentation;
+using ValorChronicle.Tests.EditMode.Characters.Miyuki;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 {
@@ -1434,6 +1436,44 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         }
 
         [Test]
+        public void ActivePresentationChangeRefreshesBoardOnlyCombatStatus()
+        {
+            InvokePrivate(hudController, "OnEnable");
+            BattleSceneCombatComposition composition =
+                CreateMiyukiProductionComposition(
+                    partySlotIndex: 3,
+                    awakening: 6);
+            SetProperty(
+                combatBootstrap,
+                "CombatComposition",
+                composition);
+            flowController.Initialize(
+                composition.FlowSetup,
+                coordinator => composition.CreateBridge(coordinator));
+            bridge = composition.Bridge;
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+
+            var state = composition.CombatStatusSources[0]
+                as ShimotsukiMiyukiBattleState;
+            Assert.That(state, Is.Not.Null);
+            BattleStatusIconView statusSlot =
+                characterSlots[3].GetStatusSlot(0);
+            Assert.That(statusSlot.Root.activeSelf, Is.False);
+
+            Assert.That(state.TryGrantFrostEcho(), Is.True);
+            InvokePrivate(
+                hudController,
+                "HandleActivePresentationStateChanged");
+
+            Assert.That(statusSlot.Root.activeSelf, Is.True);
+            Assert.That(statusSlot.IconImage.sprite,
+                Is.SameAs(genericStatusSprite));
+            Assert.That(statusSlot.ValueText.gameObject.activeSelf, Is.True);
+            Assert.That(statusSlot.ValueText.text, Is.EqualTo("1"));
+        }
+
+        [Test]
         public void WaterElementUsesActualResourceAmountWithoutMutatingIt()
         {
             InvokePrivate(hudController, "OnEnable");
@@ -2542,6 +2582,57 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                         level: 1,
                         awakening: 0,
                         characterDefinition: serenaDefinition)
+                },
+                CharacterRuntimeRegistrationCatalog.CreateDefault()
+                    .CreateCombatRegistrarCatalog(),
+                bossDefinition,
+                kragmorConfig,
+                difficulty,
+                new SeededRandomSource(1),
+                BattleResultBalanceDefaults.Create());
+        }
+
+        private BattleSceneCombatComposition
+            CreateMiyukiProductionComposition(
+                int partySlotIndex,
+                int awakening)
+        {
+            BossDefinition bossDefinition =
+                ScriptableObject.CreateInstance<BossDefinition>();
+            createdObjects.Add(bossDefinition);
+            SetField(bossDefinition, "id", KragmorRules.BossId);
+            SetField(bossDefinition, "element", ElementType.Fire);
+            SetField(bossDefinition, "turnLimit", 25);
+            var difficulty = new BossDifficultyStats(
+                "difficulty_normal",
+                66000,
+                100d);
+            SetField(
+                bossDefinition,
+                "difficultyStats",
+                new[] { difficulty });
+            KragmorCombatConfig kragmorConfig =
+                KragmorTestConfig.Create();
+            createdObjects.Add(kragmorConfig);
+            KragmorTestConfig.Assign(
+                bossDefinition,
+                kragmorConfig);
+
+            CharacterDefinition miyukiDefinition =
+                ShimotsukiMiyukiTestConfig.Definition(
+                    ShimotsukiMiyukiTestConfig.Create());
+            createdObjects.Add(miyukiDefinition.CombatConfig);
+            createdObjects.Add(miyukiDefinition);
+
+            return new BattleSceneCombatComposition(
+                new[]
+                {
+                    new BattlePartyMemberInput(
+                        miyukiDefinition.Id,
+                        partySlotIndex,
+                        level: 1,
+                        awakening: awakening,
+                        characterDefinition: miyukiDefinition)
                 },
                 CharacterRuntimeRegistrationCatalog.CreateDefault()
                     .CreateCombatRegistrarCatalog(),

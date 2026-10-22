@@ -95,6 +95,20 @@ namespace ValorChronicle.Battle.Flow
             return Context.ActiveAbilities[activeAbilityIndex].TryUse();
         }
 
+        internal bool TryRollbackActiveAbilityUse(int activeAbilityIndex)
+        {
+            if (Context.Phase != BattlePhase.PlayerInput
+                || Context.Result != BattleResultKind.None
+                || activeAbilityIndex < 0
+                || activeAbilityIndex >= Context.ActiveAbilities.Count)
+            {
+                return false;
+            }
+
+            return Context.ActiveAbilities[activeAbilityIndex]
+                .TryRollbackUse();
+        }
+
         public bool TryBeginBoardResolution()
         {
             if (!CanExecuteInPhase(BattlePhase.PlayerInput))

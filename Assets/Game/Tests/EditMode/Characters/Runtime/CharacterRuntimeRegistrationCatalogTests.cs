@@ -8,6 +8,7 @@ using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Characters.Build;
 using ValorChronicle.Characters.Marea;
+using ValorChronicle.Characters.Miyuki;
 using ValorChronicle.Characters.Presentation;
 using ValorChronicle.Characters.Runtime;
 using ValorChronicle.Characters.Serena;
@@ -37,12 +38,12 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
         }
 
         [Test]
-        public void DefaultCatalogRegistersMareaAndSerenaExactlyOnce()
+        public void DefaultCatalogRegistersPlayableCharactersExactlyOnce()
         {
             CharacterRuntimeRegistrationCatalog catalog =
                 CharacterRuntimeRegistrationCatalog.CreateDefault();
 
-            Assert.That(catalog.Registrations.Count, Is.EqualTo(2));
+            Assert.That(catalog.Registrations.Count, Is.EqualTo(3));
             CharacterRuntimeRegistration registration = catalog
                 .Registrations
                 .Single(item => item.CharacterId
@@ -78,11 +79,27 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
             Assert.That(
                 serena.CreateLookupProvider(),
                 Is.TypeOf<SerenaCoralspearLookupDescriptionProvider>());
+
+            CharacterRuntimeRegistration miyuki = catalog.Registrations
+                .Single(item => item.CharacterId
+                    == ShimotsukiMiyukiRules.CharacterId);
+            Assert.That(
+                miyuki.SupportedCombatConfigType,
+                Is.EqualTo(typeof(ShimotsukiMiyukiCombatConfig)));
+            Assert.That(
+                miyuki.CreateBuildModifier(),
+                Is.TypeOf<ShimotsukiMiyukiBuildModifier>());
+            Assert.That(
+                miyuki.CreateCombatRegistrar(),
+                Is.TypeOf<ShimotsukiMiyukiCombatProviderRegistrar>());
+            Assert.That(
+                miyuki.CreateLookupProvider(),
+                Is.TypeOf<ShimotsukiMiyukiLookupDescriptionProvider>());
             Assert.That(
                 catalog.Registrations.Select(item => item.CharacterId)
                     .Distinct()
                     .Count(),
-                Is.EqualTo(2));
+                Is.EqualTo(3));
         }
 
         [Test]

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using ValorChronicle.Battle.Combat.Actions;
+using ValorChronicle.Battle.Combat.Effects;
 
 namespace ValorChronicle.Battle.Combat.Integration
 {
@@ -21,7 +22,8 @@ namespace ValorChronicle.Battle.Combat.Integration
             int activeCooldownTurns,
             IReadOnlyList<ICombatTriggerRule> triggerRules,
             IReadOnlyList<CombatResourceRequirement> resourceRequirements,
-            IReadOnlyList<ICharacterCombatStatusSource> combatStatusSources)
+            IReadOnlyList<ICharacterCombatStatusSource> combatStatusSources,
+            IReadOnlyList<InitialPartyEffectDefinition> initialPartyEffects)
         {
             ActiveAbilityId = activeAbilityId;
             ActiveCooldownTurns = activeCooldownTurns;
@@ -30,6 +32,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 resourceRequirements);
             CombatStatusSources = CopyCombatStatusSources(
                 combatStatusSources);
+            InitialPartyEffects = CopyInitialPartyEffects(
+                initialPartyEffects);
         }
 
         public bool HasActiveAbility =>
@@ -41,6 +45,8 @@ namespace ValorChronicle.Battle.Combat.Integration
             ResourceRequirements { get; }
         public IReadOnlyList<ICharacterCombatStatusSource>
             CombatStatusSources { get; }
+        public IReadOnlyList<InitialPartyEffectDefinition>
+            InitialPartyEffects { get; }
 
         public static CharacterCombatProviderRegistrationResult
             WithoutActiveAbility()
@@ -61,7 +67,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 activeCooldownTurns: 0,
                 triggerRules,
                 resourceRequirements,
-                Array.Empty<ICharacterCombatStatusSource>());
+                Array.Empty<ICharacterCombatStatusSource>(),
+                Array.Empty<InitialPartyEffectDefinition>());
         }
 
         public static CharacterCombatProviderRegistrationResult
@@ -77,7 +84,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 activeCooldownTurns: 0,
                 triggerRules,
                 resourceRequirements,
-                combatStatusSources);
+                combatStatusSources,
+                Array.Empty<InitialPartyEffectDefinition>());
         }
 
         public static CharacterCombatProviderRegistrationResult
@@ -118,7 +126,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 activeCooldownTurns,
                 triggerRules,
                 resourceRequirements,
-                Array.Empty<ICharacterCombatStatusSource>());
+                Array.Empty<ICharacterCombatStatusSource>(),
+                Array.Empty<InitialPartyEffectDefinition>());
         }
 
         public static CharacterCombatProviderRegistrationResult
@@ -149,7 +158,22 @@ namespace ValorChronicle.Battle.Combat.Integration
                 activeCooldownTurns,
                 triggerRules,
                 resourceRequirements,
-                combatStatusSources);
+                combatStatusSources,
+                Array.Empty<InitialPartyEffectDefinition>());
+        }
+
+        public CharacterCombatProviderRegistrationResult
+            WithInitialPartyEffects(
+                IReadOnlyList<InitialPartyEffectDefinition>
+                    initialPartyEffects)
+        {
+            return new CharacterCombatProviderRegistrationResult(
+                ActiveAbilityId,
+                ActiveCooldownTurns,
+                TriggerRules,
+                ResourceRequirements,
+                CombatStatusSources,
+                initialPartyEffects);
         }
 
         private static ReadOnlyCollection<ICombatTriggerRule>
@@ -217,6 +241,31 @@ namespace ValorChronicle.Battle.Combat.Integration
                     ?? throw new ArgumentException(
                         $"Combat status source entry {index} is null.",
                         nameof(combatStatusSources));
+            }
+
+            return Array.AsReadOnly(copy);
+        }
+
+        private static ReadOnlyCollection<InitialPartyEffectDefinition>
+            CopyInitialPartyEffects(
+                IReadOnlyList<InitialPartyEffectDefinition>
+                    initialPartyEffects)
+        {
+            if (initialPartyEffects == null)
+            {
+                throw new ArgumentNullException(nameof(initialPartyEffects));
+            }
+
+            var copy = new InitialPartyEffectDefinition[
+                initialPartyEffects.Count];
+            for (int index = 0;
+                index < initialPartyEffects.Count;
+                index++)
+            {
+                copy[index] = initialPartyEffects[index]
+                    ?? throw new ArgumentException(
+                        $"Initial Party Effect entry {index} is null.",
+                        nameof(initialPartyEffects));
             }
 
             return Array.AsReadOnly(copy);
