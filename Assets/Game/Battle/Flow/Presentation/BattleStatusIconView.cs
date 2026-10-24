@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -48,16 +49,36 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 root.SetActive(visible);
             }
 
-            if (!visible && valueText != null)
+            if (!visible)
             {
-                valueText.text = string.Empty;
-                valueText.gameObject.SetActive(false);
+                if (iconImage != null)
+                {
+                    iconImage.sprite = defaultIconSprite;
+                    iconImage.type = defaultIconType;
+                }
+
+                if (valueText != null)
+                {
+                    valueText.text = string.Empty;
+                    valueText.gameObject.SetActive(false);
+                }
             }
         }
 
         public void Render(
             Sprite icon,
             int badgeValue,
+            bool badgeVisible)
+        {
+            Render(
+                icon,
+                badgeValue.ToString(CultureInfo.InvariantCulture),
+                badgeVisible);
+        }
+
+        public void Render(
+            Sprite icon,
+            string badgeText,
             bool badgeVisible)
         {
             CacheDefaultIcon();
@@ -74,8 +95,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             if (valueText != null)
             {
                 valueText.text = badgeVisible
-                    ? badgeValue.ToString(
-                        System.Globalization.CultureInfo.InvariantCulture)
+                    ? badgeText ?? string.Empty
                     : string.Empty;
                 valueText.gameObject.SetActive(badgeVisible);
             }

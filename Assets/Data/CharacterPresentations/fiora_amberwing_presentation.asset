@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a99ee31bf8df41bdb5efd96a30a9d8f8, type: 3}
+  m_Name: fiora_amberwing_presentation
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Data.Definitions.CharacterPresentationDefinition
+  characterId: character_fiora_amberwing
+  faceSprite: {fileID: 21300000, guid: fc7e26dddc4bb71499f860cbc455aa47, type: 3}
+  previewSprite: {fileID: 21300000, guid: b1f9076f741667d4db40643d21994e1b, type: 3}

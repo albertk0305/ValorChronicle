@@ -25,6 +25,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private readonly IReadOnlyList<ActiveAbilityBinding> activeBindings;
         private readonly IReadOnlyList<ICharacterCombatStatusSource>
             combatStatusSources;
+        private readonly IReadOnlyList<PreMatchQueueActionProviderBinding>
+            preMatchQueueBindings;
 
         public BattleSceneCombatComposition(
             IReadOnlyList<BattlePartyMemberInput> partyMembers,
@@ -192,6 +194,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 new List<ICharacterCombatStatusSource>();
             var initialPartyEffects =
                 new List<InitialPartyEffectDefinition>();
+            var preMatchBindings =
+                new List<PreMatchQueueActionProviderBinding>();
             var statusSourceKeys = new HashSet<string>(
                 StringComparer.Ordinal);
             for (int index = 0; index < Party.Characters.Count; index++)
@@ -342,6 +346,30 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     initialPartyEffects.Add(effect);
                 }
 
+                IReadOnlyList<IPreMatchQueueActionProvider>
+                    registeredPreMatchProviders =
+                        registration.PreMatchQueueActionProviders
+                        ?? throw new InvalidOperationException(
+                            $"The registrar for '{character.CharacterId}' "
+                                + "returned a null pre-match queue provider "
+                                + "collection.");
+                for (int providerIndex = 0;
+                    providerIndex < registeredPreMatchProviders.Count;
+                    providerIndex++)
+                {
+                    IPreMatchQueueActionProvider provider =
+                        registeredPreMatchProviders[providerIndex]
+                        ?? throw new InvalidOperationException(
+                            $"The registrar for "
+                                + $"'{character.CharacterId}' returned a "
+                                + "null pre-match queue provider at index "
+                                + $"{providerIndex}.");
+                    preMatchBindings.Add(
+                        new PreMatchQueueActionProviderBinding(
+                            character,
+                            provider));
+                }
+
                 if (!registration.HasActiveAbility)
                 {
                     continue;
@@ -411,6 +439,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
             activeBindings = Array.AsReadOnly(bindings.ToArray());
             combatStatusSources = Array.AsReadOnly(
                 statusSources.ToArray());
+            preMatchQueueBindings = Array.AsReadOnly(
+                preMatchBindings.ToArray());
             FlowSetup = new BattleFlowSetup(
                 bossDefinition.TurnLimit,
                 cooldowns);
@@ -500,7 +530,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 ActiveProviders,
                 boardMutationSink,
                 DifficultyId,
-                ResultBalance);
+                ResultBalance,
+                preMatchQueueBindings: preMatchQueueBindings);
             if (ResultPersistenceService != null)
             {
                 ResultPersistenceCoordinator =

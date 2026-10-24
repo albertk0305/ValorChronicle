@@ -41,6 +41,43 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Healing
         }
 
         [Test]
+        public void Factory_AddsActionLocalAndEffectHealingIncreaseOnce()
+        {
+            CharacterBattleState source = Character(1000);
+            var party = new PartyBattleState(new[] { source });
+            source.Effects.ApplyEffect(Effect(
+                1,
+                EffectModifierType.HealingIncrease,
+                0.10d));
+
+            HealingContext matching = HealingContextFactory.Build(
+                new HealingContextBuildRequest(
+                    source,
+                    party,
+                    0.10d,
+                    true,
+                    3,
+                    actionLocalHealingIncreaseRate: 0.05d));
+            HealingContext active = HealingContextFactory.Build(
+                new HealingContextBuildRequest(
+                    source,
+                    party,
+                    0.10d,
+                    false,
+                    0,
+                    actionLocalHealingIncreaseRate: 0.05d));
+
+            Assert.That(matching.HealingIncreaseRateSum,
+                Is.EqualTo(0.15d).Within(0.000000001d));
+            Assert.That(
+                HealingCalculator.Calculate(matching).RawHealing,
+                Is.EqualTo(128.8d).Within(0.000000001d));
+            Assert.That(
+                HealingCalculator.Calculate(active).RawHealing,
+                Is.EqualTo(115d).Within(0.000000001d));
+        }
+
+        [Test]
         public void FullPipeline_CollectsCalculatesAndAppliesHealing()
         {
             CharacterBattleState source = Character(5800);

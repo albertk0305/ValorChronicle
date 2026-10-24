@@ -185,6 +185,10 @@ Match Provider가 반환한 모든 Action은 한 번의 호출에서 공용 ID S
 
 유한 지속 효과는 `BattleTurnEndProcessor`가 캐릭터, 파티, 보스 Effect와 실드를 턴 종료마다 처리한다. “3턴” 효과는 적용 직후부터 세 번째 턴 종료 처리 전까지 유효하고, 세 번째 종료 처리에서 만료되는 현재 테스트 계약을 따른다. 신규 효과의 재적용 정책과 크기 변경 허용 여부는 `EffectCollection` 정책에 맞춰 테스트한다.
 
+공격력 증가 효과의 전체 합계에는 공통 상한을 적용하지 않는다. `EffectInstance`의 선택적 Modifier 그룹 ID와 그룹 상한은 특정 효과군에 명시된 전용 상한만 계산 시점에 적용하기 위한 계약이다. 그룹 상한은 원본 인스턴스의 수치와 잔여 턴을 변경하지 않으며, 같은 그룹의 인스턴스가 만료되면 남은 인스턴스로 적용량을 다시 계산한다. 동일 효과를 중첩하지 않고 기간만 갱신할 때는 `RefreshDuration`, 인스턴스별 수치와 기간을 독립 유지할 때는 `SeparateInstance`를 사용한다.
+
+회복 Action의 고유 회복량 증가는 `HealingContextBuildRequest.ActionLocalHealingIncreaseRate`로 전달한다. `HealingContextFactory`가 실행 시점의 기존 `HealingIncrease` Effect 합계와 이를 가산한 뒤 `HealingCalculator`의 단일 증가 계열에 전달하므로 Provider에서 별도 곱산하거나 캐릭터 전용 회복 계산기를 만들지 않는다. 콤보 적용 여부와 최종 정수화는 기존 공통 계약을 그대로 따른다.
+
 각성으로 액티브 수치나 동작이 달라지면 Config를 직접 여러 곳에서 분기하기보다 캐릭터 규칙 해석 결과를 Provider에 주입한다. 액티브 ID, 쿨타임, Action ID 계보는 각성 여부와 무관하게 기존 실행 계약을 지킨다.
 
 ## 제6장. Passive 및 Trigger Rule

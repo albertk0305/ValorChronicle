@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using NUnit.Framework;
+using UnityEditor;
 using TMPro;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -21,6 +22,7 @@ using ValorChronicle.Battle.Results;
 using ValorChronicle.Bosses.Kragmor;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Characters.Miyuki;
+using ValorChronicle.Characters.Fiora;
 using ValorChronicle.Characters.Runtime;
 using ValorChronicle.Characters.Serena;
 using ValorChronicle.Core.Random;
@@ -30,6 +32,7 @@ using ValorChronicle.Localization;
 using ValorChronicle.Party.Battle;
 using ValorChronicle.Party.Presentation;
 using ValorChronicle.Tests.EditMode.Characters.Miyuki;
+using ValorChronicle.Tests.EditMode.Characters.Fiora;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
 {
@@ -157,6 +160,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     CreateCharacterPresentation(
                         SerenaCoralspearRules.CharacterId,
                         serenaFaceSprite),
+                    CreateCharacterPresentation(
+                        FioraAmberwingRules.CharacterId,
+                        characterTwoFaceSprite),
                     CreateCharacterPresentation(
                         "character_0",
                         characterZeroFaceSprite),
@@ -1342,6 +1348,259 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(bossStatusSlots[1].ValueText.text, Is.EqualTo("3"));
             Assert.That(bossStatusSlots[2].ValueText.text, Is.EqualTo("2"));
             Assert.That(bossStatusSlots[3].Root.activeSelf, Is.False);
+        }
+
+        [Test]
+        public void FioraPartyEffectsGroupOnlyBlessingAndUseNullFallback()
+        {
+            InvokePrivate(hudController, "OnEnable");
+            InitializeCombat();
+            EffectInstance first = CreateFioraBlessing(
+                501,
+                magnitude: 0.03d,
+                turns: 1);
+            EffectInstance second = CreateFioraBlessing(
+                502,
+                magnitude: 0.05d,
+                turns: 2);
+            EffectInstance third = CreateFioraBlessing(
+                503,
+                magnitude: 0.04d,
+                turns: 2);
+            bridge.Party.Effects.ApplyEffect(first);
+            bridge.Party.Effects.ApplyEffect(second);
+            bridge.Party.Effects.ApplyEffect(third);
+            bridge.Party.Effects.ApplyEffect(CreateFioraMatchBuff(
+                504,
+                FioraAmberwingRules.Match4AttackEffectId,
+                magnitude: 0.05d,
+                turns: 2));
+            bridge.Party.Effects.ApplyEffect(CreateFioraMatchBuff(
+                505,
+                FioraAmberwingRules.Match5AttackEffectId,
+                magnitude: 0.09d,
+                turns: 3));
+
+            InvokePrivate(hudController, "Start");
+
+            Assert.That(partyStatusSlots[0].Root.activeSelf, Is.True);
+            Assert.That(partyStatusSlots[0].IconImage.sprite,
+                Is.SameAs(genericStatusSprite));
+            Assert.That(partyStatusSlots[0].ValueText.text,
+                Is.EqualTo("12"));
+            Assert.That(partyStatusSlots[1].ValueText.text,
+                Is.EqualTo("2"));
+            Assert.That(partyStatusSlots[2].ValueText.text,
+                Is.EqualTo("3"));
+            Assert.That(partyStatusSlots[3].Root.activeSelf, Is.False);
+            Assert.That(bridge.Party.Effects.Count, Is.EqualTo(5));
+            Assert.That(first.RemainingTurns, Is.EqualTo(1));
+            Assert.That(second.RemainingTurns, Is.EqualTo(2));
+            Assert.That(third.RemainingTurns, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void FioraBlessingDisplayCapsAndRecalculatesAfterExpiry()
+        {
+            InvokePrivate(hudController, "OnEnable");
+            InitializeCombat();
+            bridge.Party.Effects.ApplyEffect(CreateFioraBlessing(
+                511,
+                magnitude: 0.12d,
+                turns: 1));
+            bridge.Party.Effects.ApplyEffect(CreateFioraBlessing(
+                512,
+                magnitude: 0.12d,
+                turns: 2));
+            InvokePrivate(hudController, "Start");
+
+            Assert.That(partyStatusSlots[0].ValueText.text,
+                Is.EqualTo("20"));
+
+            bridge.Party.Effects.ProcessTurnEnd();
+            hudController.RefreshInitialSnapshot();
+            Assert.That(partyStatusSlots[0].ValueText.text,
+                Is.EqualTo("12"));
+
+            bridge.Party.Effects.ProcessTurnEnd();
+            hudController.RefreshInitialSnapshot();
+            Assert.That(partyStatusSlots[0].Root.activeSelf, Is.False);
+        }
+
+        [Test]
+        public void FioraSubHalfPercentBlessingKeepsVisibleZeroBadge()
+        {
+            InvokePrivate(hudController, "OnEnable");
+            InitializeCombat();
+            bridge.Party.Effects.ApplyEffect(CreateFioraBlessing(
+                513,
+                magnitude: 0.004d,
+                turns: 2));
+
+            InvokePrivate(hudController, "Start");
+
+            Assert.That(partyStatusSlots[0].Root.activeSelf, Is.True);
+            Assert.That(partyStatusSlots[0].ValueText.gameObject.activeSelf,
+                Is.True);
+            Assert.That(partyStatusSlots[0].ValueText.text, Is.EqualTo("0"));
+        }
+
+        [Test]
+        public void HiddenStatusSlotRestoresDefaultBeforeNullIconReuse()
+        {
+            BattleStatusIconView slot = partyStatusSlots[0];
+            slot.Render(darkSprite, "+12%", badgeVisible: true);
+            Assert.That(slot.IconImage.sprite, Is.SameAs(darkSprite));
+
+            slot.SetVisible(false);
+
+            Assert.That(slot.IconImage.sprite,
+                Is.SameAs(genericStatusSprite));
+            Assert.That(slot.ValueText.text, Is.Empty);
+            Assert.That(slot.ValueText.gameObject.activeSelf, Is.False);
+
+            slot.Render(null, "2", badgeVisible: true);
+            Assert.That(slot.IconImage.sprite,
+                Is.SameAs(genericStatusSprite));
+            Assert.That(slot.ValueText.text, Is.EqualTo("2"));
+        }
+
+        [Test]
+        public void ActualFioraActiveImmediatelyRefreshesBlessingAndCharges()
+        {
+            InvokePrivate(hudController, "OnEnable");
+            CharacterDefinition definition =
+                AssetDatabase.LoadAssetAtPath<CharacterDefinition>(
+                    "Assets/Data/Characters/fiora_amberwing.asset");
+            DefinitionDatabase database =
+                AssetDatabase.LoadAssetAtPath<DefinitionDatabase>(
+                    "Assets/Data/Database/DefinitionDatabase.asset");
+            Assert.That(definition, Is.Not.Null);
+            Assert.That(database, Is.Not.Null);
+            database.Initialize();
+            SetProperty(combatBootstrap, "DefinitionDatabase", database);
+            BattleSceneCombatComposition composition =
+                CreateFioraProductionComposition(definition, partySlotIndex: 2);
+            SetProperty(combatBootstrap, "CombatComposition", composition);
+            flowController.Initialize(
+                composition.FlowSetup,
+                coordinator => composition.CreateBridge(coordinator));
+            bridge = composition.Bridge;
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+
+            Assert.That(bridge.TryUseActive(0), Is.True);
+
+            Assert.That(database.TryGetEffect(
+                    FioraAmberwingRules.PassiveBlessingEffectId,
+                    out EffectDefinition blessingDefinition),
+                Is.True);
+            Assert.That(partyStatusSlots[0].Root.activeSelf, Is.True);
+            Assert.That(partyStatusSlots[0].IconImage.sprite,
+                Is.SameAs(
+                    blessingDefinition.Icon != null
+                        ? blessingDefinition.Icon
+                        : genericStatusSprite));
+            Assert.That(partyStatusSlots[0].ValueText.text,
+                Is.EqualTo("5"));
+            Assert.That(database.TryGetSkill(
+                    FioraAmberwingRules.FollowUpHealingStatusId,
+                    out SkillDefinition followUpStatusDefinition),
+                Is.True);
+            BattleStatusIconView rebirth =
+                characterSlots[2].GetStatusSlot(0);
+            Assert.That(rebirth.Root.activeSelf, Is.True);
+            Assert.That(rebirth.IconImage.sprite,
+                Is.SameAs(
+                    followUpStatusDefinition.Icon != null
+                        ? followUpStatusDefinition.Icon
+                        : genericStatusSprite));
+            Assert.That(rebirth.ValueText.text, Is.EqualTo("2"));
+        }
+
+        [Test]
+        public void VisibleCombatStatusReservesSlotWithoutRemovingEffects()
+        {
+            InvokePrivate(hudController, "OnEnable");
+            FioraAmberwingCombatConfig config =
+                FioraAmberwingTestConfig.Create();
+            createdObjects.Add(config);
+            CharacterDefinition definition =
+                CreateFioraDefinition(config);
+            BattleSceneCombatComposition composition =
+                CreateFioraProductionComposition(
+                    definition,
+                    partySlotIndex: 2);
+            SetProperty(combatBootstrap, "CombatComposition", composition);
+            flowController.Initialize(
+                composition.FlowSetup,
+                coordinator => composition.CreateBridge(coordinator));
+            bridge = composition.Bridge;
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+            var state = composition.CombatStatusSources[0]
+                as FioraAmberwingBattleState;
+            Assert.That(state, Is.Not.Null);
+            state.GrantFollowUpHeals(4, currentTurn: 1);
+            for (int index = 0; index < 4; index++)
+            {
+                bridge.Party.Characters[0].Effects.ApplyEffect(CreateEffect(
+                    520 + index,
+                    $"effect_character_full_{index}",
+                    remainingTurns: index + 1,
+                    EffectStackPolicy.SeparateInstance));
+            }
+
+            hudController.RefreshInitialSnapshot();
+
+            BattleCharacterSlotView slot = characterSlots[2];
+            Assert.That(bridge.Party.Characters[0].Effects.Count,
+                Is.EqualTo(4));
+            Assert.That(slot.GetStatusSlot(2).ValueText.text,
+                Is.EqualTo("3"));
+            Assert.That(slot.GetStatusSlot(3).ValueText.text,
+                Is.EqualTo("4"));
+            Assert.That(slot.GetStatusSlot(3).IconImage.sprite,
+                Is.SameAs(genericStatusSprite));
+        }
+
+        [Test]
+        public void FioraFollowUpStatusTracksRemainingCountAndHidesAtZero()
+        {
+            InvokePrivate(hudController, "OnEnable");
+            FioraAmberwingCombatConfig config =
+                FioraAmberwingTestConfig.Create();
+            createdObjects.Add(config);
+            BattleSceneCombatComposition composition =
+                CreateFioraProductionComposition(
+                    CreateFioraDefinition(config),
+                    partySlotIndex: 2);
+            SetProperty(combatBootstrap, "CombatComposition", composition);
+            flowController.Initialize(
+                composition.FlowSetup,
+                coordinator => composition.CreateBridge(coordinator));
+            bridge = composition.Bridge;
+            Assert.That(flowController.Coordinator.StartBattle(), Is.True);
+            InvokePrivate(hudController, "Start");
+            var state = composition.CombatStatusSources[0]
+                as FioraAmberwingBattleState;
+            BattleStatusIconView status =
+                characterSlots[2].GetStatusSlot(0);
+            Assert.That(state, Is.Not.Null);
+            Assert.That(status.Root.activeSelf, Is.False);
+
+            state.GrantFollowUpHeals(2, currentTurn: 0);
+            Assert.That(state.TryConsumeFollowUpHeal(currentTurn: 1),
+                Is.True);
+            hudController.RefreshInitialSnapshot();
+            Assert.That(status.Root.activeSelf, Is.True);
+            Assert.That(status.ValueText.text, Is.EqualTo("1"));
+
+            Assert.That(state.TryConsumeFollowUpHeal(currentTurn: 2),
+                Is.True);
+            hudController.RefreshInitialSnapshot();
+            Assert.That(status.Root.activeSelf, Is.False);
+            Assert.That(status.ValueText.text, Is.Empty);
         }
 
         [Test]
@@ -2532,6 +2791,70 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         }
 
         private BattleSceneCombatComposition
+            CreateFioraProductionComposition(
+                CharacterDefinition fioraDefinition,
+                int partySlotIndex)
+        {
+            BossDefinition bossDefinition =
+                ScriptableObject.CreateInstance<BossDefinition>();
+            createdObjects.Add(bossDefinition);
+            SetField(bossDefinition, "id", KragmorRules.BossId);
+            SetField(bossDefinition, "element", ElementType.Fire);
+            SetField(bossDefinition, "turnLimit", 25);
+            var difficulty = new BossDifficultyStats(
+                "difficulty_normal",
+                66000,
+                100d);
+            SetField(
+                bossDefinition,
+                "difficultyStats",
+                new[] { difficulty });
+            KragmorCombatConfig kragmorConfig =
+                KragmorTestConfig.Create();
+            createdObjects.Add(kragmorConfig);
+            KragmorTestConfig.Assign(
+                bossDefinition,
+                kragmorConfig);
+
+            return new BattleSceneCombatComposition(
+                new[]
+                {
+                    new BattlePartyMemberInput(
+                        fioraDefinition.Id,
+                        partySlotIndex,
+                        level: 100,
+                        awakening: 0,
+                        characterDefinition: fioraDefinition)
+                },
+                CharacterRuntimeRegistrationCatalog.CreateDefault()
+                    .CreateCombatRegistrarCatalog(),
+                bossDefinition,
+                kragmorConfig,
+                difficulty,
+                new SeededRandomSource(1),
+                BattleResultBalanceDefaults.Create());
+        }
+
+        private CharacterDefinition CreateFioraDefinition(
+            FioraAmberwingCombatConfig config)
+        {
+            CharacterDefinition definition =
+                ScriptableObject.CreateInstance<CharacterDefinition>();
+            createdObjects.Add(definition);
+            SetField(
+                definition,
+                "id",
+                FioraAmberwingRules.CharacterId);
+            SetField(definition, "element", ElementType.Fire);
+            SetField(definition, "level1Hp", 980);
+            SetField(definition, "level1Attack", 130);
+            SetField(definition, "level100Hp", 5800);
+            SetField(definition, "level100Attack", 730);
+            SetField(definition, "combatConfig", config);
+            return definition;
+        }
+
+        private BattleSceneCombatComposition
             CreateSerenaProductionComposition(int partySlotIndex)
         {
             BossDefinition bossDefinition =
@@ -3143,6 +3466,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 SerenaCoralspearRules.EmpoweredChaseStatusId,
                 includeIcons ? chaseIconSprite : null,
                 SkillKind.Passive);
+            SkillDefinition fioraFollowUp = CreateSkillDefinition(
+                FioraAmberwingRules.FollowUpHealingStatusId,
+                null,
+                SkillKind.Passive);
 
             EffectDefinition mareaEffect = CreateEffectDefinition(
                 MareaBluefangRules.ActiveEffectId,
@@ -3150,6 +3477,15 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             EffectDefinition serenaEffect = CreateEffectDefinition(
                 SerenaCoralspearRules.ActiveEffectId,
                 includeIcons ? darkSprite : null);
+            EffectDefinition fioraBlessing = CreateEffectDefinition(
+                FioraAmberwingRules.PassiveBlessingEffectId,
+                null);
+            EffectDefinition fioraMatch4 = CreateEffectDefinition(
+                FioraAmberwingRules.Match4AttackEffectId,
+                null);
+            EffectDefinition fioraMatch5 = CreateEffectDefinition(
+                FioraAmberwingRules.Match5AttackEffectId,
+                null);
             EffectDefinition carapaceEffect = CreateEffectDefinition(
                 KragmorRules.VolcanicCarapaceEffectId,
                 null);
@@ -3179,7 +3515,8 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     eruption,
                     compression,
                     collapse,
-                    serenaPassive
+                    serenaPassive,
+                    fioraFollowUp
                 });
             SetField(
                 database,
@@ -3188,6 +3525,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 {
                     mareaEffect,
                     serenaEffect,
+                    fioraBlessing,
+                    fioraMatch4,
+                    fioraMatch5,
                     carapaceEffect,
                     compressionEffect,
                     exposureEffect
@@ -3318,6 +3658,44 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 runtimeId,
                 stackPolicy,
                 maxStackCount: maxStackCount);
+        }
+
+        private static EffectInstance CreateFioraBlessing(
+            long runtimeId,
+            double magnitude,
+            int turns)
+        {
+            return new EffectInstance(
+                runtimeId,
+                FioraAmberwingRules.PassiveBlessingEffectId,
+                FioraAmberwingRules.CharacterId,
+                EffectCategory.Buff,
+                EffectModifierType.AttackIncrease,
+                magnitude,
+                turns,
+                runtimeId,
+                EffectStackPolicy.SeparateInstance,
+                modifierGroupId:
+                    FioraAmberwingRules.PassiveBlessingModifierGroupId,
+                modifierGroupCap: 0.20d);
+        }
+
+        private static EffectInstance CreateFioraMatchBuff(
+            long runtimeId,
+            string effectId,
+            double magnitude,
+            int turns)
+        {
+            return new EffectInstance(
+                runtimeId,
+                effectId,
+                FioraAmberwingRules.CharacterId,
+                EffectCategory.Buff,
+                EffectModifierType.AttackIncrease,
+                magnitude,
+                turns,
+                runtimeId,
+                EffectStackPolicy.RefreshDuration);
         }
 
         private void AssertSingleHudSubscription(

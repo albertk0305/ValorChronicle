@@ -12,6 +12,7 @@ namespace ValorChronicle.Battle.Combat.Integration
         private readonly BossBattleState boss;
         private readonly CombatActionExecutor executor;
         private readonly MatchEventCombatActionFactory actionFactory;
+        private readonly int playerTurnNumber;
         private readonly List<CombatActionResult> results =
             new List<CombatActionResult>();
         private int nextCharacterIndex;
@@ -25,7 +26,8 @@ namespace ValorChronicle.Battle.Combat.Integration
             PartyBattleState party,
             BossBattleState boss,
             CombatActionExecutor executor,
-            MatchEventCombatActionFactory actionFactory)
+            MatchEventCombatActionFactory actionFactory,
+            int playerTurnNumber)
         {
             Execution = execution
                 ?? throw new ArgumentNullException(nameof(execution));
@@ -37,6 +39,13 @@ namespace ValorChronicle.Battle.Combat.Integration
                 ?? throw new ArgumentNullException(nameof(executor));
             this.actionFactory = actionFactory
                 ?? throw new ArgumentNullException(nameof(actionFactory));
+            if (playerTurnNumber < 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(playerTurnNumber));
+            }
+
+            this.playerTurnNumber = playerTurnNumber;
             HasMatchingCharacter = HasMatchingCharacterFrom(0);
             if (!HasMatchingCharacter)
             {
@@ -116,7 +125,9 @@ namespace ValorChronicle.Battle.Combat.Integration
                         character);
                 currentCharacter = character;
                 currentActionSession =
-                    executor.BeginExecution(rootActions);
+                    executor.BeginExecution(
+                        rootActions,
+                        playerTurnNumber);
                 if (!currentActionSession.IsCompleted)
                 {
                     return true;

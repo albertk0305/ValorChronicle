@@ -1,6 +1,8 @@
 using System;
 using NUnit.Framework;
 using ValorChronicle.Battle.Combat.Healing;
+using ValorChronicle.Battle.Combat.State;
+using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Combat.Healing
 {
@@ -70,6 +72,28 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Healing
                 new HealingContext(1, 0.1d, true, 0, 0d));
             Assert.Throws<ArgumentOutOfRangeException>(() =>
                 new HealingContext(1, 0.1d, false, 0, double.PositiveInfinity));
+        }
+
+        [Test]
+        public void BuildRequest_RejectsInvalidActionLocalHealingIncrease()
+        {
+            var source = new CharacterBattleState(
+                "source",
+                0,
+                ElementType.Fire,
+                1000,
+                100d);
+            var party = new PartyBattleState(
+                new[] { source });
+
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                new HealingContextBuildRequest(
+                    source,
+                    party,
+                    0.1d,
+                    false,
+                    0,
+                    -0.01d));
         }
 
         [Test]

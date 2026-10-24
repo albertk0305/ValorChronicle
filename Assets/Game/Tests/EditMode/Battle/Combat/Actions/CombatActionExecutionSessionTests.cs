@@ -36,6 +36,28 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Actions
         }
 
         [Test]
+        public void BeginExecution_ForwardsPlayerTurnNumberToTriggers()
+        {
+            BattleFixture battle = CreateBattle();
+            int observedTurn = -1;
+            var rule = new DelegateCombatTriggerRule(context =>
+            {
+                observedTurn = context.PlayerTurnNumber;
+                return Array.Empty<CombatAction>();
+            });
+            CombatActionExecutor executor = battle.CreateExecutor(rule);
+            CombatActionExecutionSession session = executor.BeginExecution(
+                new CombatAction[] { battle.Damage(1, 0.10d) },
+                playerTurnNumber: 7);
+
+            while (session.TryExecuteNext(out _))
+            {
+            }
+
+            Assert.That(observedTurn, Is.EqualTo(7));
+        }
+
+        [Test]
         public void PeekAndExecuteNext_AppliesExactlyOneActionAtATime()
         {
             BattleFixture battle = CreateBattle();

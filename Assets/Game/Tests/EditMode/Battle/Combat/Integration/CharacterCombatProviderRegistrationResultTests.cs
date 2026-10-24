@@ -32,6 +32,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(active.ResourceRequirements, Is.Empty);
             Assert.That(active.CombatStatusSources, Is.Empty);
             Assert.That(active.InitialPartyEffects, Is.Empty);
+            Assert.That(active.PreMatchQueueActionProviders, Is.Empty);
             Assert.That(passive.HasActiveAbility, Is.False);
             Assert.That(passive.ActiveAbilityId, Is.Empty);
             Assert.That(passive.ActiveCooldownTurns, Is.Zero);
@@ -39,6 +40,31 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(passive.ResourceRequirements, Is.Empty);
             Assert.That(passive.CombatStatusSources, Is.Empty);
             Assert.That(passive.InitialPartyEffects, Is.Empty);
+            Assert.That(passive.PreMatchQueueActionProviders, Is.Empty);
+        }
+
+        [Test]
+        public void PreMatchQueueProvidersAreCopiedWithoutChangingMetadata()
+        {
+            var provider = new EmptyPreMatchQueueProvider();
+            IPreMatchQueueActionProvider[] source = { provider };
+
+            CharacterCombatProviderRegistrationResult result =
+                CharacterCombatProviderRegistrationResult
+                    .WithActiveAbility("active_id", 8)
+                    .WithPreMatchQueueActionProviders(source);
+            source[0] = new EmptyPreMatchQueueProvider();
+
+            Assert.That(result.HasActiveAbility, Is.True);
+            Assert.That(result.ActiveAbilityId, Is.EqualTo("active_id"));
+            Assert.That(result.ActiveCooldownTurns, Is.EqualTo(8));
+            Assert.That(result.PreMatchQueueActionProviders,
+                Is.EqualTo(new[] { provider }));
+            Assert.Throws<ArgumentNullException>(() =>
+                result.WithPreMatchQueueActionProviders(null));
+            Assert.Throws<ArgumentException>(() =>
+                result.WithPreMatchQueueActionProviders(
+                    new IPreMatchQueueActionProvider[] { null }));
         }
 
         [Test]
@@ -267,6 +293,16 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         {
             public IReadOnlyList<CombatAction> CreateDerivedActions(
                 CombatActionTriggerContext context)
+            {
+                return Array.Empty<CombatAction>();
+            }
+        }
+
+        private sealed class EmptyPreMatchQueueProvider
+            : IPreMatchQueueActionProvider
+        {
+            public IReadOnlyList<CombatAction> CreateRootActions(
+                PreMatchQueueActionContext context)
             {
                 return Array.Empty<CombatAction>();
             }

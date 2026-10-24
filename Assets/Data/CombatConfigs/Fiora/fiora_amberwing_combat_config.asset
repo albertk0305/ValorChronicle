@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1063bcb638d409a96a6eae07ac53696, type: 3}
+  m_Name: fiora_amberwing_combat_config
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Characters.Fiora.FioraAmberwingCombatConfig
+  match3HealingCoefficient: 0.08
+  match4HealingCoefficient: 0.14
+  match5HealingCoefficient: 0.22
+  match4AttackIncreaseRate: 0.05
+  match5AttackIncreaseRate: 0.09
+  match4BuffDurationTurns: 2
+  match5BuffDurationTurns: 3
+  passiveConversionRate: 0.5
+  passivePerInstanceCap: 0.05
+  passiveGroupCap: 0.2
+  passiveDurationTurns: 2
+  activeInstantHealingCoefficient: 0.24
+  activeFollowUpHealingCoefficient: 0.06
+  activeFollowUpHealGrantCount: 2
+  activeFollowUpHealMaxCount: 4
+  activeCooldownTurns: 8
+  awakening2HealingIncreaseRate: 0.05
+  awakening3PassiveConversionRate: 0.55
+  awakening4Match3HealingCoefficient: 0.09
+  awakening4Match4HealingCoefficient: 0.15
+  awakening5ActiveInstantHealingCoefficient: 0.26
+  awakening5ActiveFollowUpHealingCoefficient: 0.07
+  awakening6FullOverhealConversionRate: 0.7

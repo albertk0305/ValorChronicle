@@ -93,7 +93,7 @@ namespace ValorChronicle.Battle.Combat.Modifiers
                 target.Effects.GetActiveEffects(),
                 values);
             return new AllyDamageModifierSnapshot(
-                values.AttackIncrease,
+                values.GetAttackIncrease(),
                 values.AttackReduction,
                 values.ElementDamageIncrease,
                 values.AttackTypeDamageIncrease,
@@ -193,9 +193,7 @@ namespace ValorChronicle.Battle.Combat.Modifiers
                 switch (effect.ModifierType)
                 {
                     case EffectModifierType.AttackIncrease:
-                        values.AttackIncrease = Add(
-                            values.AttackIncrease,
-                            effect);
+                        values.AddAttackIncrease(effect);
                         break;
                     case EffectModifierType.AttackReduction:
                         values.AttackReduction = Add(
@@ -275,7 +273,14 @@ namespace ValorChronicle.Battle.Combat.Modifiers
             double current,
             EffectInstance effect)
         {
-            double result = current + effect.EffectiveMagnitude;
+            return AddMagnitude(current, effect.EffectiveMagnitude);
+        }
+
+        private static double AddMagnitude(
+            double current,
+            double magnitude)
+        {
+            double result = current + magnitude;
             if (double.IsNaN(result) || double.IsInfinity(result))
             {
                 throw new OverflowException(
@@ -366,6 +371,7 @@ namespace ValorChronicle.Battle.Combat.Modifiers
         private sealed class AllyModifierValues
         {
             public double AttackIncrease;
+            private List<CappedModifierGroup> attackIncreaseGroups;
             public double AttackReduction;
             public double ElementDamageIncrease;
             public double AttackTypeDamageIncrease;
@@ -375,6 +381,90 @@ namespace ValorChronicle.Battle.Combat.Modifiers
             public double TargetTakenDamageReduction;
             public double CriticalChanceIncrease;
             public double CriticalDamageIncrease;
+
+            public void AddAttackIncrease(EffectInstance effect)
+            {
+                if (!effect.ModifierGroupCap.HasValue)
+                {
+                    AttackIncrease = Add(AttackIncrease, effect);
+                    return;
+                }
+
+                if (attackIncreaseGroups == null)
+                {
+                    attackIncreaseGroups =
+                        new List<CappedModifierGroup>();
+                }
+
+                CappedModifierGroup group = null;
+                for (int index = 0;
+                    index < attackIncreaseGroups.Count;
+                    index++)
+                {
+                    CappedModifierGroup candidate =
+                        attackIncreaseGroups[index];
+                    if (string.Equals(
+                        candidate.Id,
+                        effect.ModifierGroupId,
+                        StringComparison.Ordinal))
+                    {
+                        group = candidate;
+                        break;
+                    }
+                }
+
+                if (group == null)
+                {
+                    group = new CappedModifierGroup(
+                        effect.ModifierGroupId,
+                        effect.ModifierGroupCap.Value);
+                    attackIncreaseGroups.Add(group);
+                }
+                else if (group.Cap != effect.ModifierGroupCap.Value)
+                {
+                    throw new InvalidOperationException(
+                        "Effects in one modifier group must use the same cap.");
+                }
+
+                group.Total = AddMagnitude(
+                    group.Total,
+                    effect.EffectiveMagnitude);
+            }
+
+            public double GetAttackIncrease()
+            {
+                double result = AttackIncrease;
+                if (attackIncreaseGroups == null)
+                {
+                    return result;
+                }
+
+                for (int index = 0;
+                    index < attackIncreaseGroups.Count;
+                    index++)
+                {
+                    CappedModifierGroup group =
+                        attackIncreaseGroups[index];
+                    result = AddMagnitude(
+                        result,
+                        Math.Min(group.Total, group.Cap));
+                }
+
+                return result;
+            }
+        }
+
+        private sealed class CappedModifierGroup
+        {
+            public CappedModifierGroup(string id, double cap)
+            {
+                Id = id;
+                Cap = cap;
+            }
+
+            public string Id { get; }
+            public double Cap { get; }
+            public double Total { get; set; }
         }
 
         private sealed class BossModifierValues

@@ -8,6 +8,9 @@ namespace ValorChronicle.Battle.Flow
     {
         private readonly MatchEventQueue matchEventQueue;
         private long nextMatchEventExecutionId;
+        private long nextMatchQueueId;
+        private long currentMatchQueueId;
+        private bool isMatchQueueAwaitingFirstExecution;
         private MatchEventExecution currentMatchEventExecution;
         private int resolvedMatchEventCount;
 
@@ -41,6 +44,9 @@ namespace ValorChronicle.Battle.Flow
             currentMatchEventExecution != null;
         public MatchEventExecution CurrentMatchEventExecution =>
             currentMatchEventExecution;
+        public long CurrentMatchQueueId => currentMatchQueueId;
+        public bool IsMatchQueueAwaitingFirstExecution =>
+            isMatchQueueAwaitingFirstExecution;
 
         public IReadOnlyList<MatchEvent> GetPendingMatchEvents()
         {
@@ -66,6 +72,8 @@ namespace ValorChronicle.Battle.Flow
 
             matchEventQueue.Clear();
             resolvedMatchEventCount = 0;
+            currentMatchQueueId = 0;
+            isMatchQueueAwaitingFirstExecution = false;
             BeginNextTurn();
             return true;
         }
@@ -151,6 +159,8 @@ namespace ValorChronicle.Battle.Flow
                 MatchEventFactory.Create(cascade);
             matchEventQueue.EnqueueRange(matchEvents);
             resolvedMatchEventCount = matchEvents.Count;
+            currentMatchQueueId = checked(++nextMatchQueueId);
+            isMatchQueueAwaitingFirstExecution = matchEvents.Count > 0;
 
             TransitionTo(BattlePhase.MatchEventResolving);
             return true;
@@ -169,6 +179,8 @@ namespace ValorChronicle.Battle.Flow
             {
                 return false;
             }
+
+            isMatchQueueAwaitingFirstExecution = false;
 
             if (!matchEventQueue.TryDequeue(out MatchEvent matchEvent))
             {
@@ -344,6 +356,8 @@ namespace ValorChronicle.Battle.Flow
             matchEventQueue.Clear();
             currentMatchEventExecution = null;
             resolvedMatchEventCount = 0;
+            currentMatchQueueId = 0;
+            isMatchQueueAwaitingFirstExecution = false;
             Context.Result = result;
             TransitionTo(BattlePhase.Result);
             ResultReached?.Invoke(result);

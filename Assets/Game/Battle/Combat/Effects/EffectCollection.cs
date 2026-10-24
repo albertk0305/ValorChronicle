@@ -238,6 +238,12 @@ namespace ValorChronicle.Battle.Combat.Effects
                 || existing.AttackTypeMask != incoming.AttackTypeMask
                 || existing.RequiredAttackTags
                     != incoming.RequiredAttackTags
+                || !string.Equals(
+                    existing.ModifierGroupId,
+                    incoming.ModifierGroupId,
+                    StringComparison.Ordinal)
+                || existing.ModifierGroupCap
+                    != incoming.ModifierGroupCap
                 || existing.MaxStackCount != incoming.MaxStackCount)
             {
                 throw new InvalidOperationException(

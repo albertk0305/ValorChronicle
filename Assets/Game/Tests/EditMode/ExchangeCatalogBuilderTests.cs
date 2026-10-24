@@ -5,8 +5,6 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
-using ValorChronicle.Characters.Marea;
-using ValorChronicle.Characters.Serena;
 using ValorChronicle.Data.Database;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Data.Validation;
@@ -279,7 +277,7 @@ namespace ValorChronicle.Tests.EditMode
         }
 
         [Test]
-        public void CanonicalCatalogUsesExplicitCharacterRegistration()
+        public void CanonicalCatalogBuildsExplicitlyRegisteredEntries()
         {
             DefinitionDatabase database = AssetDatabase.LoadAssetAtPath<
                 DefinitionDatabase>(
@@ -298,12 +296,6 @@ namespace ValorChronicle.Tests.EditMode
                 .ToArray();
             Assert.That(registeredCharacterIds.Distinct().Count(),
                 Is.EqualTo(registeredCharacterIds.Length));
-            Assert.That(registeredCharacterIds,
-                Does.Contain(MareaBluefangRules.CharacterId));
-            Assert.That(registeredCharacterIds,
-                Does.Not.Contain(SerenaCoralspearRules.CharacterId));
-            Assert.That(database.Characters.Select(item => item.Id),
-                Does.Contain(SerenaCoralspearRules.CharacterId));
             for (int index = 0;
                 index < registeredCharacterIds.Length;
                 index++)

@@ -103,7 +103,9 @@ namespace ValorChronicle.Battle.Combat.Integration
                 provider.CreateRootActions(context);
             ValidateRootActions(rootActions, idBeforeProvider);
             CombatActionExecutionSession actionSession =
-                executor.BeginExecution(rootActions);
+                executor.BeginExecution(
+                    rootActions,
+                    coordinator.Context.CurrentTurn);
             if (!coordinator.TryUseActiveAbility(activeAbilityIndex))
             {
                 throw new InvalidOperationException(
@@ -223,7 +225,9 @@ namespace ValorChronicle.Battle.Combat.Integration
                     "Board Active providers must return a Board plan.");
 
             CombatActionExecutionSession actionSession =
-                executor.BeginExecution(Array.Empty<CombatAction>());
+                executor.BeginExecution(
+                    Array.Empty<CombatAction>(),
+                    coordinator.Context.CurrentTurn);
             if (!coordinator.TryUseActiveAbility(activeAbilityIndex))
             {
                 throw new InvalidOperationException(

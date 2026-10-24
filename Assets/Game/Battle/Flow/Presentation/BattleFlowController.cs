@@ -876,6 +876,104 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     yield break;
                 }
 
+                if (combatBridge != null
+                    && coordinator.IsMatchQueueAwaitingFirstExecution)
+                {
+                    bool preMatchBegan;
+                    isExecutingFlowStep = true;
+                    try
+                    {
+                        preMatchBegan = combatBridge
+                            .TryBeginPreMatchQueueCombat();
+                    }
+                    finally
+                    {
+                        isExecutingFlowStep = false;
+                    }
+
+                    if (!preMatchBegan)
+                    {
+                        GameLogger.Error(
+                            "[BattleFlow] Pre-match queue combat failed "
+                                + "to begin.",
+                            this);
+                        yield break;
+                    }
+
+                    while (true)
+                    {
+                        if (IsPaused)
+                        {
+                            yield return WaitWhilePaused();
+                        }
+                        if (!IsFlowProgressionCurrent(
+                            version,
+                            BattlePhase.MatchEventResolving))
+                        {
+                            yield break;
+                        }
+
+                        if (!combatBridge
+                            .TryGetNextPreMatchQueueCombatAction(
+                                out _,
+                                out _))
+                        {
+                            break;
+                        }
+
+                        bool actionApplied;
+                        isExecutingFlowStep = true;
+                        try
+                        {
+                            actionApplied = combatBridge
+                                .TryApplyNextPreMatchQueueCombatAction(
+                                    out _);
+                        }
+                        finally
+                        {
+                            isExecutingFlowStep = false;
+                        }
+
+                        if (!actionApplied)
+                        {
+                            GameLogger.Error(
+                                "[BattleFlow] Pre-match queue combat action "
+                                    + "failed to apply.",
+                                this);
+                            yield break;
+                        }
+                    }
+
+                    bool preMatchCompleted;
+                    isExecutingFlowStep = true;
+                    try
+                    {
+                        preMatchCompleted = combatBridge
+                            .TryCompletePreMatchQueueCombat();
+                    }
+                    finally
+                    {
+                        isExecutingFlowStep = false;
+                    }
+
+                    UpdateBoardInputGate();
+                    if (!preMatchCompleted)
+                    {
+                        GameLogger.Error(
+                            "[BattleFlow] Pre-match queue combat failed "
+                                + "to complete.",
+                            this);
+                        yield break;
+                    }
+
+                    if (!IsFlowProgressionCurrent(
+                        version,
+                        BattlePhase.MatchEventResolving))
+                    {
+                        yield break;
+                    }
+                }
+
                 while (IsFlowProgressionCurrent(
                     version,
                     BattlePhase.MatchEventResolving))

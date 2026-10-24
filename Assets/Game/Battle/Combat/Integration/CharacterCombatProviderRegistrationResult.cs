@@ -23,7 +23,9 @@ namespace ValorChronicle.Battle.Combat.Integration
             IReadOnlyList<ICombatTriggerRule> triggerRules,
             IReadOnlyList<CombatResourceRequirement> resourceRequirements,
             IReadOnlyList<ICharacterCombatStatusSource> combatStatusSources,
-            IReadOnlyList<InitialPartyEffectDefinition> initialPartyEffects)
+            IReadOnlyList<InitialPartyEffectDefinition> initialPartyEffects,
+            IReadOnlyList<IPreMatchQueueActionProvider>
+                preMatchQueueActionProviders)
         {
             ActiveAbilityId = activeAbilityId;
             ActiveCooldownTurns = activeCooldownTurns;
@@ -34,6 +36,9 @@ namespace ValorChronicle.Battle.Combat.Integration
                 combatStatusSources);
             InitialPartyEffects = CopyInitialPartyEffects(
                 initialPartyEffects);
+            PreMatchQueueActionProviders =
+                CopyPreMatchQueueActionProviders(
+                    preMatchQueueActionProviders);
         }
 
         public bool HasActiveAbility =>
@@ -47,6 +52,8 @@ namespace ValorChronicle.Battle.Combat.Integration
             CombatStatusSources { get; }
         public IReadOnlyList<InitialPartyEffectDefinition>
             InitialPartyEffects { get; }
+        public IReadOnlyList<IPreMatchQueueActionProvider>
+            PreMatchQueueActionProviders { get; }
 
         public static CharacterCombatProviderRegistrationResult
             WithoutActiveAbility()
@@ -68,7 +75,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 triggerRules,
                 resourceRequirements,
                 Array.Empty<ICharacterCombatStatusSource>(),
-                Array.Empty<InitialPartyEffectDefinition>());
+                Array.Empty<InitialPartyEffectDefinition>(),
+                Array.Empty<IPreMatchQueueActionProvider>());
         }
 
         public static CharacterCombatProviderRegistrationResult
@@ -85,7 +93,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 triggerRules,
                 resourceRequirements,
                 combatStatusSources,
-                Array.Empty<InitialPartyEffectDefinition>());
+                Array.Empty<InitialPartyEffectDefinition>(),
+                Array.Empty<IPreMatchQueueActionProvider>());
         }
 
         public static CharacterCombatProviderRegistrationResult
@@ -127,7 +136,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 triggerRules,
                 resourceRequirements,
                 Array.Empty<ICharacterCombatStatusSource>(),
-                Array.Empty<InitialPartyEffectDefinition>());
+                Array.Empty<InitialPartyEffectDefinition>(),
+                Array.Empty<IPreMatchQueueActionProvider>());
         }
 
         public static CharacterCombatProviderRegistrationResult
@@ -159,7 +169,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 triggerRules,
                 resourceRequirements,
                 combatStatusSources,
-                Array.Empty<InitialPartyEffectDefinition>());
+                Array.Empty<InitialPartyEffectDefinition>(),
+                Array.Empty<IPreMatchQueueActionProvider>());
         }
 
         public CharacterCombatProviderRegistrationResult
@@ -173,7 +184,22 @@ namespace ValorChronicle.Battle.Combat.Integration
                 TriggerRules,
                 ResourceRequirements,
                 CombatStatusSources,
-                initialPartyEffects);
+                initialPartyEffects,
+                PreMatchQueueActionProviders);
+        }
+
+        public CharacterCombatProviderRegistrationResult
+            WithPreMatchQueueActionProviders(
+                IReadOnlyList<IPreMatchQueueActionProvider> providers)
+        {
+            return new CharacterCombatProviderRegistrationResult(
+                ActiveAbilityId,
+                ActiveCooldownTurns,
+                TriggerRules,
+                ResourceRequirements,
+                CombatStatusSources,
+                InitialPartyEffects,
+                providers);
         }
 
         private static ReadOnlyCollection<ICombatTriggerRule>
@@ -266,6 +292,27 @@ namespace ValorChronicle.Battle.Combat.Integration
                     ?? throw new ArgumentException(
                         $"Initial Party Effect entry {index} is null.",
                         nameof(initialPartyEffects));
+            }
+
+            return Array.AsReadOnly(copy);
+        }
+
+        private static ReadOnlyCollection<IPreMatchQueueActionProvider>
+            CopyPreMatchQueueActionProviders(
+                IReadOnlyList<IPreMatchQueueActionProvider> providers)
+        {
+            if (providers == null)
+            {
+                throw new ArgumentNullException(nameof(providers));
+            }
+
+            var copy = new IPreMatchQueueActionProvider[providers.Count];
+            for (int index = 0; index < providers.Count; index++)
+            {
+                copy[index] = providers[index]
+                    ?? throw new ArgumentException(
+                        $"Pre-match queue provider entry {index} is null.",
+                        nameof(providers));
             }
 
             return Array.AsReadOnly(copy);

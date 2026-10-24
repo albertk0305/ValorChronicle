@@ -143,6 +143,107 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Modifiers
         }
 
         [Test]
+        public void CollectAllyDamage_CapsOnlyConfiguredAttackIncreaseGroup()
+        {
+            CreateStates(
+                out CharacterBattleState attacker,
+                out PartyBattleState party,
+                out BossBattleState boss);
+            EffectInstance first = GroupedAttackEffect(
+                1,
+                "blessing",
+                0.12d,
+                1);
+            EffectInstance second = GroupedAttackEffect(
+                2,
+                "blessing",
+                0.15d,
+                2);
+            party.Effects.ApplyEffect(first);
+            party.Effects.ApplyEffect(second);
+
+            double collected = CombatModifierCollector.CollectAllyDamage(
+                attacker,
+                party,
+                boss,
+                ElementType.Water).AttackIncreaseRateSum;
+
+            Assert.That(collected, Is.EqualTo(0.20d));
+            Assert.That(party.Effects.Count, Is.EqualTo(2));
+            Assert.That(first.Magnitude, Is.EqualTo(0.12d));
+            Assert.That(second.Magnitude, Is.EqualTo(0.15d));
+            Assert.That(first.RemainingTurns, Is.EqualTo(1));
+            Assert.That(second.RemainingTurns, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void CollectAllyDamage_RecalculatesGroupCapAfterExpiration()
+        {
+            CreateStates(
+                out CharacterBattleState attacker,
+                out PartyBattleState party,
+                out BossBattleState boss);
+            party.Effects.ApplyEffect(GroupedAttackEffect(
+                1,
+                "blessing",
+                0.12d,
+                1));
+            party.Effects.ApplyEffect(GroupedAttackEffect(
+                2,
+                "blessing",
+                0.15d,
+                2));
+
+            party.Effects.ProcessTurnEnd();
+
+            Assert.That(
+                CombatModifierCollector.CollectAllyDamage(
+                    attacker,
+                    party,
+                    boss,
+                    ElementType.Water).AttackIncreaseRateSum,
+                Is.EqualTo(0.15d));
+            Assert.That(party.Effects.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void CollectAllyDamage_HasNoOverallAttackIncreaseCap()
+        {
+            CreateStates(
+                out CharacterBattleState attacker,
+                out PartyBattleState party,
+                out BossBattleState boss);
+            party.Effects.ApplyEffect(GroupedAttackEffect(
+                1,
+                "blessing",
+                0.25d,
+                2));
+            party.Effects.ApplyEffect(Effect(
+                2,
+                "match4_attack",
+                EffectModifierType.AttackIncrease,
+                0.05d));
+            party.Effects.ApplyEffect(Effect(
+                3,
+                "match5_attack",
+                EffectModifierType.AttackIncrease,
+                0.09d));
+            party.Effects.ApplyEffect(Effect(
+                4,
+                "other_attack",
+                EffectModifierType.AttackIncrease,
+                0.25d));
+
+            Assert.That(
+                CombatModifierCollector.CollectAllyDamage(
+                    attacker,
+                    party,
+                    boss,
+                    ElementType.Water).AttackIncreaseRateSum,
+                Is.EqualTo(0.59d).Within(0.000000001d));
+        }
+
+        [Test]
         public void CollectAllyDamage_UsesOnlyMatchingElementEffects()
         {
             CreateStates(
@@ -420,6 +521,26 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Modifiers
                 magnitude,
                 turns,
                 id);
+        }
+
+        private static EffectInstance GroupedAttackEffect(
+            long id,
+            string effectId,
+            double magnitude,
+            int turns)
+        {
+            return new EffectInstance(
+                id,
+                effectId,
+                "source",
+                EffectCategory.Buff,
+                EffectModifierType.AttackIncrease,
+                magnitude,
+                turns,
+                id,
+                EffectStackPolicy.SeparateInstance,
+                modifierGroupId: "phoenix_blessing",
+                modifierGroupCap: 0.20d);
         }
 
         private static EffectInstance StackEffect(long id, long order)

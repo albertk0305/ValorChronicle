@@ -36,6 +36,35 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Effects
             Assert.That(effects.Count, Is.EqualTo(1));
         }
 
+        [TestCase("match4_attack", 0.05d, 2)]
+        [TestCase("match5_attack", 0.09d, 3)]
+        public void RefreshDuration_MatchBuffKeepsOneInstanceAndResetsTurns(
+            string effectId,
+            double magnitude,
+            int turns)
+        {
+            var effects = new EffectCollection();
+            EffectInstance existing = Effect(
+                1,
+                1,
+                effectId,
+                magnitude,
+                1);
+            effects.ApplyEffect(existing);
+
+            EffectInstance active = effects.ApplyEffect(Effect(
+                2,
+                2,
+                effectId,
+                magnitude,
+                turns));
+
+            Assert.That(active, Is.SameAs(existing));
+            Assert.That(effects.Count, Is.EqualTo(1));
+            Assert.That(active.Magnitude, Is.EqualTo(magnitude));
+            Assert.That(active.RemainingTurns, Is.EqualTo(turns));
+        }
+
         [Test]
         public void SeparateInstance_KeepsIndependentOrderedInstances()
         {
@@ -267,7 +296,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Effects
             double magnitude = 0.2d,
             int? turns = 2,
             EffectStackPolicy policy = EffectStackPolicy.RefreshDuration,
-            int maxStacks = 1)
+            int maxStacks = 1,
+            string modifierGroupId = null,
+            double? modifierGroupCap = null)
         {
             return new EffectInstance(
                 runtimeId,
@@ -280,7 +311,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Effects
                 creationOrder,
                 policy,
                 1,
-                maxStacks);
+                maxStacks,
+                modifierGroupId: modifierGroupId,
+                modifierGroupCap: modifierGroupCap);
         }
     }
 }

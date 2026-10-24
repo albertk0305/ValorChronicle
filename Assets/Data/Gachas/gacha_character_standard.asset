@@ -49,6 +49,7 @@ MonoBehaviour:
   - character_marea_bluefang
   - character_serena_coralspear
   - character_shimotsuki_miyuki
+  - character_fiora_amberwing
   relicPoolIds:
   - relic_victors_broken_sword
   - relic_world_tree_bark

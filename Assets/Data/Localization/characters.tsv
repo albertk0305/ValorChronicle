@@ -85,3 +85,35 @@ effect.miyuki.ice_mirror.name	Realm of Frozen Scents	설향진경
 effect.miyuki.ice_mirror.description	The party's Water damage increase is active until battle ends.	전투 종료까지 파티의 물속성 피해 증가가 적용 중입니다.
 effect.miyuki.crystal_light.name	Full Bloom Blizzard	만경빙화
 effect.miyuki.crystal_light.description	The party's Water damage increase from Full Bloom Blizzard is active.	만경빙화로 인한 파티의 물속성 피해 증가가 적용 중입니다.
+fiora	Fiora Amberwing	피오라 앰버윙
+fiora.description	A Fire healer and universal offensive supporter who converts overhealing into party ATK.	초과 회복을 파티 공격력으로 전환하는 불속성 힐러 겸 범용 공격형 서포터입니다.
+fiora.skill.match3.name	Ember of Warmth - 3 Match	온기의 불꽃 - 3매치
+fiora.skill.match3.description	Restores party HP equal to {healing}% of this character's Max HP. Match combo multiplier applies.	자신의 최대 HP의 {healing}%만큼 파티 HP를 회복합니다. 매칭 콤보 배율이 적용됩니다.
+fiora.skill.match4.name	Flame of Elation - 4 Match	고양의 불꽃 - 4매치
+fiora.skill.match4.description	Restores party HP equal to {healing}% of this character's Max HP and increases party ATK by {attack_increase}% for {duration} turns. Reuse refreshes duration without stacking this fixed buff. This buff is outside Phoenix's Blessing's 20% cap.	자신의 최대 HP의 {healing}%만큼 파티 HP를 회복하고 {duration}턴 동안 파티 공격력을 {attack_increase}% 증가시킵니다. 재발동 시 고정 버프 수치는 중첩하지 않고 지속 시간만 갱신합니다. 이 버프는 불사조의 축복 20% 상한에 포함되지 않습니다.
+fiora.skill.match5.name	Hymn of the Phoenix - 5 Match	불사조의 찬가 - 5매치
+fiora.skill.match5.description	Restores party HP equal to {healing}% of this character's Max HP and increases party ATK by {attack_increase}% for {duration} turns. Reuse refreshes duration without stacking this fixed buff. This buff is outside Phoenix's Blessing's 20% cap.	자신의 최대 HP의 {healing}%만큼 파티 HP를 회복하고 {duration}턴 동안 파티 공격력을 {attack_increase}% 증가시킵니다. 재발동 시 고정 버프 수치는 중첩하지 않고 지속 시간만 갱신합니다. 이 버프는 불사조의 축복 20% 상한에 포함되지 않습니다.
+fiora.skill.passive.name	Overflown Ember of Life	넘쳐흐르는 생명의 불꽃
+fiora.skill.passive.description	When this character causes overhealing, converts {conversion}% of the overheal ratio into a separate Phoenix's Blessing instance for {duration} turns. Each instance is capped at {instance_cap}%, and the active passive group contributes up to {group_cap}% ATK. Original instances remain intact beyond the group cap. Other ATK increases have no shared total cap.	자신의 회복으로 초과 회복이 발생하면 초과 회복 비율의 {conversion}%를 {duration}턴 동안 유지되는 별도 불사조의 축복 인스턴스로 전환합니다. 인스턴스 하나는 최대 {instance_cap}%, 활성 패시브 그룹은 공격력 증가 {group_cap}%까지만 반영하며 상한을 넘은 원본 인스턴스도 보존합니다. 다른 공격력 증가 효과와 공유하는 전체 상한은 없습니다.
+fiora.skill.active.name	Flame of Rebirth	재생의 화염
+fiora.skill.active.description	Immediately restores party HP equal to {instant_healing}% of this character's Max HP and grants {grant_count} Flame of Rebirth charges, up to {max_count}. From the next player turn, one charge restores {follow_up_healing}% before the Match Event queue, at most once per turn. Combo multiplier does not apply. Cooldown: {cooldown} turns.	파티 HP를 자신의 최대 HP의 {instant_healing}%만큼 즉시 회복하고 재생의 화염 {grant_count}회를 획득합니다. 최대 {max_count}회 보유하며, 다음 플레이어 턴부터 매칭 이벤트 큐 실행 전에 턴당 최대 1회를 소비해 자신의 최대 HP의 {follow_up_healing}%만큼 회복합니다. 콤보 배율은 적용되지 않습니다. 재사용 대기시간: {cooldown}턴.
+fiora.status.flame_of_rebirth.name	Flame of Rebirth	재생의 화염
+fiora.status.flame_of_rebirth.description	Remaining follow-up healing charges. One charge can trigger before a non-empty Match Event queue, starting from the player turn after the Active was used.	남은 후속 회복 횟수입니다. 액티브 사용 다음 플레이어 턴부터 비어 있지 않은 매칭 이벤트 큐 실행 전에 1회 발동할 수 있습니다.
+fiora.awakening.1.name	Spark of Immortality	불멸의 불씨
+fiora.awakening.1.description	Max HP multiplier increases from {multiplier_before}% to {multiplier_after}%.	최대 HP 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+fiora.awakening.2.name	Embrace of Compassion	자애로운 온기
+fiora.awakening.2.description	Healing increase changes from {healing_before}% to {healing_after}% for all of this character's healing.	자신이 발생시키는 모든 회복의 회복량 증가가 {healing_before}%에서 {healing_after}%로 변경됩니다.
+fiora.awakening.3.name	Feather of Grace	붉은 깃털의 축복
+fiora.awakening.3.description	Overheal conversion changes from {conversion_before}% to {conversion_after}%.	초과 회복 환산율이 {conversion_before}%에서 {conversion_after}%로 변경됩니다.
+fiora.awakening.4.name	Harmony of Flames	조화로운 화염
+fiora.awakening.4.description	3 Match healing changes from {match3_before}% to {match3_after}% of Max HP, and 4 Match healing changes from {match4_before}% to {match4_after}%.	3매칭 회복이 최대 HP의 {match3_before}%에서 {match3_after}%로, 4매칭 회복이 {match4_before}%에서 {match4_after}%로 변경됩니다.
+fiora.awakening.5.name	Return of the Phoenix	불사조의 재림
+fiora.awakening.5.description	Flame of Rebirth's instant healing changes from {instant_before}% to {instant_after}% of Max HP, and follow-up healing changes from {follow_up_before}% to {follow_up_after}%.	재생의 화염 즉시 회복이 최대 HP의 {instant_before}%에서 {instant_after}%로, 후속 회복이 {follow_up_before}%에서 {follow_up_after}%로 변경됩니다.
+fiora.awakening.6.name	Everlasting Radiance	영원히 불타는 광휘
+fiora.awakening.6.description	Once per player turn, a fully overhealing heal uses {full_overheal_conversion}% conversion instead of the normal {normal_conversion}% conversion. The per-instance 5% and passive-group 20% caps still apply.	플레이어 턴당 1회, 전부 초과 회복된 회복은 일반 {normal_conversion}% 대신 {full_overheal_conversion}% 환산율을 적용합니다. 인스턴스당 5%와 패시브 그룹 20% 상한은 그대로 적용됩니다.
+effect.fiora.phoenix_blessing.name	Phoenix's Blessing	불사조의 축복
+effect.fiora.phoenix_blessing.description	A separate overheal-conversion instance that increases party ATK for 2 turns. Active passive instances contribute up to 20% while preserving their original values and durations.	초과 회복을 환산해 파티 공격력을 2턴 동안 증가시키는 독립 인스턴스입니다. 활성 패시브 인스턴스는 원본 수치와 기간을 보존하면서 최대 20%까지 반영됩니다.
+effect.fiora.flame_of_elation.name	Flame of Elation	고양의 불꽃
+effect.fiora.flame_of_elation.description	Party ATK +5% for 2 turns. Reuse refreshes duration without stacking, and this effect is outside Phoenix's Blessing's 20% cap.	파티 공격력이 2턴 동안 5% 증가합니다. 재발동 시 중첩하지 않고 지속 시간을 갱신하며 불사조의 축복 20% 상한에 포함되지 않습니다.
+effect.fiora.hymn_of_the_phoenix.name	Hymn of the Phoenix	불사조의 찬가
+effect.fiora.hymn_of_the_phoenix.description	Party ATK +9% for 3 turns. Reuse refreshes duration without stacking, and this effect is outside Phoenix's Blessing's 20% cap.	파티 공격력이 3턴 동안 9% 증가합니다. 재발동 시 중첩하지 않고 지속 시간을 갱신하며 불사조의 축복 20% 상한에 포함되지 않습니다.

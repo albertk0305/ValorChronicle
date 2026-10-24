@@ -17,12 +17,27 @@ namespace ValorChronicle.Battle.Combat.Healing
                 SupportModifierCollector.Collect(
                     request.Source,
                     request.Party);
+            double healingIncreaseRateSum = Add(
+                modifiers.HealingIncreaseRateSum,
+                request.ActionLocalHealingIncreaseRate);
             return new HealingContext(
                 request.Source.MaxHp,
                 request.HealingCoefficient,
                 request.AppliesCombo,
                 request.FinalComboCount,
-                modifiers.HealingIncreaseRateSum);
+                healingIncreaseRateSum);
+        }
+
+        private static double Add(double left, double right)
+        {
+            double result = left + right;
+            if (double.IsNaN(result) || double.IsInfinity(result))
+            {
+                throw new OverflowException(
+                    "Combined healing increase must remain finite.");
+            }
+
+            return result;
         }
     }
 }

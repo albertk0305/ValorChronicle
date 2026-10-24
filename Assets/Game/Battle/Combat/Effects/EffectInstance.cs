@@ -23,7 +23,9 @@ namespace ValorChronicle.Battle.Combat.Effects
             int maxStackCount = 1,
             ElementType? elementFilter = null,
             AttackTypeMask attackTypeMask = AttackTypeMask.None,
-            AttackTag requiredAttackTags = AttackTag.None)
+            AttackTag requiredAttackTags = AttackTag.None,
+            string modifierGroupId = null,
+            double? modifierGroupCap = null)
         {
             if (runtimeId <= 0)
             {
@@ -74,6 +76,10 @@ namespace ValorChronicle.Battle.Combat.Effects
                 modifierType,
                 attackTypeMask,
                 requiredAttackTags);
+            ValidateModifierGroup(
+                modifierType,
+                modifierGroupId,
+                modifierGroupCap);
 
             RuntimeId = runtimeId;
             EffectId = effectId;
@@ -89,6 +95,8 @@ namespace ValorChronicle.Battle.Combat.Effects
             ElementFilter = elementFilter;
             AttackTypeMask = attackTypeMask;
             RequiredAttackTags = requiredAttackTags;
+            ModifierGroupId = modifierGroupId;
+            ModifierGroupCap = modifierGroupCap;
         }
 
         public long RuntimeId { get; }
@@ -105,6 +113,8 @@ namespace ValorChronicle.Battle.Combat.Effects
         public ElementType? ElementFilter { get; }
         public AttackTypeMask AttackTypeMask { get; }
         public AttackTag RequiredAttackTags { get; }
+        public string ModifierGroupId { get; }
+        public double? ModifierGroupCap { get; }
         public bool IsExpired =>
             RemainingTurns.HasValue && RemainingTurns.Value == 0;
         public double EffectiveMagnitude => Magnitude * StackCount;
@@ -291,6 +301,49 @@ namespace ValorChronicle.Battle.Combat.Effects
             {
                 throw new ArgumentException(
                     "Only attack type damage effects can use attack filters.");
+            }
+        }
+
+        private static void ValidateModifierGroup(
+            EffectModifierType modifierType,
+            string modifierGroupId,
+            double? modifierGroupCap)
+        {
+            bool hasGroupId = modifierGroupId != null;
+            if (hasGroupId && string.IsNullOrWhiteSpace(modifierGroupId))
+            {
+                throw new ArgumentException(
+                    "Modifier group ID cannot be empty or whitespace.",
+                    nameof(modifierGroupId));
+            }
+
+            if (hasGroupId != modifierGroupCap.HasValue)
+            {
+                throw new ArgumentException(
+                    "Modifier group ID and cap must be configured together.");
+            }
+
+            if (!hasGroupId)
+            {
+                return;
+            }
+
+            if (modifierType != EffectModifierType.AttackIncrease)
+            {
+                throw new ArgumentException(
+                    "Modifier group caps currently support attack increases only.",
+                    nameof(modifierGroupId));
+            }
+
+            double cap = modifierGroupCap.Value;
+            if (double.IsNaN(cap)
+                || double.IsInfinity(cap)
+                || cap < 0d)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(modifierGroupCap),
+                    modifierGroupCap,
+                    "Modifier group cap must be finite and non-negative.");
             }
         }
 

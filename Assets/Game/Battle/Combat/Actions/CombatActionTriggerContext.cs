@@ -9,7 +9,8 @@ namespace ValorChronicle.Battle.Combat.Actions
             CombatActionResult completedResult,
             BossBattleState boss,
             PartyBattleState party,
-            CombatActionExecutionHistory history)
+            CombatActionExecutionHistory history,
+            int playerTurnNumber = 0)
         {
             CompletedResult = completedResult
                 ?? throw new ArgumentNullException(nameof(completedResult));
@@ -17,6 +18,13 @@ namespace ValorChronicle.Battle.Combat.Actions
             Party = party ?? throw new ArgumentNullException(nameof(party));
             History = history
                 ?? throw new ArgumentNullException(nameof(history));
+            if (playerTurnNumber < 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(playerTurnNumber));
+            }
+
+            PlayerTurnNumber = playerTurnNumber;
             if (!history.TryGetResult(
                     completedResult.Action.ActionId,
                     out CombatActionResult recordedResult)
@@ -33,6 +41,7 @@ namespace ValorChronicle.Battle.Combat.Actions
         public BossBattleState Boss { get; }
         public PartyBattleState Party { get; }
         public CombatActionExecutionHistory History { get; }
+        public int PlayerTurnNumber { get; }
         public long ActionId => CompletedAction.ActionId;
         public long RootActionId => CompletedAction.RootActionId;
         public long? SourceActionId => CompletedAction.SourceActionId;

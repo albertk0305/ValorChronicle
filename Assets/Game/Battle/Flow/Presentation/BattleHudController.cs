@@ -124,6 +124,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
             new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> missingFaceSpriteIds =
             new HashSet<string>(StringComparer.Ordinal);
+        private readonly BattleHudEffectProjector effectProjector =
+            BattleHudEffectProjector.CreateDefault();
         public BattleFlowController BattleFlowController =>
             battleFlowController;
         public BattleSceneCombatBootstrap BattleSceneCombatBootstrap =>
@@ -1142,16 +1144,30 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
                 IReadOnlyList<EffectInstance> effects =
                     character.Effects.GetActiveEffects();
-                int renderedCount = Math.Min(
-                    effects.Count,
+                bool showCombatStatuses = !IsNormalTerminalResult(
+                    battleFlowController.Context.Result);
+                int reservedStatusCount = showCombatStatuses
+                    ? CountVisibleCharacterCombatStatuses(character)
+                    : 0;
+                reservedStatusCount = Math.Min(
+                    reservedStatusCount,
                     slot.StatusSlotCount);
+                int effectSlotCount = Math.Max(
+                    0,
+                    slot.StatusSlotCount - reservedStatusCount);
+                IReadOnlyList<BattleHudEffectProjection> projections =
+                    effectProjector.Project(effects);
+                int renderedCount = Math.Min(
+                    projections.Count,
+                    effectSlotCount);
                 for (int index = 0; index < renderedCount; index++)
                 {
-                    RenderEffect(slot.GetStatusSlot(index), effects[index]);
+                    RenderEffect(
+                        slot.GetStatusSlot(index),
+                        projections[index]);
                 }
 
-                if (!IsNormalTerminalResult(
-                        battleFlowController.Context.Result))
+                if (showCombatStatuses)
                 {
                     renderedCount = RenderCharacterCombatStatuses(
                         slot,
@@ -1166,6 +1182,31 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     slot.GetStatusSlot(index)?.SetVisible(false);
                 }
             }
+        }
+
+        private int CountVisibleCharacterCombatStatuses(
+            CharacterBattleState character)
+        {
+            BattleSceneCombatComposition composition =
+                battleSceneCombatBootstrap?.CombatComposition;
+            if (composition == null
+                || !ReferenceEquals(composition.Bridge, subscribedBridge))
+            {
+                return 0;
+            }
+
+            int count = 0;
+            IReadOnlyList<ICharacterCombatStatusSource> sources =
+                composition.CombatStatusSources;
+            for (int index = 0; index < sources.Count; index++)
+            {
+                if (IsVisibleCombatStatus(sources[index], character))
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         private int RenderCharacterCombatStatuses(
@@ -1189,14 +1230,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 index++)
             {
                 ICharacterCombatStatusSource source = sources[index];
-                if (!source.IsVisible
-                    || source.CurrentCount <= 0
-                    || source.PartySlotIndex
-                        != character.PartySlotIndex
-                    || !string.Equals(
-                        source.CharacterId,
-                        character.CharacterId,
-                        StringComparison.Ordinal))
+                if (!IsVisibleCombatStatus(source, character))
                 {
                     continue;
                 }
@@ -1211,16 +1245,31 @@ namespace ValorChronicle.Battle.Flow.Presentation
             return renderedCount;
         }
 
+        private static bool IsVisibleCombatStatus(
+            ICharacterCombatStatusSource source,
+            CharacterBattleState character)
+        {
+            return source != null
+                && source.IsVisible
+                && source.CurrentCount > 0
+                && source.PartySlotIndex == character.PartySlotIndex
+                && string.Equals(
+                    source.CharacterId,
+                    character.CharacterId,
+                    StringComparison.Ordinal);
+        }
+
         private void RenderEffects(
             BattleStatusIconView[] slots,
             IReadOnlyList<EffectInstance> effects)
         {
             int slotCount = slots?.Length ?? 0;
-            int effectCount = effects?.Count ?? 0;
-            int renderedCount = Math.Min(slotCount, effectCount);
+            IReadOnlyList<BattleHudEffectProjection> projections =
+                effectProjector.Project(effects);
+            int renderedCount = Math.Min(slotCount, projections.Count);
             for (int index = 0; index < renderedCount; index++)
             {
-                RenderEffect(slots[index], effects[index]);
+                RenderEffect(slots[index], projections[index]);
             }
 
             HideStatusSlotsFrom(slots, renderedCount);
@@ -1257,6 +1306,21 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 ResolveEffectIcon(effect.EffectId),
                 badgeValue,
                 badgeVisible);
+        }
+
+        private void RenderEffect(
+            BattleStatusIconView slot,
+            BattleHudEffectProjection projection)
+        {
+            if (slot == null || projection == null)
+            {
+                return;
+            }
+
+            slot.Render(
+                ResolveEffectIcon(projection.EffectId),
+                projection.BadgeText,
+                projection.BadgeVisible);
         }
 
         private Sprite ResolveEffectIcon(string effectId)

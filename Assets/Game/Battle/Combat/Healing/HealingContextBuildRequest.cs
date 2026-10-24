@@ -10,7 +10,8 @@ namespace ValorChronicle.Battle.Combat.Healing
             PartyBattleState party,
             double healingCoefficient,
             bool appliesCombo,
-            int finalComboCount)
+            int finalComboCount,
+            double actionLocalHealingIncreaseRate = 0d)
         {
             Source = source
                 ?? throw new ArgumentNullException(nameof(source));
@@ -32,9 +33,21 @@ namespace ValorChronicle.Battle.Combat.Healing
                     "Final combo count must be positive when combo applies.");
             }
 
+            if (double.IsNaN(actionLocalHealingIncreaseRate)
+                || double.IsInfinity(actionLocalHealingIncreaseRate)
+                || actionLocalHealingIncreaseRate < 0d)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(actionLocalHealingIncreaseRate),
+                    actionLocalHealingIncreaseRate,
+                    "Action-local healing increase must be finite and non-negative.");
+            }
+
             HealingCoefficient = healingCoefficient;
             AppliesCombo = appliesCombo;
             FinalComboCount = finalComboCount;
+            ActionLocalHealingIncreaseRate =
+                actionLocalHealingIncreaseRate;
         }
 
         public CharacterBattleState Source { get; }
@@ -42,5 +55,6 @@ namespace ValorChronicle.Battle.Combat.Healing
         public double HealingCoefficient { get; }
         public bool AppliesCombo { get; }
         public int FinalComboCount { get; }
+        public double ActionLocalHealingIncreaseRate { get; }
     }
 }

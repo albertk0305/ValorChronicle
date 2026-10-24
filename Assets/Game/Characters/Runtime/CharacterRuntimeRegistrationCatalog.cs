@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Characters.Build;
+using ValorChronicle.Characters.Fiora;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Characters.Miyuki;
 using ValorChronicle.Characters.Presentation;
@@ -81,7 +82,12 @@ namespace ValorChronicle.Characters.Runtime
                         ShimotsukiMiyukiRules.CharacterId,
                         () => new ShimotsukiMiyukiBuildModifier(),
                         () => new ShimotsukiMiyukiCombatProviderRegistrar(),
-                        () => new ShimotsukiMiyukiLookupDescriptionProvider())
+                        () => new ShimotsukiMiyukiLookupDescriptionProvider()),
+                    new CharacterRuntimeRegistration(
+                        FioraAmberwingRules.CharacterId,
+                        () => new FioraAmberwingBuildModifier(),
+                        () => new FioraAmberwingCombatProviderRegistrar(),
+                        () => new FioraAmberwingLookupDescriptionProvider())
                 });
         }
 

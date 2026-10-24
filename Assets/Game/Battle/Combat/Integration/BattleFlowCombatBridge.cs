@@ -17,6 +17,7 @@ namespace ValorChronicle.Battle.Combat.Integration
         private readonly CombatActionExecutor executor;
         private readonly MatchEventCharacterCombatExecutor
             matchCharacterExecutor;
+        private readonly PreMatchQueueCombatExecutor preMatchQueueExecutor;
         private readonly IBossCombatActionProvider bossActionProvider;
         private readonly CombatActionIdSequence actionIds;
         private readonly BattleTurnEndProcessor turnEndProcessor;
@@ -32,6 +33,9 @@ namespace ValorChronicle.Battle.Combat.Integration
         private BattleBoardMutationCommand pendingBoardCommand;
         private MatchEventCharacterCombatExecutionSession
             currentMatchCombatSession;
+        private PreMatchQueueCombatExecutionSession
+            currentPreMatchQueueCombatSession;
+        private long lastProcessedMatchQueueId;
         private ActiveAbilityCombatExecutionSession
             currentActiveCombatSession;
         private CombatActionExecutionSession currentBossCombatSession;
@@ -41,6 +45,8 @@ namespace ValorChronicle.Battle.Combat.Integration
         public event Action CombatActionsApplied;
         public event Action<MatchEventCharacterCombatExecutionStepResult>
             CombatActionStepApplied;
+        public event Action<PreMatchQueueCombatExecutionStepResult>
+            PreMatchQueueCombatActionStepApplied;
         public event Action<CombatActionExecutionStepResult>
             BossCombatActionStepApplied;
         public event Action<ActiveCombatActionExecutionStepResult>
@@ -156,7 +162,9 @@ namespace ValorChronicle.Battle.Combat.Integration
             IBattleBoardMutationSink boardMutationSink,
             string difficultyId,
             BattleResultBalance resultBalance,
-            IBattleBoardElementConversionSink boardElementConversionSink = null)
+            IBattleBoardElementConversionSink boardElementConversionSink = null,
+            IReadOnlyList<PreMatchQueueActionProviderBinding>
+                preMatchQueueBindings = null)
         {
             this.coordinator = coordinator
                 ?? throw new ArgumentNullException(nameof(coordinator));
@@ -199,6 +207,13 @@ namespace ValorChronicle.Battle.Combat.Integration
                 boss,
                 executor,
                 matchActionFactory);
+            preMatchQueueExecutor = new PreMatchQueueCombatExecutor(
+                party,
+                boss,
+                executor,
+                actionIds,
+                preMatchQueueBindings
+                    ?? Array.Empty<PreMatchQueueActionProviderBinding>());
             activeExecutor = new ActiveAbilityCombatExecutor(
                 coordinator,
                 party,
@@ -227,6 +242,11 @@ namespace ValorChronicle.Battle.Combat.Integration
         public BattleBoardMutationCompletion
             LastBossBoardMutationCompletion { get; private set; }
         public CombatActionExecutionResult LastMatchExecutionResult
+        {
+            get;
+            private set;
+        }
+        public CombatActionExecutionResult LastPreMatchQueueExecutionResult
         {
             get;
             private set;
@@ -352,6 +372,85 @@ namespace ValorChronicle.Battle.Combat.Integration
             return true;
         }
 
+        public bool TryBeginPreMatchQueueCombat()
+        {
+            if (!CanProgressPreMatchQueue()
+                || currentPreMatchQueueCombatSession != null
+                || coordinator.CurrentMatchQueueId
+                    == lastProcessedMatchQueueId)
+            {
+                return false;
+            }
+
+            IReadOnlyList<MatchEvent> matchEvents =
+                coordinator.GetPendingMatchEvents();
+            currentPreMatchQueueCombatSession =
+                preMatchQueueExecutor.BeginExecution(
+                    coordinator.Context.CurrentTurn,
+                    coordinator.CurrentMatchQueueId,
+                    matchEvents);
+            lastProcessedMatchQueueId = coordinator.CurrentMatchQueueId;
+            return true;
+        }
+
+        public bool TryGetNextPreMatchQueueCombatAction(
+            out CharacterBattleState character,
+            out CombatAction action)
+        {
+            character = null;
+            action = null;
+            return IsCurrentPreMatchQueueCombatValid()
+                && currentPreMatchQueueCombatSession.TryGetNextAction(
+                    out character,
+                    out action);
+        }
+
+        public bool TryApplyNextPreMatchQueueCombatAction(
+            out PreMatchQueueCombatExecutionStepResult stepResult)
+        {
+            stepResult = null;
+            if (!IsCurrentPreMatchQueueCombatValid()
+                || !currentPreMatchQueueCombatSession.TryExecuteNext(
+                    out stepResult))
+            {
+                return false;
+            }
+
+            damageScoreCollector.CollectAppliedAction(
+                stepResult.ActionStep.Result);
+            PreMatchQueueCombatActionStepApplied?.Invoke(stepResult);
+            return true;
+        }
+
+        public bool TryCompletePreMatchQueueCombat()
+        {
+            if (!CanProgressPreMatchQueue()
+                || currentPreMatchQueueCombatSession == null
+                || !currentPreMatchQueueCombatSession.IsCompleted
+                || currentPreMatchQueueCombatSession.MatchQueueId
+                    != coordinator.CurrentMatchQueueId)
+            {
+                return false;
+            }
+
+            LastPreMatchQueueExecutionResult =
+                currentPreMatchQueueCombatSession.Result;
+            currentPreMatchQueueCombatSession = null;
+            ValidateExecutedActionIds(LastPreMatchQueueExecutionResult);
+            NotifyCombatActionsApplied(LastPreMatchQueueExecutionResult);
+            if (boss.IsDefeated)
+            {
+                return coordinator.NotifyBossDefeated();
+            }
+
+            if (party.IsIncapacitated)
+            {
+                return coordinator.NotifyPartyIncapacitated();
+            }
+
+            return true;
+        }
+
         public bool ResolveMatchEvent(MatchEventExecution execution)
         {
             if (execution == null)
@@ -389,7 +488,9 @@ namespace ValorChronicle.Battle.Combat.Integration
             }
 
             currentMatchCombatSession =
-                matchCharacterExecutor.BeginExecution(execution);
+                matchCharacterExecutor.BeginExecution(
+                    execution,
+                    coordinator.Context.CurrentTurn);
             hasMatchingCharacter =
                 currentMatchCombatSession.HasMatchingCharacter;
             return true;
@@ -509,7 +610,9 @@ namespace ValorChronicle.Battle.Combat.Integration
             BossActionPlan plan = CreateBossActionPlan(context);
             IReadOnlyList<CombatAction> rootActions = plan.CombatActions;
             ValidateBossRootActions(rootActions, idBeforeProvider);
-            currentBossCombatSession = executor.BeginExecution(rootActions);
+            currentBossCombatSession = executor.BeginExecution(
+                rootActions,
+                currentTurn);
             currentBossActionPlan = plan;
             currentBossCombatTurn = currentTurn;
             return true;
@@ -805,6 +908,25 @@ namespace ValorChronicle.Battle.Combat.Integration
                 && ReferenceEquals(
                     coordinator.CurrentMatchEventExecution,
                     execution);
+        }
+
+        private bool CanProgressPreMatchQueue()
+        {
+            return coordinator.Context.Result == BattleResultKind.None
+                && coordinator.Context.Phase
+                    == BattlePhase.MatchEventResolving
+                && coordinator.IsMatchQueueAwaitingFirstExecution
+                && !coordinator.HasMatchEventInFlight
+                && coordinator.PendingMatchEventCount > 0
+                && coordinator.CurrentMatchQueueId > 0;
+        }
+
+        private bool IsCurrentPreMatchQueueCombatValid()
+        {
+            return currentPreMatchQueueCombatSession != null
+                && currentPreMatchQueueCombatSession.MatchQueueId
+                    == coordinator.CurrentMatchQueueId
+                && CanProgressPreMatchQueue();
         }
 
         private bool IsCurrentMatchCombatValid()

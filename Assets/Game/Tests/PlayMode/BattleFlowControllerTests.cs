@@ -19,6 +19,7 @@ using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Characters.Marea;
+using ValorChronicle.Characters.Fiora;
 using ValorChronicle.Characters.Serena;
 using ValorChronicle.Core.Pause;
 using ValorChronicle.Core.Random;
@@ -1149,6 +1150,216 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(executed[0].SequenceIndex, Is.Zero);
             Assert.That(flowController.MatchQueuePresentation.Count,
                 Is.LessThan(2));
+        }
+
+        [UnityTest]
+        public IEnumerator PreMatchQueueActionsAndTriggersFinishBeforeFirstMatch()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var order = new List<string>();
+            int providerCalls = 0;
+            BattleFlowCombatBridge bridge = AttachPreMatchQueueBridge(
+                context =>
+                {
+                    providerCalls++;
+                    return new CombatAction[]
+                    {
+                        CreatePreMatchHeal(context, ActionOrigin.System)
+                    };
+                },
+                includeDerivedTrigger: true);
+            bridge.PreMatchQueueCombatActionStepApplied += step =>
+                order.Add($"pre-{step.ActionStep.Action.Origin}");
+            flowController.Coordinator.MatchEventExecuting +=
+                _ => order.Add("match");
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+
+            yield return WaitUntil(
+                () => order.Contains("match"),
+                "The first MatchEvent did not begin.");
+
+            Assert.That(providerCalls, Is.EqualTo(1));
+            Assert.That(order, Is.EqualTo(new[]
+            {
+                "pre-System",
+                "pre-Additional",
+                "match"
+            }));
+        }
+
+        [UnityTest]
+        public IEnumerator PauseAndFlowReentryDoNotRepeatPreMatchQueue()
+        {
+            var pauseService = new GamePauseService();
+            flowController.InitializePauseService(pauseService);
+            InitializeStarted(Array.Empty<int>());
+            int providerCalls = 0;
+            int appliedActions = 0;
+            BattleFlowCombatBridge bridge = AttachPreMatchQueueBridge(
+                context =>
+                {
+                    providerCalls++;
+                    return new CombatAction[]
+                    {
+                        CreatePreMatchHeal(context, ActionOrigin.System)
+                    };
+                },
+                includeDerivedTrigger: false);
+            bridge.PreMatchQueueCombatActionStepApplied +=
+                _ => appliedActions++;
+            IDisposable pause = pauseService.RequestPause();
+
+            SendCompletedAction(
+                1,
+                CreateResolvedResult(CreateSingleMatchCascade()));
+            InvokePrivate(flowController, "StartFlowProgression");
+
+            Assert.That(providerCalls, Is.EqualTo(1));
+            Assert.That(appliedActions, Is.Zero);
+            pause.Dispose();
+
+            yield return WaitUntil(
+                () => appliedActions == 1,
+                "The paused pre-match action did not resume.");
+            Assert.That(providerCalls, Is.EqualTo(1));
+            Assert.That(appliedActions, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void InvalidBoardActionDoesNotRunPreMatchQueueProvider()
+        {
+            InitializeStarted(Array.Empty<int>());
+            int providerCalls = 0;
+            AttachPreMatchQueueBridge(
+                _ =>
+                {
+                    providerCalls++;
+                    return Array.Empty<CombatAction>();
+                },
+                includeDerivedTrigger: false);
+
+            SendCompletedAction(1, CreateNoMatchResult());
+
+            Assert.That(providerCalls, Is.Zero);
+            Assert.That(flowController.Context.Phase,
+                Is.EqualTo(BattlePhase.PlayerInput));
+        }
+
+        [UnityTest]
+        public IEnumerator FioraFollowUpBlessingCompletesBeforeFirstMatchDamage()
+        {
+            InitializeStarted(Array.Empty<int>());
+            var config = ScriptableObject.CreateInstance<
+                FioraAmberwingCombatConfig>();
+            createdObjects.Add(config);
+            var fiora = new CharacterBattleState(
+                FioraAmberwingRules.CharacterId,
+                0,
+                ElementType.Fire,
+                1000,
+                100d);
+            var ally = new CharacterBattleState(
+                "water_ally",
+                1,
+                ElementType.Water,
+                1000,
+                100d);
+            var party = new PartyBattleState(new[] { fiora, ally });
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Fire,
+                100000,
+                0d);
+            var actionIds = new CombatActionIdSequence();
+            FioraAmberwingResolvedCombatRules rules =
+                FioraAmberwingCombatRuleResolver.Resolve(
+                    config,
+                    awakening: 0);
+            var state = new FioraAmberwingBattleState(
+                fiora,
+                rules.ActiveFollowUpHealMaxCount);
+            state.GrantFollowUpHeals(2, currentTurn: 0);
+            var trigger = new FioraAmberwingOverhealBlessingRule(
+                state,
+                config,
+                awakening: 0,
+                actionIds);
+            var executor = new CombatActionExecutor(
+                boss,
+                party,
+                new DamageContextFactory(new SeededRandomSource(1)),
+                new CombatTriggerResolver(
+                    new ICombatTriggerRule[] { trigger }));
+            var matchProviders = new MatchEventActionProviderRegistry();
+            matchProviders.Register(
+                ally.CharacterId,
+                new ControllerMatchActionProvider());
+            var bridge = new BattleFlowCombatBridge(
+                flowController.Coordinator,
+                party,
+                boss,
+                executor,
+                matchProviders,
+                new ControllerBossActionProvider(),
+                actionIds,
+                Array.Empty<ActiveAbilityBinding>(),
+                new ActiveAbilityActionProviderRegistry(),
+                boardMutationSink: null,
+                difficultyId: null,
+                resultBalance: null,
+                boardElementConversionSink: null,
+                preMatchQueueBindings: new[]
+                {
+                    new PreMatchQueueActionProviderBinding(
+                        fiora,
+                        new FioraAmberwingFollowUpHealingProvider(
+                            config,
+                            awakening: 0,
+                            state))
+                });
+            flowController.AttachCombatBridge(bridge);
+            var order = new List<string>();
+            bridge.PreMatchQueueCombatActionStepApplied += step =>
+                order.Add(step.ActionStep.Action is HealAction
+                    ? "follow-up-heal"
+                    : "passive-blessing");
+            flowController.Coordinator.MatchEventExecuting +=
+                _ => order.Add("match-start");
+            bridge.CombatActionStepApplied += step =>
+            {
+                if (step.ActionStep.Action is DamageAction)
+                {
+                    order.Add("match-damage");
+                }
+            };
+            BoardCascadeResult waterCascade =
+                BattleFlowTestSupport.CreateCascade(new[]
+                {
+                    BattleFlowTestSupport.Match(
+                        ElementType.Water,
+                        new BoardPosition(0, 0),
+                        new BoardPosition(1, 0),
+                        new BoardPosition(2, 0))
+                });
+
+            SendCompletedAction(1, CreateResolvedResult(waterCascade));
+
+            yield return WaitUntil(
+                () => order.Contains("match-damage"),
+                "The first match damage did not execute.");
+            Assert.That(order, Is.EqualTo(new[]
+            {
+                "follow-up-heal",
+                "passive-blessing",
+                "match-start",
+                "match-damage"
+            }));
+            Assert.That(state.RemainingFollowUpHeals, Is.EqualTo(1));
+            Assert.That(party.Effects.GetActiveEffects().Count,
+                Is.EqualTo(1));
         }
 
         [UnityTest]
@@ -3029,6 +3240,79 @@ namespace ValorChronicle.Tests.PlayMode
             return bridge;
         }
 
+        private BattleFlowCombatBridge AttachPreMatchQueueBridge(
+            Func<PreMatchQueueActionContext,
+                IReadOnlyList<CombatAction>> createActions,
+            bool includeDerivedTrigger)
+        {
+            var character = new CharacterBattleState(
+                "pre_match_character",
+                0,
+                ElementType.Fire,
+                1000,
+                100d);
+            var party = new PartyBattleState(new[] { character });
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Grass,
+                10000,
+                0d);
+            var actionIds = new CombatActionIdSequence();
+            ICombatTriggerRule[] rules = includeDerivedTrigger
+                ? new ICombatTriggerRule[]
+                {
+                    new DerivedPreMatchHealTriggerRule(actionIds)
+                }
+                : Array.Empty<ICombatTriggerRule>();
+            var executor = new CombatActionExecutor(
+                boss,
+                party,
+                new DamageContextFactory(new SeededRandomSource(1)),
+                new CombatTriggerResolver(rules));
+            var bindings = new[]
+            {
+                new PreMatchQueueActionProviderBinding(
+                    character,
+                    new ControllerPreMatchQueueProvider(createActions))
+            };
+            var bridge = new BattleFlowCombatBridge(
+                flowController.Coordinator,
+                party,
+                boss,
+                executor,
+                new ControllerMatchActionProvider(),
+                new ControllerBossActionProvider(),
+                actionIds,
+                Array.Empty<ActiveAbilityBinding>(),
+                new ActiveAbilityActionProviderRegistry(),
+                boardMutationSink: null,
+                difficultyId: null,
+                resultBalance: null,
+                boardElementConversionSink: null,
+                preMatchQueueBindings: bindings);
+            flowController.AttachCombatBridge(bridge);
+            return bridge;
+        }
+
+        private static HealAction CreatePreMatchHeal(
+            PreMatchQueueActionContext context,
+            ActionOrigin origin,
+            long? rootActionId = null,
+            long? sourceActionId = null)
+        {
+            return new HealAction(
+                context.ActionIds.Next(),
+                origin,
+                new HealingContextBuildRequest(
+                    context.Character,
+                    context.Party,
+                    0d,
+                    false,
+                    0),
+                rootActionId,
+                sourceActionId);
+        }
+
         private BattleFlowCombatBridge AttachActiveCombatBridge(
             PartyBattleState party,
             BossBattleState boss,
@@ -3771,6 +4055,58 @@ namespace ValorChronicle.Tests.PlayMode
                             false,
                             0,
                             false),
+                        context.RootActionId,
+                        context.ActionId)
+                };
+            }
+        }
+
+        private sealed class ControllerPreMatchQueueProvider
+            : IPreMatchQueueActionProvider
+        {
+            private readonly Func<PreMatchQueueActionContext,
+                IReadOnlyList<CombatAction>> createActions;
+
+            public ControllerPreMatchQueueProvider(
+                Func<PreMatchQueueActionContext,
+                    IReadOnlyList<CombatAction>> createActions)
+            {
+                this.createActions = createActions;
+            }
+
+            public IReadOnlyList<CombatAction> CreateRootActions(
+                PreMatchQueueActionContext context)
+            {
+                return createActions(context);
+            }
+        }
+
+        private sealed class DerivedPreMatchHealTriggerRule
+            : ICombatTriggerRule
+        {
+            private readonly CombatActionIdSequence actionIds;
+
+            public DerivedPreMatchHealTriggerRule(
+                CombatActionIdSequence actionIds)
+            {
+                this.actionIds = actionIds;
+            }
+
+            public IReadOnlyList<CombatAction> CreateDerivedActions(
+                CombatActionTriggerContext context)
+            {
+                if (!(context.CompletedAction is HealAction source)
+                    || source.Origin != ActionOrigin.System)
+                {
+                    return Array.Empty<CombatAction>();
+                }
+
+                return new CombatAction[]
+                {
+                    new HealAction(
+                        actionIds.Next(),
+                        ActionOrigin.Additional,
+                        source.ContextRequest,
                         context.RootActionId,
                         context.ActionId)
                 };

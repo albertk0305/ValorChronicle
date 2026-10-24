@@ -45,6 +45,13 @@ namespace ValorChronicle.Battle.Combat.Integration
         public MatchEventCharacterCombatExecutionSession BeginExecution(
             MatchEventExecution execution)
         {
+            return BeginExecution(execution, playerTurnNumber: 0);
+        }
+
+        public MatchEventCharacterCombatExecutionSession BeginExecution(
+            MatchEventExecution execution,
+            int playerTurnNumber)
+        {
             if (execution == null)
             {
                 throw new ArgumentNullException(nameof(execution));
@@ -55,7 +62,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 party,
                 boss,
                 executor,
-                actionFactory);
+                actionFactory,
+                playerTurnNumber);
         }
     }
 }

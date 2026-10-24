@@ -11,6 +11,7 @@ namespace ValorChronicle.Battle.Combat.Actions
         private readonly BossBattleState boss;
         private readonly PartyBattleState party;
         private readonly CombatTriggerResolver triggerResolver;
+        private readonly int playerTurnNumber;
         private readonly List<CombatActionResult> results =
             new List<CombatActionResult>();
 
@@ -19,7 +20,8 @@ namespace ValorChronicle.Battle.Combat.Actions
             CombatActionQueue queue,
             BossBattleState boss,
             PartyBattleState party,
-            CombatTriggerResolver triggerResolver)
+            CombatTriggerResolver triggerResolver,
+            int playerTurnNumber)
         {
             this.executor = executor
                 ?? throw new ArgumentNullException(nameof(executor));
@@ -31,6 +33,13 @@ namespace ValorChronicle.Battle.Combat.Actions
                 ?? throw new ArgumentNullException(nameof(party));
             this.triggerResolver = triggerResolver
                 ?? throw new ArgumentNullException(nameof(triggerResolver));
+            if (playerTurnNumber < 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(playerTurnNumber));
+            }
+
+            this.playerTurnNumber = playerTurnNumber;
 
             if (IsBattleTerminal)
             {
@@ -92,7 +101,8 @@ namespace ValorChronicle.Battle.Combat.Actions
                     completedResult,
                     boss,
                     party,
-                    history);
+                    history,
+                    playerTurnNumber);
                 IReadOnlyList<CombatAction> derivedActions =
                     triggerResolver.Resolve(triggerContext);
                 queue.EnqueueNextRange(derivedActions);

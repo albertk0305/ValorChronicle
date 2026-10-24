@@ -139,6 +139,27 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Effects
                 Is.EqualTo(AttackTag.Heavy));
         }
 
+        [Test]
+        public void Constructor_ValidatesOptionalModifierGroupCap()
+        {
+            EffectInstance grouped = Effect(
+                modifierGroupId: "phoenix_blessing",
+                modifierGroupCap: 0.20d);
+
+            Assert.That(grouped.ModifierGroupId,
+                Is.EqualTo("phoenix_blessing"));
+            Assert.That(grouped.ModifierGroupCap, Is.EqualTo(0.20d));
+            Assert.Throws<ArgumentException>(() =>
+                Effect(modifierGroupId: "phoenix_blessing"));
+            Assert.Throws<ArgumentException>(() =>
+                Effect(modifierGroupCap: 0.20d));
+            Assert.Throws<ArgumentException>(() =>
+                Effect(
+                    modifierType: EffectModifierType.HealingIncrease,
+                    modifierGroupId: "healing",
+                    modifierGroupCap: 0.20d));
+        }
+
         private static EffectInstance Effect(
             long runtimeId = 1,
             string effectId = "effect",
@@ -154,7 +175,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Effects
             int maxStackCount = 1,
             ElementType? elementFilter = null,
             AttackTypeMask attackTypeMask = AttackTypeMask.None,
-            AttackTag requiredAttackTags = AttackTag.None)
+            AttackTag requiredAttackTags = AttackTag.None,
+            string modifierGroupId = null,
+            double? modifierGroupCap = null)
         {
             return new EffectInstance(
                 runtimeId,
@@ -170,7 +193,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Effects
                 maxStackCount,
                 elementFilter,
                 attackTypeMask,
-                requiredAttackTags);
+                requiredAttackTags,
+                modifierGroupId,
+                modifierGroupCap);
         }
     }
 }

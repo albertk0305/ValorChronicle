@@ -7,6 +7,7 @@ using UnityEngine;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Characters.Build;
+using ValorChronicle.Characters.Fiora;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Characters.Miyuki;
 using ValorChronicle.Characters.Presentation;
@@ -43,7 +44,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
             CharacterRuntimeRegistrationCatalog catalog =
                 CharacterRuntimeRegistrationCatalog.CreateDefault();
 
-            Assert.That(catalog.Registrations.Count, Is.EqualTo(3));
+            Assert.That(catalog.Registrations.Count, Is.EqualTo(4));
             CharacterRuntimeRegistration registration = catalog
                 .Registrations
                 .Single(item => item.CharacterId
@@ -95,11 +96,27 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
             Assert.That(
                 miyuki.CreateLookupProvider(),
                 Is.TypeOf<ShimotsukiMiyukiLookupDescriptionProvider>());
+
+            CharacterRuntimeRegistration fiora = catalog.Registrations
+                .Single(item => item.CharacterId
+                    == FioraAmberwingRules.CharacterId);
+            Assert.That(
+                fiora.SupportedCombatConfigType,
+                Is.EqualTo(typeof(FioraAmberwingCombatConfig)));
+            Assert.That(
+                fiora.CreateBuildModifier(),
+                Is.TypeOf<FioraAmberwingBuildModifier>());
+            Assert.That(
+                fiora.CreateCombatRegistrar(),
+                Is.TypeOf<FioraAmberwingCombatProviderRegistrar>());
+            Assert.That(
+                fiora.CreateLookupProvider(),
+                Is.TypeOf<FioraAmberwingLookupDescriptionProvider>());
             Assert.That(
                 catalog.Registrations.Select(item => item.CharacterId)
                     .Distinct()
                     .Count(),
-                Is.EqualTo(3));
+                Is.EqualTo(4));
         }
 
         [Test]

@@ -63,23 +63,34 @@ namespace ValorChronicle.Battle.Combat.Actions
         public CombatActionExecutionSession BeginExecution(
             IReadOnlyList<CombatAction> rootActions)
         {
+            return BeginExecution(rootActions, playerTurnNumber: 0);
+        }
+
+        public CombatActionExecutionSession BeginExecution(
+            IReadOnlyList<CombatAction> rootActions,
+            int playerTurnNumber)
+        {
             if (rootActions == null)
             {
                 throw new ArgumentNullException(nameof(rootActions));
             }
 
-            return BeginExecution(new CombatActionQueue(rootActions));
+            return BeginExecution(
+                new CombatActionQueue(rootActions),
+                playerTurnNumber);
         }
 
         private CombatActionExecutionSession BeginExecution(
-            CombatActionQueue queue)
+            CombatActionQueue queue,
+            int playerTurnNumber = 0)
         {
             return new CombatActionExecutionSession(
                 this,
                 queue,
                 boss,
                 party,
-                triggerResolver);
+                triggerResolver,
+                playerTurnNumber);
         }
 
         internal CombatActionResult ExecuteAction(
