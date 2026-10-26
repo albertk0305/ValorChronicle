@@ -165,7 +165,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Serena
             Assert.That(registration.CreateLookupProvider(),
                 Is.TypeOf<SerenaCoralspearLookupDescriptionProvider>());
             Assert.That(isolatedCatalog.Registrations.Count, Is.EqualTo(1));
-            Assert.That(defaultCatalog.Registrations.Count, Is.EqualTo(4));
+            Assert.That(defaultCatalog.Registrations.Count, Is.EqualTo(5));
             Assert.That(defaultCatalog.Registrations.Any(item =>
                 item.CharacterId == MareaBluefangRules.CharacterId),
                 Is.True);

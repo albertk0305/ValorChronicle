@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Characters.Build;
+using ValorChronicle.Characters.Brina;
 using ValorChronicle.Characters.Fiora;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Characters.Miyuki;
@@ -87,7 +88,12 @@ namespace ValorChronicle.Characters.Runtime
                         FioraAmberwingRules.CharacterId,
                         () => new FioraAmberwingBuildModifier(),
                         () => new FioraAmberwingCombatProviderRegistrar(),
-                        () => new FioraAmberwingLookupDescriptionProvider())
+                        () => new FioraAmberwingLookupDescriptionProvider()),
+                    new CharacterRuntimeRegistration(
+                        BrinaAshwoodRules.CharacterId,
+                        () => new BrinaAshwoodBuildModifier(),
+                        () => new BrinaAshwoodCombatProviderRegistrar(),
+                        () => new BrinaAshwoodLookupDescriptionProvider())
                 });
         }
 

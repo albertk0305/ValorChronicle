@@ -1251,7 +1251,6 @@ namespace ValorChronicle.Battle.Flow.Presentation
         {
             return source != null
                 && source.IsVisible
-                && source.CurrentCount > 0
                 && source.PartySlotIndex == character.PartySlotIndex
                 && string.Equals(
                     source.CharacterId,

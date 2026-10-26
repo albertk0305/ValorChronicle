@@ -7,6 +7,7 @@ using UnityEngine;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Characters.Build;
+using ValorChronicle.Characters.Brina;
 using ValorChronicle.Characters.Fiora;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Characters.Miyuki;
@@ -44,7 +45,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
             CharacterRuntimeRegistrationCatalog catalog =
                 CharacterRuntimeRegistrationCatalog.CreateDefault();
 
-            Assert.That(catalog.Registrations.Count, Is.EqualTo(4));
+            Assert.That(catalog.Registrations.Count, Is.EqualTo(5));
             CharacterRuntimeRegistration registration = catalog
                 .Registrations
                 .Single(item => item.CharacterId
@@ -112,11 +113,46 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
             Assert.That(
                 fiora.CreateLookupProvider(),
                 Is.TypeOf<FioraAmberwingLookupDescriptionProvider>());
+
+            CharacterRuntimeRegistration brina = catalog.Registrations
+                .Single(item => item.CharacterId
+                    == BrinaAshwoodRules.CharacterId);
+            Assert.That(
+                brina.SupportedCombatConfigType,
+                Is.EqualTo(typeof(BrinaAshwoodCombatConfig)));
+            Assert.That(
+                brina.CreateBuildModifier(),
+                Is.TypeOf<BrinaAshwoodBuildModifier>());
+            Assert.That(
+                brina.CreateCombatRegistrar(),
+                Is.TypeOf<BrinaAshwoodCombatProviderRegistrar>());
+            Assert.That(
+                brina.CreateLookupProvider(),
+                Is.TypeOf<BrinaAshwoodLookupDescriptionProvider>());
             Assert.That(
                 catalog.Registrations.Select(item => item.CharacterId)
                     .Distinct()
                     .Count(),
-                Is.EqualTo(4));
+                Is.EqualTo(5));
+        }
+
+        [Test]
+        public void DefaultBrinaFactoriesCreateIndependentInstances()
+        {
+            CharacterRuntimeRegistration registration =
+                CharacterRuntimeRegistrationCatalog.CreateDefault()
+                    .Registrations.Single(item => item.CharacterId
+                        == BrinaAshwoodRules.CharacterId);
+
+            Assert.That(
+                registration.CreateBuildModifier(),
+                Is.Not.SameAs(registration.CreateBuildModifier()));
+            Assert.That(
+                registration.CreateCombatRegistrar(),
+                Is.Not.SameAs(registration.CreateCombatRegistrar()));
+            Assert.That(
+                registration.CreateLookupProvider(),
+                Is.Not.SameAs(registration.CreateLookupProvider()));
         }
 
         [Test]

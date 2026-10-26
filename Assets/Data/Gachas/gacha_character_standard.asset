@@ -50,6 +50,7 @@ MonoBehaviour:
   - character_serena_coralspear
   - character_shimotsuki_miyuki
   - character_fiora_amberwing
+  - character_brina_ashwood
   relicPoolIds:
   - relic_victors_broken_sword
   - relic_world_tree_bark

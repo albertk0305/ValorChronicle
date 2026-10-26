@@ -21,6 +21,7 @@ using ValorChronicle.Battle.Flow;
 using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Bosses.Kragmor;
+using ValorChronicle.Characters.Brina;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Characters.Serena;
 using ValorChronicle.Core.Bootstrap;
@@ -47,12 +48,16 @@ namespace ValorChronicle.Tests.PlayMode
         private GameObject bootstrapRoot;
         private DefinitionDatabase testDefinitionDatabase;
         private CharacterDefinition testMareaDefinition;
+        private CharacterDefinition testBrinaDefinition;
         private CharacterDefinition testSerenaDefinition;
+        private EffectDefinition testBrinaActiveEffectDefinition;
         private EffectDefinition testSerenaActiveEffectDefinition;
+        private SkillDefinition testBrinaStatusDefinition;
         private SkillDefinition testSerenaPassiveDefinition;
         private BossDefinition testKragmorDefinition;
         private BattleResultBalanceDefinition testResultBalanceDefinition;
         private MareaBluefangCombatConfig testMareaConfig;
+        private BrinaAshwoodCombatConfig testBrinaConfig;
         private SerenaCoralspearCombatConfig testSerenaConfig;
         private KragmorCombatConfig testKragmorConfig;
         private Texture2D testSerenaEffectTexture;
@@ -425,9 +430,20 @@ namespace ValorChronicle.Tests.PlayMode
                 UnityEngine.Object.Destroy(testMareaDefinition);
             }
 
+            if (testBrinaDefinition != null)
+            {
+                UnityEngine.Object.Destroy(testBrinaDefinition);
+            }
+
             if (testSerenaDefinition != null)
             {
                 UnityEngine.Object.Destroy(testSerenaDefinition);
+            }
+
+            if (testBrinaActiveEffectDefinition != null)
+            {
+                UnityEngine.Object.Destroy(
+                    testBrinaActiveEffectDefinition);
             }
 
             if (testSerenaActiveEffectDefinition != null)
@@ -438,6 +454,11 @@ namespace ValorChronicle.Tests.PlayMode
             if (testSerenaPassiveDefinition != null)
             {
                 UnityEngine.Object.Destroy(testSerenaPassiveDefinition);
+            }
+
+            if (testBrinaStatusDefinition != null)
+            {
+                UnityEngine.Object.Destroy(testBrinaStatusDefinition);
             }
 
             if (testKragmorDefinition != null)
@@ -458,6 +479,11 @@ namespace ValorChronicle.Tests.PlayMode
             if (testMareaConfig != null)
             {
                 UnityEngine.Object.Destroy(testMareaConfig);
+            }
+
+            if (testBrinaConfig != null)
+            {
+                UnityEngine.Object.Destroy(testBrinaConfig);
             }
 
             if (testSerenaConfig != null)
@@ -714,6 +740,151 @@ namespace ValorChronicle.Tests.PlayMode
                 Is.EqualTo(BattleResultKind.Victory));
             Assert.That(slot.GetStatusSlot(0).Root.activeSelf, Is.False);
             yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator SceneComposesStandaloneBrinaWithHudAndProjectiles()
+        {
+            Assert.That(combat.Party.Characters, Has.Count.EqualTo(1));
+            CharacterBattleState brina = combat.Party.Characters[0];
+            Assert.That(brina.CharacterId,
+                Is.EqualTo(BrinaAshwoodRules.CharacterId));
+            Assert.That(brina.PartySlotIndex, Is.EqualTo(2));
+            Assert.That(brina.Element, Is.EqualTo(ElementType.Grass));
+            Assert.That(brina.MaxHp, Is.EqualTo(3570));
+            Assert.That(brina.Attack, Is.EqualTo(1103d));
+            Assert.That(combat.MatchProviders.TryResolve(
+                BrinaAshwoodRules.CharacterId,
+                out _), Is.True);
+            Assert.That(combat.ActiveProviders.TryResolve(
+                BrinaAshwoodRules.CharacterId,
+                BrinaAshwoodRules.ActiveAbilityId,
+                out _), Is.True);
+            Assert.That(combat.ActiveBindings.Single().PartySlotIndex,
+                Is.EqualTo(2));
+            var state = combat.CombatStatusSources.Single()
+                as BrinaAshwoodBattleState;
+            Assert.That(state, Is.Not.Null);
+            Assert.That(state.WoodcutCount, Is.Zero);
+
+            BattleHudController hud = UnityEngine.Object
+                .FindFirstObjectByType<BattleHudController>();
+            Assert.That(hud, Is.Not.Null);
+            Assert.That(hud.CharacterPresentationCatalog.TryGet(
+                    BrinaAshwoodRules.CharacterId,
+                    out CharacterPresentationDefinition presentation),
+                Is.True);
+            Assert.That(presentation.FaceSprite, Is.Not.Null);
+            BattleCharacterSlotView slot = hud.GetCharacterSlot(2);
+            Assert.That(slot.CharacterId,
+                Is.EqualTo(BrinaAshwoodRules.CharacterId));
+            Assert.That(slot.CharacterImage.sprite,
+                Is.SameAs(presentation.FaceSprite));
+            Assert.That(slot.CharacterImage.enabled, Is.True);
+            Assert.That(slot.ActiveButton.interactable, Is.True);
+            Assert.That(hud.TryResolvePlayerProjectileAnchors(
+                    brina.PartySlotIndex,
+                    brina.CharacterId,
+                    out RectTransform source,
+                    out RectTransform target),
+                Is.True);
+            Assert.That(source,
+                Is.SameAs(slot.CharacterImage.rectTransform));
+            Assert.That(target, Is.SameAs(hud.BossImage.rectTransform));
+
+            BattleStatusIconView initialWoodcut = slot.GetStatusSlot(0);
+            Assert.That(initialWoodcut.Root.activeSelf, Is.True);
+            Assert.That(initialWoodcut.ValueText.text, Is.EqualTo("0"));
+            Sprite defaultStatusSprite = initialWoodcut.IconImage.sprite;
+
+            ClickThroughEventSystem(slot.ActiveButton);
+            float activeDeadline = Time.realtimeSinceStartup + 5f;
+            while (brina.Effects.FindByEffectId(
+                       BrinaAshwoodRules.ActiveEffectId).Count == 0
+                && Time.realtimeSinceStartup < activeDeadline)
+            {
+                yield return null;
+            }
+
+            Assert.That(brina.Effects.FindByEffectId(
+                    BrinaAshwoodRules.ActiveEffectId),
+                Has.Count.EqualTo(1));
+            Assert.That(flow.Context.ActiveAbilities[0].RemainingCooldown,
+                Is.EqualTo(7));
+            BattleStatusIconView activeStatus = slot.GetStatusSlot(0);
+            BattleStatusIconView woodcutStatus = slot.GetStatusSlot(1);
+            Assert.That(activeStatus.Root.activeSelf, Is.True);
+            Assert.That(activeStatus.IconImage.sprite,
+                Is.SameAs(defaultStatusSprite));
+            Assert.That(activeStatus.ValueText.text, Is.EqualTo("1"));
+            Assert.That(woodcutStatus.Root.activeSelf, Is.True);
+            Assert.That(woodcutStatus.IconImage.sprite,
+                Is.SameAs(defaultStatusSprite));
+            Assert.That(woodcutStatus.ValueText.text, Is.EqualTo("0"));
+
+            state.GainWoodcut(9);
+            CombatActionExecutionResult result = ResolveGrassMatch(
+                blockCount: 3);
+            DamageActionResult[] damages = result.ActionResults
+                .OfType<DamageActionResult>().ToArray();
+            Assert.That(damages.Select(item => item.Action.Origin),
+                Is.EqualTo(new[]
+                {
+                    ActionOrigin.Match,
+                    ActionOrigin.Additional
+                }));
+            Assert.That(damages[0].Context.SkillCoefficient,
+                Is.EqualTo(1.35d));
+            Assert.That(damages[1].Context.SkillCoefficient,
+                Is.EqualTo(5.25d));
+            Assert.That(damages.All(item =>
+                    ReferenceEquals(
+                        ((DamageAction)item.Action).ContextRequest.Attacker,
+                        brina)),
+                Is.True);
+            Assert.That(state.WoodcutCount, Is.EqualTo(2));
+            Assert.That(brina.Effects.FindByEffectId(
+                BrinaAshwoodRules.ActiveEffectId), Is.Empty);
+            Assert.That(slot.GetStatusSlot(0).Root.activeSelf, Is.True);
+            Assert.That(slot.GetStatusSlot(0).IconImage.sprite,
+                Is.SameAs(defaultStatusSprite));
+            Assert.That(slot.GetStatusSlot(0).ValueText.text,
+                Is.EqualTo("2"));
+            Assert.That(slot.GetStatusSlot(1).Root.activeSelf, Is.False);
+
+            BattleCombatPresentationController combatPresentation =
+                flow.CombatPresentationController;
+            foreach (DamageActionResult damage in damages)
+            {
+                DamageAction action = (DamageAction)damage.Action;
+                bool completed = false;
+                MatchDamageProjectileCompletion completion =
+                    MatchDamageProjectileCompletion.Cancelled;
+                Assert.That(combatPresentation.TryPresent(
+                    new MatchDamageProjectileRequest(
+                        action.ContextRequest.Attacker.PartySlotIndex,
+                        action.ContextRequest.Attacker.CharacterId,
+                        damage.Context.AttackElement),
+                    value =>
+                    {
+                        completion = value;
+                        completed = true;
+                    }), Is.True);
+                Assert.That(combatPresentation.ProjectilePool.ActiveCount,
+                    Is.EqualTo(1));
+                float projectileDeadline = Time.realtimeSinceStartup + 2f;
+                while (!completed
+                    && Time.realtimeSinceStartup < projectileDeadline)
+                {
+                    yield return null;
+                }
+
+                Assert.That(completed, Is.True);
+                Assert.That(completion,
+                    Is.EqualTo(MatchDamageProjectileCompletion.Arrived));
+                Assert.That(combatPresentation.ProjectilePool.ActiveCount,
+                    Is.Zero);
+            }
         }
 
         [UnityTest]
@@ -1293,11 +1464,32 @@ namespace ValorChronicle.Tests.PlayMode
             int blockCount,
             bool completeBossAction = true)
         {
+            return ResolveMatch(
+                ElementType.Water,
+                blockCount,
+                completeBossAction);
+        }
+
+        private CombatActionExecutionResult ResolveGrassMatch(
+            int blockCount,
+            bool completeBossAction = true)
+        {
+            return ResolveMatch(
+                ElementType.Grass,
+                blockCount,
+                completeBossAction);
+        }
+
+        private CombatActionExecutionResult ResolveMatch(
+            ElementType element,
+            int blockCount,
+            bool completeBossAction)
+        {
             Assert.That(flow.Context.Phase,
                 Is.EqualTo(BattlePhase.PlayerInput));
             Assert.That(flow.Coordinator.TryBeginBoardResolution(), Is.True);
             Assert.That(flow.Coordinator.NotifyBoardActionResolved(
-                CreateWaterCascade(blockCount),
+                CreateCascade(element, blockCount),
                 consumesTurn: true), Is.True);
             Assert.That(flow.Coordinator.TryBeginNextMatchEvent(
                 out MatchEventExecution execution), Is.True);
@@ -1366,6 +1558,13 @@ namespace ValorChronicle.Tests.PlayMode
 
         private static BoardCascadeResult CreateWaterCascade(int blockCount)
         {
+            return CreateCascade(ElementType.Water, blockCount);
+        }
+
+        private static BoardCascadeResult CreateCascade(
+            ElementType element,
+            int blockCount)
+        {
             var board = new BoardState();
             var positions = new List<BoardPosition>(blockCount);
             var removals = new List<BoardBlockRemoval>(blockCount);
@@ -1375,7 +1574,7 @@ namespace ValorChronicle.Tests.PlayMode
                 var block = new BoardBlock(
                     index + 1,
                     BoardBlockType.Normal,
-                    ElementType.Water);
+                    element);
                 positions.Add(position);
                 removals.Add(CreateNonPublic<BoardBlockRemoval>(
                     block,
@@ -1383,7 +1582,7 @@ namespace ValorChronicle.Tests.PlayMode
             }
 
             BoardMatch match = CreateNonPublic<BoardMatch>(
-                ElementType.Water,
+                element,
                 ResolveTier(blockCount),
                 positions[0],
                 positions);
@@ -1614,11 +1813,16 @@ namespace ValorChronicle.Tests.PlayMode
                 testName,
                 nameof(SceneComposesStandaloneSerenaFromOwnedPartyProfile),
                 StringComparison.Ordinal);
+            bool standaloneBrina = string.Equals(
+                testName,
+                nameof(SceneComposesStandaloneBrinaWithHudAndProjectiles),
+                StringComparison.Ordinal);
             bool mareaAndSerena = string.Equals(
                 testName,
                 nameof(SceneComposesMareaAndSerenaWithSharedCombatState),
                 StringComparison.Ordinal);
             bool includeSerena = standaloneSerena || mareaAndSerena;
+            bool includeBrina = standaloneBrina;
 
             testMareaConfig = ScriptableObject.CreateInstance<
                 MareaBluefangCombatConfig>();
@@ -1724,6 +1928,47 @@ namespace ValorChronicle.Tests.PlayMode
                     testSerenaChaseIcon);
             }
 
+            if (includeBrina)
+            {
+                testBrinaConfig = ScriptableObject.CreateInstance<
+                    BrinaAshwoodCombatConfig>();
+                testBrinaDefinition = ScriptableObject.CreateInstance<
+                    CharacterDefinition>();
+                SetField(
+                    testBrinaDefinition,
+                    "id",
+                    BrinaAshwoodRules.CharacterId);
+                SetField(
+                    testBrinaDefinition,
+                    "element",
+                    ElementType.Grass);
+                SetField(testBrinaDefinition, "level1Hp", 900);
+                SetField(testBrinaDefinition, "level1Attack", 180);
+                SetField(testBrinaDefinition, "level100Hp", 3400);
+                SetField(testBrinaDefinition, "level100Attack", 1050);
+                SetField(
+                    testBrinaDefinition,
+                    "combatConfig",
+                    testBrinaConfig);
+
+                testBrinaStatusDefinition =
+                    ScriptableObject.CreateInstance<SkillDefinition>();
+                SetField(
+                    testBrinaStatusDefinition,
+                    "id",
+                    BrinaAshwoodRules.WoodcutStatusId);
+                SetField(
+                    testBrinaStatusDefinition,
+                    "skillKind",
+                    SkillKind.Passive);
+                testBrinaActiveEffectDefinition =
+                    ScriptableObject.CreateInstance<EffectDefinition>();
+                SetField(
+                    testBrinaActiveEffectDefinition,
+                    "id",
+                    BrinaAshwoodRules.ActiveEffectId);
+            }
+
             testKragmorDefinition = ScriptableObject.CreateInstance<
                 BossDefinition>();
             testKragmorConfig = ScriptableObject.CreateInstance<
@@ -1769,11 +2014,15 @@ namespace ValorChronicle.Tests.PlayMode
                     new BossDifficultyStats(
                         BattleDifficultyIds.Normal,
                         maxHp: 66000,
-                        attack: includeSerena ? 100d : 850d),
+                        attack: includeSerena || includeBrina
+                            ? 100d
+                            : 850d),
                     new BossDifficultyStats(
                         BattleDifficultyIds.Challenge,
                         maxHp: 66000,
-                        attack: includeSerena ? 100d : 850d)
+                        attack: includeSerena || includeBrina
+                            ? 100d
+                            : 850d)
                 });
 
             testDefinitionDatabase = ScriptableObject.CreateInstance<
@@ -1781,7 +2030,9 @@ namespace ValorChronicle.Tests.PlayMode
             SetField(
                 testDefinitionDatabase,
                 "characters",
-                includeSerena
+                includeBrina
+                    ? new[] { testBrinaDefinition }
+                    : includeSerena
                     ? new[]
                     {
                         testMareaDefinition,
@@ -1803,6 +2054,17 @@ namespace ValorChronicle.Tests.PlayMode
                     "effects",
                     new[] { testSerenaActiveEffectDefinition });
             }
+            else if (includeBrina)
+            {
+                SetField(
+                    testDefinitionDatabase,
+                    "skills",
+                    new[] { testBrinaStatusDefinition });
+                SetField(
+                    testDefinitionDatabase,
+                    "effects",
+                    new[] { testBrinaActiveEffectDefinition });
+            }
             testResultBalanceDefinition = CreateResultBalanceDefinition();
             SetField(
                 testDefinitionDatabase,
@@ -1823,7 +2085,7 @@ namespace ValorChronicle.Tests.PlayMode
             SaveTransactionResult partySetup =
                 saveService.ExecuteTransaction(profile =>
                 {
-                    if (!standaloneSerena)
+                    if (!standaloneSerena && !standaloneBrina)
                     {
                         profile.Characters.Add(new CharacterSaveData
                         {
@@ -1847,6 +2109,18 @@ namespace ValorChronicle.Tests.PlayMode
                         profile.Party.Presets[0].CharacterSlotIds[
                             mareaAndSerena ? 1 : 0] =
                             SerenaCoralspearRules.CharacterId;
+                    }
+
+                    if (includeBrina)
+                    {
+                        profile.Characters.Add(new CharacterSaveData
+                        {
+                            CharacterId = BrinaAshwoodRules.CharacterId,
+                            Level = 100,
+                            Awakening = 6
+                        });
+                        profile.Party.Presets[0].CharacterSlotIds[2] =
+                            BrinaAshwoodRules.CharacterId;
                     }
                 });
             Assert.That(partySetup.IsSuccess, Is.True, partySetup.Message);

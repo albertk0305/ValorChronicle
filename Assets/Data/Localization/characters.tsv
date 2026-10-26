@@ -111,6 +111,33 @@ fiora.awakening.5.name	Return of the Phoenix	불사조의 재림
 fiora.awakening.5.description	Flame of Rebirth's instant healing changes from {instant_before}% to {instant_after}% of Max HP, and follow-up healing changes from {follow_up_before}% to {follow_up_after}%.	재생의 화염 즉시 회복이 최대 HP의 {instant_before}%에서 {instant_after}%로, 후속 회복이 {follow_up_before}%에서 {follow_up_after}%로 변경됩니다.
 fiora.awakening.6.name	Everlasting Radiance	영원히 불타는 광휘
 fiora.awakening.6.description	Once per player turn, a fully overhealing heal uses {full_overheal_conversion}% conversion instead of the normal {normal_conversion}% conversion. The per-instance 5% and passive-group 20% caps still apply.	플레이어 턴당 1회, 전부 초과 회복된 회복은 일반 {normal_conversion}% 대신 {full_overheal_conversion}% 환산율을 적용합니다. 인스턴스당 5%와 패시브 그룹 20% 상한은 그대로 적용됩니다.
+brina	Brina Ashwood	브리나 애쉬우드
+brina.skill.match3.name	Branch Cut - 3 Match	잔가지 베기 - 3매치
+brina.skill.match3.description	Deals {coefficient}% ATK as Grass damage, then gains {woodcut_gain} Woodcut.	공격력의 {coefficient}%만큼 풀속성 피해를 준 후 벌목 {woodcut_gain}개를 얻습니다.
+brina.skill.match4.name	Heavy Chop - 4 Match	힘찬 내려찍기 - 4매치
+brina.skill.match4.description	Deals {coefficient}% ATK as Grass damage, then gains {woodcut_gain} Woodcut.	공격력의 {coefficient}%만큼 풀속성 피해를 준 후 벌목 {woodcut_gain}개를 얻습니다.
+brina.skill.match5.name	Felling Wedge - 5+ Match	쐐기 베기 - 5매치 이상
+brina.skill.match5.description	Deals {coefficient}% ATK as Grass damage, then gains {woodcut_gain} Woodcut.	공격력의 {coefficient}%만큼 풀속성 피해를 준 후 벌목 {woodcut_gain}개를 얻습니다.
+brina.skill.passive.name	Ten Chops	열 번의 도끼질
+brina.skill.passive.description	After gaining Woodcut, consumes each set of {threshold} Woodcut to perform a separate Additional attack dealing {coefficient}% ATK as Grass damage. Match combo multiplier does not apply.	벌목을 얻은 후 벌목 {threshold}개 단위로 소모하여 공격력의 {coefficient}%만큼 풀속성 피해를 주는 별도의 Additional 공격을 합니다. 매칭 콤보 배율은 적용되지 않습니다.
+brina.skill.active.name	Swing Hard!	힘껏 찍어!
+brina.skill.active.description	For {duration} turn, ending with the turn it is used, changes the base Woodcut gained from this character's Grass Matches to {woodcut_multiplier}% of its normal amount. Other direct Woodcut grants and the Awakening 6 bonus are not multiplied. Cooldown: {cooldown} turns.	사용한 턴이 끝날 때까지 {duration}턴 동안 이 캐릭터의 풀속성 매칭으로 얻는 기본 벌목 획득량을 평소의 {woodcut_multiplier}%로 변경합니다. 다른 직접 벌목 지급과 6각성 보너스는 배율을 적용하지 않습니다. 재사용 대기시간: {cooldown}턴.
+brina.effect.swing_hard.name	Swing Hard!	힘껏 찍어!
+brina.effect.swing_hard.description	This turn, base Woodcut gained from Brina's Grass Matches is doubled. Other direct grants and the Awakening 6 bonus are not doubled.	이번 턴 브리나의 풀속성 매칭으로 얻는 기본 벌목 획득량이 2배가 됩니다. 다른 직접 지급과 6각성 보너스는 2배가 되지 않습니다.
+brina.status.woodcut.name	Woodcut	벌목
+brina.status.woodcut.description	Current Woodcut count. Each set of 10 is consumed to trigger Ten Chops.	현재 벌목 수입니다. 10개 단위로 소모하여 열 번의 도끼질을 발동합니다.
+brina.awakening.1.name	Honed Axe	날 세운 도끼
+brina.awakening.1.description	ATK multiplier increases from {multiplier_before}% to {multiplier_after}%.	공격력 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+brina.awakening.2.name	Forest-Hardened	숲에서 단련된 몸
+brina.awakening.2.description	HP multiplier increases from {multiplier_before}% to {multiplier_after}%.	HP 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+brina.awakening.3.name	Until It Falls	쓰러뜨릴 때까지
+brina.awakening.3.description	Ten Chops' Additional attack changes from {coefficient_before}% to {coefficient_after}% ATK.	열 번의 도끼질의 Additional 공격력 계수가 {coefficient_before}%에서 {coefficient_after}%로 변경됩니다.
+brina.awakening.4.name	Seasoned Axe Work	노련한 도끼질
+brina.awakening.4.description	3 Match changes from {match3_before}% to {match3_after}% ATK, and 4 Match changes from {match4_before}% to {match4_after}% ATK.	3매치 공격력 계수가 {match3_before}%에서 {match3_after}%로, 4매치 공격력 계수가 {match4_before}%에서 {match4_after}%로 변경됩니다.
+brina.awakening.5.name	Practiced Swing	손에 익은 도끼
+brina.awakening.5.description	Swing Hard!'s cooldown changes from {cooldown_before} to {cooldown_after} turns.	힘껏 찍어!의 재사용 대기시간이 {cooldown_before}턴에서 {cooldown_after}턴으로 변경됩니다.
+brina.awakening.6.name	The First Cut Runs Deep	첫 자국은 깊게
+brina.awakening.6.description	The first time Woodcut is gained each player turn, the bonus changes from {first_gain_before} to {first_gain_after}. This bonus is not multiplied by Swing Hard!.	매 플레이어 턴 처음 벌목을 얻을 때 추가 획득량이 {first_gain_before}개에서 {first_gain_after}개로 변경됩니다. 이 보너스에는 힘껏 찍어!의 배율이 적용되지 않습니다.
 effect.fiora.phoenix_blessing.name	Phoenix's Blessing	불사조의 축복
 effect.fiora.phoenix_blessing.description	A separate overheal-conversion instance that increases party ATK for 2 turns. Active passive instances contribute up to 20% while preserving their original values and durations.	초과 회복을 환산해 파티 공격력을 2턴 동안 증가시키는 독립 인스턴스입니다. 활성 패시브 인스턴스는 원본 수치와 기간을 보존하면서 최대 20%까지 반영됩니다.
 effect.fiora.flame_of_elation.name	Flame of Elation	고양의 불꽃
