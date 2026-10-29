@@ -43,6 +43,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
             private set;
         }
         public BattleSfxPresenter SfxPresenter { get; private set; }
+        public BattleScreenShake ScreenShake { get; private set; }
+        public BattleHitShakePresenter HitShakePresenter { get; private set; }
 
         private void Awake()
         {
@@ -52,6 +54,10 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private void OnDestroy()
         {
             UnsubscribeResultAudio();
+            HitShakePresenter?.Dispose();
+            HitShakePresenter = null;
+            ScreenShake?.StopAndRestore();
+            ScreenShake = null;
             SfxPresenter?.Dispose();
             SfxPresenter = null;
             CombatComposition?.Dispose();
@@ -214,6 +220,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
             BattleSceneCombatComposition composition = null;
             BattleSfxPresenter sfxPresenter = null;
+            BattleScreenShake screenShake = null;
+            BattleHitShakePresenter hitShakePresenter = null;
             try
             {
                 GamePauseService pauseService =
@@ -257,6 +265,19 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 sfxPresenter.Initialize(
                     boardController,
                     composition.Bridge);
+                screenShake = battleFlowController.GetComponent<
+                    BattleScreenShake>();
+                if (screenShake == null)
+                {
+                    screenShake = battleFlowController.gameObject
+                        .AddComponent<BattleScreenShake>();
+                }
+
+                hitShakePresenter = new BattleHitShakePresenter(screenShake);
+                hitShakePresenter.Initialize(
+                    composition.Bridge,
+                    battleFlowController,
+                    pauseService);
                 if (composition.ResultPersistenceCoordinator != null
                     && resultPresentationController != null)
                 {
@@ -273,11 +294,17 @@ namespace ValorChronicle.Battle.Flow.Presentation
 
                 CombatComposition = composition;
                 SfxPresenter = sfxPresenter;
+                ScreenShake = screenShake;
+                HitShakePresenter = hitShakePresenter;
                 HasInitializedFlow = true;
             }
             catch (Exception exception)
             {
                 UnsubscribeResultAudio();
+                hitShakePresenter?.Dispose();
+                HitShakePresenter = null;
+                screenShake?.StopAndRestore();
+                ScreenShake = null;
                 sfxPresenter?.Dispose();
                 SfxPresenter = null;
                 composition?.Dispose();

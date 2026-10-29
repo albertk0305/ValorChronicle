@@ -135,6 +135,10 @@ namespace ValorChronicle.Tests.PlayMode
             int patternIndex = combat.KragmorRuntimeState.PatternIndex;
             int resultCount = 0;
             int sceneLoadStartCount = 0;
+            BattleScreenShake screenShake = combatBootstrap.ScreenShake;
+            RectTransform shakeTarget = screenShake.GetComponent<
+                RectTransform>();
+            Vector2 shakeOrigin = shakeTarget.anchoredPosition;
             flow.BattleResultReached += _ => resultCount++;
             GameBootstrapper.Instance.SceneService.LoadingStateChanged +=
                 isLoading =>
@@ -145,6 +149,8 @@ namespace ValorChronicle.Tests.PlayMode
                     }
                 };
             SetField(boardInput, "isTrackingPointer", true);
+            Assert.That(screenShake.Shake(), Is.True);
+            Assert.That(screenShake.IsShaking, Is.True);
 
             ClickThroughEventSystem(pausePanelBinding.PauseButton);
             yield return null;
@@ -171,6 +177,8 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(boardController.IsExternalInputEnabled, Is.False);
             Assert.That(boardInput.IsTrackingPointer, Is.False);
             Assert.That(flow.CanUseActive(0), Is.False);
+            Assert.That(screenShake.IsShaking, Is.False);
+            Assert.That(shakeTarget.anchoredPosition, Is.EqualTo(shakeOrigin));
 
             ClickThroughEventSystem(pausePanelBinding.GiveUpButton);
             Assert.That(pausePanelBinding.IsGiveUpConfirmationOpen, Is.True);
@@ -203,6 +211,7 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(pausePanelBinding.IsOpen, Is.False);
             Assert.That(gamePauseService.ActiveRequestCount, Is.Zero);
             Assert.That(gamePauseService.IsPaused, Is.False);
+            Assert.That(screenShake.IsShaking, Is.False);
             Assert.That(Time.timeScale, Is.EqualTo(0.5f).Within(0.0001f));
             Assert.That(flow.Context.Phase, Is.EqualTo(phase));
             Assert.That(flow.Context.CurrentTurn, Is.EqualTo(turn));
@@ -218,11 +227,21 @@ namespace ValorChronicle.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator UnloadingBattleSceneDisposesBattleSfxPresenter()
+        public IEnumerator UnloadingBattleSceneDisposesBattlePresenters()
         {
-            BattleSfxPresenter presenter = combatBootstrap.SfxPresenter;
-            Assert.That(presenter, Is.Not.Null);
-            Assert.That(presenter.IsInitialized, Is.True);
+            BattleSfxPresenter sfxPresenter = combatBootstrap.SfxPresenter;
+            BattleHitShakePresenter hitShakePresenter =
+                combatBootstrap.HitShakePresenter;
+            BattleScreenShake screenShake = combatBootstrap.ScreenShake;
+            Assert.That(sfxPresenter, Is.Not.Null);
+            Assert.That(sfxPresenter.IsInitialized, Is.True);
+            Assert.That(hitShakePresenter, Is.Not.Null);
+            Assert.That(hitShakePresenter.IsInitialized, Is.True);
+            Assert.That(screenShake, Is.Not.Null);
+            Assert.That(screenShake.gameObject, Is.SameAs(flow.gameObject));
+            Assert.That(screenShake.gameObject.name, Is.EqualTo("GameContent"));
+            Assert.That(screenShake.Shake(), Is.True);
+            Assert.That(screenShake.IsShaking, Is.True);
 
             Scene battleScene = SceneManager.GetSceneByName("Battle");
             Assert.That(battleScene.IsValid(), Is.True);
@@ -231,7 +250,9 @@ namespace ValorChronicle.Tests.PlayMode
             yield return SceneManager.UnloadSceneAsync(battleScene);
             yield return null;
 
-            Assert.That(presenter.IsInitialized, Is.False);
+            Assert.That(sfxPresenter.IsInitialized, Is.False);
+            Assert.That(hitShakePresenter.IsInitialized, Is.False);
+            Assert.That(screenShake.IsShaking, Is.False);
         }
 
         [UnityTest]
@@ -266,6 +287,13 @@ namespace ValorChronicle.Tests.PlayMode
                 Is.EqualTo(BattleResultKind.None));
             Assert.That(navigationCount, Is.Zero);
 
+            BattleScreenShake screenShake = combatBootstrap.ScreenShake;
+            RectTransform shakeTarget = screenShake.GetComponent<
+                RectTransform>();
+            Vector2 shakeOrigin = shakeTarget.anchoredPosition;
+            Assert.That(screenShake.Shake(), Is.True);
+            Assert.That(screenShake.IsShaking, Is.True);
+
             ClickThroughEventSystem(pausePanelBinding.ConfirmGiveUpButton);
             yield return null;
 
@@ -274,6 +302,8 @@ namespace ValorChronicle.Tests.PlayMode
             Assert.That(navigationCount, Is.EqualTo(1));
             Assert.That(gamePauseService.ActiveRequestCount, Is.Zero);
             Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(screenShake.IsShaking, Is.False);
+            Assert.That(shakeTarget.anchoredPosition, Is.EqualTo(shakeOrigin));
             Assert.That(
                 combat.ResultPersistenceCoordinator.IsPersistenceCompleted,
                 Is.False);

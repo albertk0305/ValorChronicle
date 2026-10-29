@@ -221,6 +221,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 combatBootstrap.CombatComposition;
             BattleSfxPresenter sfxPresenter =
                 combatBootstrap.SfxPresenter;
+            BattleScreenShake screenShake = combatBootstrap.ScreenShake;
+            BattleHitShakePresenter hitShakePresenter =
+                combatBootstrap.HitShakePresenter;
             InvokePrivate(combatBootstrap, "InitializeFlowOnce");
 
             Assert.That(combatBootstrap.HasInitializedFlow, Is.True);
@@ -231,6 +234,20 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(sfxPresenter.IsInitialized, Is.True);
             Assert.That(combatBootstrap.SfxPresenter,
                 Is.SameAs(sfxPresenter));
+            Assert.That(screenShake, Is.Not.Null);
+            Assert.That(combatBootstrap.ScreenShake,
+                Is.SameAs(screenShake));
+            Assert.That(root.GetComponents<BattleScreenShake>(),
+                Has.Length.EqualTo(1));
+            Assert.That(hitShakePresenter, Is.Not.Null);
+            Assert.That(hitShakePresenter.IsInitialized, Is.True);
+            Assert.That(combatBootstrap.HitShakePresenter,
+                Is.SameAs(hitShakePresenter));
+            Assert.That(hitShakePresenter.Initialize(
+                    composition.Bridge,
+                    flowController,
+                    gamePauseService),
+                Is.False);
             Assert.That(sfxPresenter.Initialize(
                     (BattleBoardController)flowController.BoardMutationSink,
                     composition.Bridge),
@@ -295,6 +312,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         {
             InvokePrivate(combatBootstrap, "InitializeFlowOnce");
             BattleSfxPresenter presenter = combatBootstrap.SfxPresenter;
+            BattleScreenShake screenShake = combatBootstrap.ScreenShake;
+            BattleHitShakePresenter hitShakePresenter =
+                combatBootstrap.HitShakePresenter;
             BattleSceneCombatComposition composition =
                 combatBootstrap.CombatComposition;
             var boardController = (BattleBoardController)
@@ -305,21 +325,39 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(combatBootstrap.SfxPresenter,
                 Is.SameAs(presenter));
             Assert.That(presenter.IsInitialized, Is.True);
+            Assert.That(screenShake, Is.Not.Null);
+            Assert.That(hitShakePresenter, Is.Not.Null);
+            Assert.That(hitShakePresenter.IsInitialized, Is.True);
             AssertPresenterSubscriptions(
                 boardController,
                 bridge,
                 presenter,
+                expected: true);
+            AssertHitShakeSubscriptions(
+                bridge,
+                flowController,
+                gamePauseService,
+                hitShakePresenter,
                 expected: true);
 
             Assert.DoesNotThrow(() =>
                 InvokePrivate(combatBootstrap, "OnDestroy"));
 
             Assert.That(presenter.IsInitialized, Is.False);
+            Assert.That(hitShakePresenter.IsInitialized, Is.False);
             Assert.That(combatBootstrap.SfxPresenter, Is.Null);
+            Assert.That(combatBootstrap.HitShakePresenter, Is.Null);
+            Assert.That(combatBootstrap.ScreenShake, Is.Null);
             AssertPresenterSubscriptions(
                 boardController,
                 bridge,
                 presenter,
+                expected: false);
+            AssertHitShakeSubscriptions(
+                bridge,
+                flowController,
+                gamePauseService,
+                hitShakePresenter,
                 expected: false);
             Assert.DoesNotThrow(() =>
                 InvokePrivate(combatBootstrap, "OnDestroy"));
@@ -342,6 +380,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(combatBootstrap.HasInitializedFlow, Is.False);
             Assert.That(combatBootstrap.CombatComposition, Is.Null);
             Assert.That(flowController.Context, Is.Null);
+            Assert.That(combatBootstrap.HitShakePresenter, Is.Null);
+            Assert.That(combatBootstrap.ScreenShake, Is.Null);
+            Assert.That(root.GetComponents<BattleScreenShake>(), Is.Empty);
         }
 
         [Test]
@@ -1037,6 +1078,30 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             return handlers != null
                 && handlers.GetInvocationList().Any(handler =>
                     ReferenceEquals(handler.Target, subscriber));
+        }
+
+        private static void AssertHitShakeSubscriptions(
+            BattleFlowCombatBridge bridge,
+            BattleFlowController flowController,
+            GamePauseService pauseService,
+            BattleHitShakePresenter presenter,
+            bool expected)
+        {
+            Assert.That(HasEventSubscriber(
+                    bridge,
+                    "BossCombatActionStepApplied",
+                    presenter),
+                Is.EqualTo(expected));
+            Assert.That(HasEventSubscriber(
+                    flowController,
+                    "BattleResultReached",
+                    presenter),
+                Is.EqualTo(expected));
+            Assert.That(HasEventSubscriber(
+                    pauseService,
+                    "PauseStateChanged",
+                    presenter),
+                Is.EqualTo(expected));
         }
 
         private static BattleResultBalanceDefinition
