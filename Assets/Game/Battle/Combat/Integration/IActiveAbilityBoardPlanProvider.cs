@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using ValorChronicle.Battle.Board;
+using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Data.Definitions;
 
@@ -24,6 +26,16 @@ namespace ValorChronicle.Battle.Combat.Integration
     {
         void CommitBoardSuccess(
             ActiveAbilityBoardSuccessContext context);
+    }
+
+    /// <summary>
+    /// Optionally creates Active-origin root actions after a Board Active has
+    /// committed its Board conversion and success state.
+    /// </summary>
+    public interface IActiveAbilityBoardSuccessActionProvider
+    {
+        IReadOnlyList<CombatAction> CreateBoardSuccessActions(
+            ActiveAbilityBoardSuccessActionContext context);
     }
 
     public sealed class ActiveAbilityBoardPlanContext
@@ -94,5 +106,38 @@ namespace ValorChronicle.Battle.Combat.Integration
         public CharacterBattleState Character => PlanContext.Character;
         public PartyBattleState Party => PlanContext.Party;
         public BossBattleState Boss => PlanContext.Boss;
+    }
+
+    public sealed class ActiveAbilityBoardSuccessActionContext
+    {
+        internal ActiveAbilityBoardSuccessActionContext(
+            ActiveAbilityBoardSuccessContext successContext,
+            CombatActionIdSequence actionIds,
+            int currentTurn)
+        {
+            SuccessContext = successContext
+                ?? throw new ArgumentNullException(nameof(successContext));
+            ActionIds = actionIds
+                ?? throw new ArgumentNullException(nameof(actionIds));
+            if (currentTurn <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(currentTurn));
+            }
+
+            CurrentTurn = currentTurn;
+        }
+
+        public ActiveAbilityBoardSuccessContext SuccessContext { get; }
+        public CombatActionIdSequence ActionIds { get; }
+        public int CurrentTurn { get; }
+        public ActiveAbilityBoardPlanContext PlanContext =>
+            SuccessContext.PlanContext;
+        public ActiveAbilityBoardElementConversionPlan Plan =>
+            SuccessContext.Plan;
+        public BoardElementConversionResult Result => SuccessContext.Result;
+        public ActiveAbilityBinding Binding => SuccessContext.Binding;
+        public CharacterBattleState Character => SuccessContext.Character;
+        public PartyBattleState Party => SuccessContext.Party;
+        public BossBattleState Boss => SuccessContext.Boss;
     }
 }

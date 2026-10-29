@@ -8,6 +8,7 @@ using ValorChronicle.Core.Scene;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Party.Presentation;
 using ValorChronicle.Party.Roster;
+using ValorChronicle.UI.Audio;
 using ValorChronicle.UI.Navigation;
 
 namespace ValorChronicle.Tests.EditMode
@@ -71,6 +72,9 @@ namespace ValorChronicle.Tests.EditMode
                     Object.FindObjectsByType<RectMask2D>(
                         FindObjectsInactive.Include,
                         FindObjectsSortMode.None);
+                Button[] buttons = Object.FindObjectsByType<Button>(
+                    FindObjectsInactive.Include,
+                    FindObjectsSortMode.None);
 
                 Assert.That(controllers, Has.Length.EqualTo(1));
                 Assert.That(presets, Has.Length.EqualTo(5));
@@ -83,6 +87,11 @@ namespace ValorChronicle.Tests.EditMode
                 Assert.That(virtualGrids, Has.Length.EqualTo(1));
                 Assert.That(scrollRects, Has.Length.EqualTo(1));
                 Assert.That(masks, Has.Length.EqualTo(1));
+                Assert.That(buttons, Has.Length.EqualTo(72));
+                Assert.That(
+                    buttons,
+                    Has.All.Matches<Button>(button =>
+                        button.GetComponents<ButtonPressSfx>().Length == 1));
                 Assert.That(controllers[0].IsConfigured, Is.True);
                 Assert.That(characterSelectControllers[0].IsConfigured,
                     Is.True);
@@ -180,6 +189,11 @@ namespace ValorChronicle.Tests.EditMode
                 Assert.That(rosterCells,
                     Has.All.Matches<CharacterRosterCellView>(
                         view => view.IsConfigured));
+                Assert.That(
+                    virtualGrids[0].PoolCells,
+                    Has.All.Matches<CharacterRosterCellView>(cell =>
+                        cell.Button.GetComponents<ButtonPressSfx>().Length
+                            == 1));
                 Assert.That(elementFilters,
                     Has.All.Matches<ElementFilterButtonView>(
                         view => view.IsConfigured));

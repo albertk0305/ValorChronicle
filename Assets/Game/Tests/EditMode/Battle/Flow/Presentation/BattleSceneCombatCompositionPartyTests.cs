@@ -117,6 +117,92 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         }
 
         [Test]
+        public void CompositionCreatesAndDisposesRegisteredShieldSynchronizer()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar();
+            registrar.AddShieldConditionalBossEffect(
+                "a",
+                new ShieldConditionalBossEffectDefinition(
+                    "test_shield_debuff",
+                    "a",
+                    EffectCategory.Debuff,
+                    EffectModifierType.TargetTakenDamageIncrease,
+                    0.05d));
+            BattleSceneCombatComposition composition = Compose(
+                new[] { Member("a", 0, 1, 0, 3) },
+                registrar);
+
+            Assert.That(composition.Boss.Effects.FindByEffectId(
+                "test_shield_debuff"), Is.Empty);
+            composition.Party.Shields.Add(new ShieldInstance(
+                100,
+                "test_source",
+                100,
+                1,
+                3,
+                100));
+            Assert.That(composition.Boss.Effects.FindByEffectId(
+                "test_shield_debuff"), Has.Count.EqualTo(1));
+
+            composition.Dispose();
+            composition.Party.Shields.Add(new ShieldInstance(
+                101,
+                "test_source",
+                100,
+                1,
+                3,
+                101));
+
+            Assert.That(composition.Boss.Effects.FindByEffectId(
+                "test_shield_debuff"), Is.Empty);
+        }
+
+        [Test]
+        public void BattleResultDisposesRegisteredShieldSynchronizer()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar();
+            registrar.AddShieldConditionalBossEffect(
+                "a",
+                new ShieldConditionalBossEffectDefinition(
+                    "test_shield_debuff",
+                    "a",
+                    EffectCategory.Debuff,
+                    EffectModifierType.TargetTakenDamageIncrease,
+                    0.05d));
+            using BattleSceneCombatComposition composition = Compose(
+                new[] { Member("a", 0, 1, 0, 3) },
+                registrar);
+            var coordinator = new BattleFlowCoordinator(
+                composition.FlowSetup.TurnLimit,
+                composition.FlowSetup.ActiveAbilityCooldowns);
+            composition.CreateBridge(coordinator);
+            composition.Party.Shields.Add(new ShieldInstance(
+                100,
+                "test_source",
+                100,
+                1,
+                3,
+                100));
+
+            Assert.That(composition.Boss.Effects.FindByEffectId(
+                "test_shield_debuff"), Has.Count.EqualTo(1));
+            Assert.That(coordinator.StartBattle(), Is.True);
+            Assert.That(coordinator.NotifyBossDefeated(), Is.True);
+            Assert.That(composition.Boss.Effects.FindByEffectId(
+                "test_shield_debuff"), Is.Empty);
+
+            composition.Party.Shields.Add(new ShieldInstance(
+                101,
+                "test_source",
+                100,
+                1,
+                3,
+                101));
+            Assert.That(composition.Boss.Effects.FindByEffectId(
+                "test_shield_debuff"), Is.Empty);
+        }
+
+        [Test]
         public void CompositionPassesOneBattleActionIdSequenceToRegistrars()
         {
             var registrar = new TestCharacterCombatProviderRegistrar();
@@ -616,6 +702,137 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
         }
 
         [Test]
+        public void CooldownReductionHandleBindsByCharacterAndSparsePartySlot()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar
+            {
+                RegisterCooldownReductionHandles = true
+            };
+            using BattleSceneCombatComposition composition = Compose(
+                new[]
+                {
+                    Member("left", 0, 1, 0, 4),
+                    MemberWithoutActive("passive", 2),
+                    Member("right", 4, 1, 0, 7)
+                },
+                registrar);
+            var coordinator = new BattleFlowCoordinator(
+                composition.FlowSetup.TurnLimit,
+                composition.FlowSetup.ActiveAbilityCooldowns);
+            BattleFlowCombatBridge bridge =
+                composition.CreateBridge(coordinator);
+            coordinator.StartBattle();
+            ActiveAbilityBinding leftBinding = composition.ActiveBindings
+                .Single(binding => binding.CharacterId == "left");
+            ActiveAbilityBinding rightBinding = composition.ActiveBindings
+                .Single(binding => binding.CharacterId == "right");
+            ActiveAbilityCooldownReductionHandle rightHandle = registrar
+                .CreatedCooldownReductionHandles
+                .Single(handle => handle.CharacterId == "right");
+
+            Assert.That(bridge.TryUseActive(leftBinding.ActiveAbilityIndex),
+                Is.True);
+            Assert.That(bridge.TryUseActive(rightBinding.ActiveAbilityIndex),
+                Is.True);
+            Assert.That(rightHandle.IsBound, Is.True);
+            Assert.That(rightHandle.ReduceRemainingCooldown(2),
+                Is.EqualTo(2));
+
+            Assert.That(
+                coordinator.Context.ActiveAbilities[
+                    leftBinding.ActiveAbilityIndex].RemainingCooldown,
+                Is.EqualTo(4));
+            Assert.That(
+                coordinator.Context.ActiveAbilities[
+                    rightBinding.ActiveAbilityIndex].RemainingCooldown,
+                Is.EqualTo(5));
+            Assert.That(rightBinding.PartySlotIndex, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void SeparateCompositionsBindSeparateCooldownRuntimeStates()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar
+            {
+                RegisterCooldownReductionHandles = true
+            };
+            using BattleSceneCombatComposition first = Compose(
+                new[] { Member("hero", 3, 1, 0, 4) },
+                registrar);
+            using BattleSceneCombatComposition second = Compose(
+                new[] { Member("hero", 3, 1, 0, 4) },
+                registrar);
+            var firstCoordinator = new BattleFlowCoordinator(
+                first.FlowSetup.TurnLimit,
+                first.FlowSetup.ActiveAbilityCooldowns);
+            var secondCoordinator = new BattleFlowCoordinator(
+                second.FlowSetup.TurnLimit,
+                second.FlowSetup.ActiveAbilityCooldowns);
+            BattleFlowCombatBridge firstBridge =
+                first.CreateBridge(firstCoordinator);
+            BattleFlowCombatBridge secondBridge =
+                second.CreateBridge(secondCoordinator);
+            firstCoordinator.StartBattle();
+            secondCoordinator.StartBattle();
+            firstBridge.TryUseActive(0);
+            secondBridge.TryUseActive(0);
+            ActiveAbilityCooldownReductionHandle firstHandle = registrar
+                .CreatedCooldownReductionHandles[0];
+            ActiveAbilityCooldownReductionHandle secondHandle = registrar
+                .CreatedCooldownReductionHandles[1];
+
+            firstHandle.ReduceRemainingCooldown(3);
+
+            Assert.That(firstHandle, Is.Not.SameAs(secondHandle));
+            Assert.That(firstCoordinator.Context.ActiveAbilities[0]
+                .RemainingCooldown, Is.EqualTo(1));
+            Assert.That(secondCoordinator.Context.ActiveAbilities[0]
+                .RemainingCooldown, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void CompositionRejectsCooldownHandleForDifferentOwner()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar
+            {
+                RegisterCooldownReductionHandles = true,
+                CooldownReductionCharacterIdOverride = "other"
+            };
+
+            InvalidOperationException exception =
+                Assert.Throws<InvalidOperationException>(() => Compose(
+                    new[] { Member("hero", 3, 1, 0, 4) },
+                    registrar));
+
+            Assert.That(exception.Message,
+                Does.Contain("match its registered character"));
+        }
+
+        [Test]
+        public void CompositionRejectsMismatchedCooldownRuntimeBeforeBinding()
+        {
+            var registrar = new TestCharacterCombatProviderRegistrar
+            {
+                RegisterCooldownReductionHandles = true
+            };
+            using BattleSceneCombatComposition composition = Compose(
+                new[] { Member("hero", 3, 1, 0, 4) },
+                registrar);
+            var mismatchedCoordinator = new BattleFlowCoordinator(
+                composition.FlowSetup.TurnLimit,
+                new[] { 5 });
+
+            InvalidOperationException exception =
+                Assert.Throws<InvalidOperationException>(() =>
+                    composition.CreateBridge(mismatchedCoordinator));
+
+            Assert.That(exception.Message,
+                Does.Contain("does not match the registered cooldown"));
+            Assert.That(registrar.CreatedCooldownReductionHandles[0]
+                .IsBound, Is.False);
+        }
+
+        [Test]
         public void CharacterWithoutActiveStillRegistersMatchProvider()
         {
             using BattleSceneCombatComposition composition = Compose(
@@ -974,7 +1191,38 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 bossConfig,
                 new BossDifficultyStats("difficulty_test", 10000, 100),
                 new SeededRandomSource(1),
-                BattleResultBalanceDefaults.Create());
+                CreateResultBalance());
+        }
+
+        private static BattleResultBalance CreateResultBalance()
+        {
+            BattleResultBalance defaults =
+                BattleResultBalanceDefaults.Create();
+            BattleDifficultyRepeatRewardTable[] repeatRewards = defaults
+                .DifficultyRepeatRewards
+                .Concat(new[]
+                {
+                    new BattleDifficultyRepeatRewardTable(
+                        "difficulty_test",
+                        new[]
+                        {
+                            new BattleGradeRewardEntry(
+                                BattleGrade.BelowC,
+                                0L),
+                            new BattleGradeRewardEntry(BattleGrade.C, 0L),
+                            new BattleGradeRewardEntry(BattleGrade.B, 0L),
+                            new BattleGradeRewardEntry(BattleGrade.A, 0L),
+                            new BattleGradeRewardEntry(BattleGrade.S, 0L),
+                            new BattleGradeRewardEntry(BattleGrade.SS, 0L),
+                            new BattleGradeRewardEntry(BattleGrade.SSS, 0L)
+                        })
+                })
+                .ToArray();
+            return new BattleResultBalance(
+                defaults.RemainingTurnBonusRate,
+                defaults.GradeThresholds.ToArray(),
+                defaults.FirstGradeRewards.ToArray(),
+                repeatRewards);
         }
 
         private static void PrepareTriggerResources(
@@ -1206,10 +1454,21 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             public List<int> MatchedPartySlots { get; }
             public List<CombatResourceRequirement> ResourceRequirements
                 { get; } = new List<CombatResourceRequirement>();
+            public bool RegisterCooldownReductionHandles { get; set; }
+            public string CooldownReductionCharacterIdOverride { get; set; }
+            public List<ActiveAbilityCooldownReductionHandle>
+                CreatedCooldownReductionHandles { get; } =
+                    new List<ActiveAbilityCooldownReductionHandle>();
             private Dictionary<string, List<InitialPartyEffectDefinition>>
                 InitialPartyEffectsByCharacter { get; } =
                     new Dictionary<string,
                         List<InitialPartyEffectDefinition>>(
+                            StringComparer.Ordinal);
+            private Dictionary<string, List<
+                ShieldConditionalBossEffectDefinition>>
+                ShieldConditionalBossEffectsByCharacter { get; } =
+                    new Dictionary<string, List<
+                        ShieldConditionalBossEffectDefinition>>(
                             StringComparer.Ordinal);
 
             public Type SupportedCombatConfigType =>
@@ -1226,6 +1485,24 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 {
                     effects = new List<InitialPartyEffectDefinition>();
                     InitialPartyEffectsByCharacter.Add(characterId, effects);
+                }
+
+                effects.Add(effect);
+            }
+
+            public void AddShieldConditionalBossEffect(
+                string characterId,
+                ShieldConditionalBossEffectDefinition effect)
+            {
+                if (!ShieldConditionalBossEffectsByCharacter.TryGetValue(
+                    characterId,
+                    out List<ShieldConditionalBossEffectDefinition> effects))
+                {
+                    effects = new List<
+                        ShieldConditionalBossEffectDefinition>();
+                    ShieldConditionalBossEffectsByCharacter.Add(
+                        characterId,
+                        effects);
                 }
 
                 effects.Add(effect);
@@ -1265,6 +1542,15 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                     initialEffects = new List<InitialPartyEffectDefinition>();
                 }
 
+                if (!ShieldConditionalBossEffectsByCharacter.TryGetValue(
+                    member.CharacterId,
+                    out List<ShieldConditionalBossEffectDefinition>
+                        shieldConditionalBossEffects))
+                {
+                    shieldConditionalBossEffects = new List<
+                        ShieldConditionalBossEffectDefinition>();
+                }
+
                 CharacterCombatProviderRegistrationResult result;
                 if (!config.HasActiveAbility)
                 {
@@ -1286,9 +1572,23 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                             config.ActiveCooldownTurns,
                             triggerRules,
                             ResourceRequirements);
+                    if (RegisterCooldownReductionHandles)
+                    {
+                        var handle =
+                            new ActiveAbilityCooldownReductionHandle(
+                                CooldownReductionCharacterIdOverride
+                                    ?? character.CharacterId,
+                                character.PartySlotIndex);
+                        CreatedCooldownReductionHandles.Add(handle);
+                        result = result
+                            .WithActiveAbilityCooldownReductionHandle(handle);
+                    }
                 }
 
-                return result.WithInitialPartyEffects(initialEffects);
+                return result
+                    .WithInitialPartyEffects(initialEffects)
+                    .WithShieldConditionalBossEffects(
+                        shieldConditionalBossEffects);
             }
         }
 

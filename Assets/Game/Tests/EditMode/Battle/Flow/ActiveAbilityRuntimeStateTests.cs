@@ -121,5 +121,96 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow
             Assert.That(coordinator.Context.ActiveAbilities[1].UsedThisTurn,
                 Is.True);
         }
+
+        [Test]
+        public void ReduceRemainingCooldown_ClampsAtZeroAndReportsAppliedAmount()
+        {
+            var coordinator = new BattleFlowCoordinator(25, new[] { 4 });
+            coordinator.StartBattle();
+            coordinator.TryUseActiveAbility(0);
+            ActiveAbilityRuntimeState state =
+                coordinator.Context.ActiveAbilities[0];
+
+            Assert.That(state.ReduceRemainingCooldown(1), Is.EqualTo(1));
+            Assert.That(state.RemainingCooldown, Is.EqualTo(3));
+            Assert.That(state.ReduceRemainingCooldown(5), Is.EqualTo(3));
+            Assert.That(state.RemainingCooldown, Is.Zero);
+            Assert.That(state.ReduceRemainingCooldown(1), Is.Zero);
+            Assert.That(state.RemainingCooldown, Is.Zero);
+        }
+
+        [TestCase(0)]
+        [TestCase(-1)]
+        public void ReduceRemainingCooldown_RejectsNonPositiveAmount(int amount)
+        {
+            var coordinator = new BattleFlowCoordinator(25, new[] { 4 });
+            ActiveAbilityRuntimeState state =
+                coordinator.Context.ActiveAbilities[0];
+
+            Assert.That(
+                () => state.ReduceRemainingCooldown(amount),
+                Throws.TypeOf<System.ArgumentOutOfRangeException>());
+        }
+
+        [Test]
+        public void ReducedToZero_AfterUseRemainsUnavailableUntilNextTurn()
+        {
+            var coordinator = new BattleFlowCoordinator(25, new[] { 4 });
+            coordinator.StartBattle();
+            Assert.That(coordinator.TryUseActiveAbility(0), Is.True);
+            ActiveAbilityRuntimeState state =
+                coordinator.Context.ActiveAbilities[0];
+
+            state.ReduceRemainingCooldown(4);
+
+            Assert.That(state.RemainingCooldown, Is.Zero);
+            Assert.That(state.UsedThisTurn, Is.True);
+            Assert.That(state.CanUse, Is.False);
+            Assert.That(coordinator.TryUseActiveAbility(0), Is.False);
+
+            BattleFlowTestSupport.CompleteTurnWithSingleMatch(coordinator);
+
+            Assert.That(state.RemainingCooldown, Is.Zero);
+            Assert.That(state.UsedThisTurn, Is.False);
+            Assert.That(coordinator.CanUseActiveAbility(0), Is.True);
+        }
+
+        [Test]
+        public void ReducedDuringMatchResolution_DoesNotBypassPhaseRestriction()
+        {
+            var coordinator = new BattleFlowCoordinator(25, new[] { 4 });
+            coordinator.StartBattle();
+            coordinator.TryUseActiveAbility(0);
+            Assert.That(coordinator.TryBeginBoardResolution(), Is.True);
+            Assert.That(
+                coordinator.NotifyBoardActionResolved(
+                    BattleFlowTestSupport.CreateCascade(
+                        new[]
+                        {
+                            BattleFlowTestSupport.Match(
+                                ValorChronicle.Data.Definitions.ElementType.Fire,
+                                new ValorChronicle.Battle.Board.BoardPosition(0, 0),
+                                new ValorChronicle.Battle.Board.BoardPosition(1, 0),
+                                new ValorChronicle.Battle.Board.BoardPosition(2, 0))
+                        }),
+                    consumesTurn: true),
+                Is.True);
+            ActiveAbilityRuntimeState state =
+                coordinator.Context.ActiveAbilities[0];
+
+            state.ReduceRemainingCooldown(4);
+
+            Assert.That(coordinator.Context.Phase,
+                Is.EqualTo(BattlePhase.MatchEventResolving));
+            Assert.That(coordinator.CanUseActiveAbility(0), Is.False);
+            Assert.That(coordinator.TryUseActiveAbility(0), Is.False);
+
+            coordinator.ExecuteRemainingMatchEvents();
+            coordinator.CompleteBossAction();
+
+            Assert.That(coordinator.Context.Phase,
+                Is.EqualTo(BattlePhase.PlayerInput));
+            Assert.That(coordinator.CanUseActiveAbility(0), Is.True);
+        }
     }
 }

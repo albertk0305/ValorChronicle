@@ -149,6 +149,15 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Effects
             Assert.That(grouped.ModifierGroupId,
                 Is.EqualTo("phoenix_blessing"));
             Assert.That(grouped.ModifierGroupCap, Is.EqualTo(0.20d));
+            EffectInstance groupedTakenDamage = Effect(
+                modifierType:
+                    EffectModifierType.TargetTakenDamageIncrease,
+                modifierGroupId: "ally_vulnerability",
+                modifierGroupCap: 0.25d);
+            Assert.That(groupedTakenDamage.ModifierGroupId,
+                Is.EqualTo("ally_vulnerability"));
+            Assert.That(groupedTakenDamage.ModifierGroupCap,
+                Is.EqualTo(0.25d));
             Assert.Throws<ArgumentException>(() =>
                 Effect(modifierGroupId: "phoenix_blessing"));
             Assert.Throws<ArgumentException>(() =>

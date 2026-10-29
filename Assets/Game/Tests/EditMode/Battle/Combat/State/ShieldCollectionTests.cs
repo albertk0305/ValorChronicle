@@ -196,6 +196,51 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.State
                 new ShieldCollection().Absorb(-1));
         }
 
+        [Test]
+        public void TotalShieldChanged_FiresAfterAddAbsorbAndExpiration()
+        {
+            var shields = new ShieldCollection();
+            var observedTotals = new List<long>();
+            shields.TotalShieldChanged += total =>
+            {
+                observedTotals.Add(total);
+                Assert.That(shields.TotalShield, Is.EqualTo(total));
+            };
+
+            shields.Add(Shield(1, 100, 1, 1));
+            shields.Absorb(40);
+            shields.ProcessTurnEnd();
+
+            Assert.That(observedTotals,
+                Is.EqualTo(new long[] { 100, 60, 0 }));
+        }
+
+        [Test]
+        public void TotalShieldChanged_DoesNotFireWhenTotalIsUnchanged()
+        {
+            var shields = new ShieldCollection();
+            shields.Add(Shield(1, 100, 2, 1));
+            int notificationCount = 0;
+            shields.TotalShieldChanged += _ => notificationCount++;
+
+            shields.Absorb(0);
+            shields.ProcessTurnEnd();
+
+            Assert.That(notificationCount, Is.Zero);
+            Assert.That(shields.TotalShield, Is.EqualTo(100L));
+        }
+
+        [Test]
+        public void TotalShieldChanged_RejectsReentrantShieldMutation()
+        {
+            var shields = new ShieldCollection();
+            shields.TotalShieldChanged += _ => shields.Absorb(1);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                shields.Add(Shield(1, 100, 1, 1)));
+            Assert.That(shields.TotalShield, Is.EqualTo(100L));
+        }
+
         private static ShieldInstance Shield(
             long runtimeId,
             long amount,

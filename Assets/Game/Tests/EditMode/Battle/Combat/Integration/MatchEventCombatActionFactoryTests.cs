@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Combat.Actions;
+using ValorChronicle.Battle.Combat.Application;
 using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Battle.Combat.Damage;
 using ValorChronicle.Battle.Combat.Integration;
+using ValorChronicle.Battle.Combat.Shields;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
 using ValorChronicle.Core.Random;
@@ -93,6 +95,103 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                     BeginSingleMatch(ElementType.Dark, 5)),
                 Is.Empty);
             Assert.That(providerCallCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void FactoryPreservesShieldThenDeferredMatchDamageOrder()
+        {
+            CharacterBattleState character =
+                Character("fire", 0, ElementType.Fire);
+            PartyBattleState party = Party(character);
+            BossBattleState boss = Boss();
+            int resolveCount = 0;
+            var provider = new DelegateMatchEventActionProvider(context =>
+            {
+                long shieldActionId = context.ActionIds.Next();
+                long damageActionId = context.ActionIds.Next();
+                return new CombatAction[]
+                {
+                    new ShieldAction(
+                        shieldActionId,
+                        ActionOrigin.Match,
+                        new ShieldGenerationContextBuildRequest(
+                            context.Character,
+                            context.Party,
+                            0.50d,
+                            true,
+                            context.FinalComboCount),
+                        new ShieldGrantRequest(
+                            shieldActionId,
+                            context.Character.CharacterId,
+                            context.PlayerTurnNumber,
+                            3,
+                            shieldActionId)),
+                    new DamageAction(
+                        damageActionId,
+                        ActionOrigin.Match,
+                        new DamageContextBuildRequest(
+                            context.Character,
+                            context.Party,
+                            context.Boss,
+                            context.Character.Element,
+                            AttackType.Match,
+                            context.MatchAttackTag,
+                            1.20d,
+                            true,
+                            context.FinalComboCount,
+                            false,
+                            skillCoefficientResolver: request =>
+                            {
+                                resolveCount++;
+                                double charge = Math.Min(
+                                    (double)request.Party.Shields.TotalShield
+                                        / request.Attacker.MaxHp,
+                                    1d);
+                                return request.SkillCoefficient
+                                    * (1d + (charge * 0.50d));
+                            }))
+                };
+            });
+            var factory = new MatchEventCombatActionFactory(
+                party,
+                boss,
+                provider,
+                new CombatActionIdSequence());
+
+            IReadOnlyList<CombatAction> actions =
+                factory.CreateRootActions(BeginSingleMatch(
+                    ElementType.Fire,
+                    4),
+                    playerTurnNumber: 7);
+
+            Assert.That(resolveCount, Is.Zero);
+            Assert.That(actions, Has.Count.EqualTo(2));
+            Assert.That(actions[0], Is.TypeOf<ShieldAction>());
+            Assert.That(actions[1], Is.TypeOf<DamageAction>());
+            Assert.That(actions[0].ActionId, Is.EqualTo(1L));
+            Assert.That(actions[1].ActionId, Is.EqualTo(2L));
+            Assert.That(actions, Has.All.Matches<CombatAction>(action =>
+                action.RootActionId == action.ActionId
+                    && !action.SourceActionId.HasValue));
+
+            var executor = new CombatActionExecutor(
+                boss,
+                party,
+                new DamageContextFactory(new SeededRandomSource(1)));
+            CombatActionExecutionResult result = executor.Execute(
+                new CombatActionQueue(actions));
+            var shieldResult = (ShieldActionResult)result.ActionResults[0];
+            var damageResult = (DamageActionResult)result.ActionResults[1];
+
+            Assert.That(shieldResult.ApplicationResult.GrantedShieldAmount,
+                Is.EqualTo(500L));
+            Assert.That(shieldResult.ApplicationResult.CreatedShieldRuntimeId,
+                Is.EqualTo(1L));
+            Assert.That(party.Shields.ActiveShields[0].CreatedTurn,
+                Is.EqualTo(7));
+            Assert.That(damageResult.Context.SkillCoefficient,
+                Is.EqualTo(1.50d).Within(0.000000001d));
+            Assert.That(resolveCount, Is.EqualTo(1));
         }
 
         [Test]

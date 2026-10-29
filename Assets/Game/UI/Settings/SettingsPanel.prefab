@@ -881,6 +881,7 @@ GameObject:
   - component: {fileID: 5529342601454934529}
   - component: {fileID: 2899876503600170538}
   - component: {fileID: 8419678101246615511}
+  - component: {fileID: 912000000000000001}
   m_Layer: 5
   m_Name: CloseButton
   m_TagString: Untagged
@@ -1456,6 +1457,7 @@ GameObject:
   - component: {fileID: 2331262195409799081}
   - component: {fileID: 297864554224492350}
   - component: {fileID: 1398239260448229752}
+  - component: {fileID: 912000000000000002}
   m_Layer: 5
   m_Name: CreditsButton
   m_TagString: Untagged
@@ -2158,6 +2160,7 @@ GameObject:
   - component: {fileID: 3918326544952503897}
   - component: {fileID: 3319203722067397542}
   - component: {fileID: 3828564546758850992}
+  - component: {fileID: 912000000000000003}
   m_Layer: 5
   m_Name: HelpButton
   m_TagString: Untagged
@@ -4870,6 +4873,7 @@ GameObject:
   - component: {fileID: 1490546063135884549}
   - component: {fileID: 7750778391233705903}
   - component: {fileID: 5287175776329866264}
+  - component: {fileID: 912000000000000004}
   m_Layer: 5
   m_Name: ConfirmButton
   m_TagString: Untagged
@@ -5857,6 +5861,54 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &912000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1582860137994022548}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &912000000000000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2196059054915401217}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &912000000000000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3453734306881678976}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &912000000000000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6961102492926260092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
 --- !u!1 &8666539425151660461
 GameObject:
   m_ObjectHideFlags: 0

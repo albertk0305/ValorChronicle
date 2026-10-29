@@ -24,8 +24,12 @@ namespace ValorChronicle.Battle.Combat.Integration
             IReadOnlyList<CombatResourceRequirement> resourceRequirements,
             IReadOnlyList<ICharacterCombatStatusSource> combatStatusSources,
             IReadOnlyList<InitialPartyEffectDefinition> initialPartyEffects,
+            IReadOnlyList<ShieldConditionalBossEffectDefinition>
+                shieldConditionalBossEffects,
             IReadOnlyList<IPreMatchQueueActionProvider>
-                preMatchQueueActionProviders)
+                preMatchQueueActionProviders,
+            ActiveAbilityCooldownReductionHandle
+                activeAbilityCooldownReductionHandle)
         {
             ActiveAbilityId = activeAbilityId;
             ActiveCooldownTurns = activeCooldownTurns;
@@ -36,9 +40,14 @@ namespace ValorChronicle.Battle.Combat.Integration
                 combatStatusSources);
             InitialPartyEffects = CopyInitialPartyEffects(
                 initialPartyEffects);
+            ShieldConditionalBossEffects =
+                CopyShieldConditionalBossEffects(
+                    shieldConditionalBossEffects);
             PreMatchQueueActionProviders =
                 CopyPreMatchQueueActionProviders(
                     preMatchQueueActionProviders);
+            ActiveAbilityCooldownReductionHandle =
+                activeAbilityCooldownReductionHandle;
         }
 
         public bool HasActiveAbility =>
@@ -52,8 +61,12 @@ namespace ValorChronicle.Battle.Combat.Integration
             CombatStatusSources { get; }
         public IReadOnlyList<InitialPartyEffectDefinition>
             InitialPartyEffects { get; }
+        public IReadOnlyList<ShieldConditionalBossEffectDefinition>
+            ShieldConditionalBossEffects { get; }
         public IReadOnlyList<IPreMatchQueueActionProvider>
             PreMatchQueueActionProviders { get; }
+        public ActiveAbilityCooldownReductionHandle
+            ActiveAbilityCooldownReductionHandle { get; }
 
         public static CharacterCombatProviderRegistrationResult
             WithoutActiveAbility()
@@ -76,7 +89,9 @@ namespace ValorChronicle.Battle.Combat.Integration
                 resourceRequirements,
                 Array.Empty<ICharacterCombatStatusSource>(),
                 Array.Empty<InitialPartyEffectDefinition>(),
-                Array.Empty<IPreMatchQueueActionProvider>());
+                Array.Empty<ShieldConditionalBossEffectDefinition>(),
+                Array.Empty<IPreMatchQueueActionProvider>(),
+                activeAbilityCooldownReductionHandle: null);
         }
 
         public static CharacterCombatProviderRegistrationResult
@@ -94,7 +109,9 @@ namespace ValorChronicle.Battle.Combat.Integration
                 resourceRequirements,
                 combatStatusSources,
                 Array.Empty<InitialPartyEffectDefinition>(),
-                Array.Empty<IPreMatchQueueActionProvider>());
+                Array.Empty<ShieldConditionalBossEffectDefinition>(),
+                Array.Empty<IPreMatchQueueActionProvider>(),
+                activeAbilityCooldownReductionHandle: null);
         }
 
         public static CharacterCombatProviderRegistrationResult
@@ -137,7 +154,9 @@ namespace ValorChronicle.Battle.Combat.Integration
                 resourceRequirements,
                 Array.Empty<ICharacterCombatStatusSource>(),
                 Array.Empty<InitialPartyEffectDefinition>(),
-                Array.Empty<IPreMatchQueueActionProvider>());
+                Array.Empty<ShieldConditionalBossEffectDefinition>(),
+                Array.Empty<IPreMatchQueueActionProvider>(),
+                activeAbilityCooldownReductionHandle: null);
         }
 
         public static CharacterCombatProviderRegistrationResult
@@ -170,7 +189,9 @@ namespace ValorChronicle.Battle.Combat.Integration
                 resourceRequirements,
                 combatStatusSources,
                 Array.Empty<InitialPartyEffectDefinition>(),
-                Array.Empty<IPreMatchQueueActionProvider>());
+                Array.Empty<ShieldConditionalBossEffectDefinition>(),
+                Array.Empty<IPreMatchQueueActionProvider>(),
+                activeAbilityCooldownReductionHandle: null);
         }
 
         public CharacterCombatProviderRegistrationResult
@@ -185,7 +206,26 @@ namespace ValorChronicle.Battle.Combat.Integration
                 ResourceRequirements,
                 CombatStatusSources,
                 initialPartyEffects,
-                PreMatchQueueActionProviders);
+                ShieldConditionalBossEffects,
+                PreMatchQueueActionProviders,
+                ActiveAbilityCooldownReductionHandle);
+        }
+
+        public CharacterCombatProviderRegistrationResult
+            WithShieldConditionalBossEffects(
+                IReadOnlyList<ShieldConditionalBossEffectDefinition>
+                    shieldConditionalBossEffects)
+        {
+            return new CharacterCombatProviderRegistrationResult(
+                ActiveAbilityId,
+                ActiveCooldownTurns,
+                TriggerRules,
+                ResourceRequirements,
+                CombatStatusSources,
+                InitialPartyEffects,
+                shieldConditionalBossEffects,
+                PreMatchQueueActionProviders,
+                ActiveAbilityCooldownReductionHandle);
         }
 
         public CharacterCombatProviderRegistrationResult
@@ -199,7 +239,37 @@ namespace ValorChronicle.Battle.Combat.Integration
                 ResourceRequirements,
                 CombatStatusSources,
                 InitialPartyEffects,
-                providers);
+                ShieldConditionalBossEffects,
+                providers,
+                ActiveAbilityCooldownReductionHandle);
+        }
+
+        public CharacterCombatProviderRegistrationResult
+            WithActiveAbilityCooldownReductionHandle(
+                ActiveAbilityCooldownReductionHandle handle)
+        {
+            if (!HasActiveAbility)
+            {
+                throw new InvalidOperationException(
+                    "A cooldown reduction handle requires an active "
+                        + "ability registration.");
+            }
+
+            if (handle == null)
+            {
+                throw new ArgumentNullException(nameof(handle));
+            }
+
+            return new CharacterCombatProviderRegistrationResult(
+                ActiveAbilityId,
+                ActiveCooldownTurns,
+                TriggerRules,
+                ResourceRequirements,
+                CombatStatusSources,
+                InitialPartyEffects,
+                ShieldConditionalBossEffects,
+                PreMatchQueueActionProviders,
+                handle);
         }
 
         private static ReadOnlyCollection<ICombatTriggerRule>
@@ -292,6 +362,31 @@ namespace ValorChronicle.Battle.Combat.Integration
                     ?? throw new ArgumentException(
                         $"Initial Party Effect entry {index} is null.",
                         nameof(initialPartyEffects));
+            }
+
+            return Array.AsReadOnly(copy);
+        }
+
+        private static ReadOnlyCollection<
+            ShieldConditionalBossEffectDefinition>
+            CopyShieldConditionalBossEffects(
+                IReadOnlyList<ShieldConditionalBossEffectDefinition>
+                    effects)
+        {
+            if (effects == null)
+            {
+                throw new ArgumentNullException(nameof(effects));
+            }
+
+            var copy = new ShieldConditionalBossEffectDefinition[
+                effects.Count];
+            for (int index = 0; index < effects.Count; index++)
+            {
+                copy[index] = effects[index]
+                    ?? throw new ArgumentException(
+                        $"Shield-conditional Boss Effect entry {index} "
+                            + "is null.",
+                        nameof(effects));
             }
 
             return Array.AsReadOnly(copy);

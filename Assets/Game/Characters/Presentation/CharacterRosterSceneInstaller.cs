@@ -7,6 +7,7 @@ using ValorChronicle.Core.Logging;
 using ValorChronicle.Data.Definitions;
 using ValorChronicle.Party.Presentation;
 using ValorChronicle.Relics.Presentation;
+using ValorChronicle.UI.Audio;
 
 namespace ValorChronicle.Characters.Presentation
 {
@@ -441,6 +442,7 @@ namespace ValorChronicle.Characters.Presentation
                 "ArtifactButton");
             Image icon = RequireComponent<Image>(artifactButton);
             Button button = GetOrAdd<Button>(artifactButton.gameObject);
+            GetOrAdd<ButtonPressSfx>(artifactButton.gameObject);
             var cell = GetOrAdd<RelicInventoryCellView>(
                 cellRoot.gameObject);
             cell.Configure(

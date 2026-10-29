@@ -97,7 +97,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 character,
                 party,
                 boss,
-                actionIds);
+                actionIds,
+                coordinator.Context.CurrentTurn);
             long idBeforeProvider = actionIds.LastIssuedId;
             IReadOnlyList<CombatAction> rootActions =
                 provider.CreateRootActions(context);
@@ -224,10 +225,6 @@ namespace ValorChronicle.Battle.Combat.Integration
                 ?? throw new InvalidOperationException(
                     "Board Active providers must return a Board plan.");
 
-            CombatActionExecutionSession actionSession =
-                executor.BeginExecution(
-                    Array.Empty<CombatAction>(),
-                    coordinator.Context.CurrentTurn);
             if (!coordinator.TryUseActiveAbility(activeAbilityIndex))
             {
                 throw new InvalidOperationException(
@@ -261,15 +258,15 @@ namespace ValorChronicle.Battle.Combat.Integration
                 return false;
             }
 
+            var successContext = new ActiveAbilityBoardSuccessContext(
+                planContext,
+                plan,
+                conversionResult);
             if (provider is IActiveAbilityBoardSuccessCommitter committer)
             {
                 try
                 {
-                    committer.CommitBoardSuccess(
-                        new ActiveAbilityBoardSuccessContext(
-                            planContext,
-                            plan,
-                            conversionResult));
+                    committer.CommitBoardSuccess(successContext);
                 }
                 catch (Exception exception)
                 {
@@ -279,6 +276,28 @@ namespace ValorChronicle.Battle.Combat.Integration
                     GameLogger.Exception(exception);
                 }
             }
+
+            IReadOnlyList<CombatAction> rootActions =
+                Array.Empty<CombatAction>();
+            if (provider is IActiveAbilityBoardSuccessActionProvider
+                actionProvider)
+            {
+                long idBeforeProvider = actionIds.LastIssuedId;
+                rootActions = actionProvider.CreateBoardSuccessActions(
+                    new ActiveAbilityBoardSuccessActionContext(
+                        successContext,
+                        actionIds,
+                        coordinator.Context.CurrentTurn));
+                ValidateRootActions(
+                    rootActions,
+                    idBeforeProvider,
+                    requireAtLeastOne: false);
+            }
+
+            CombatActionExecutionSession actionSession =
+                executor.BeginExecution(
+                    rootActions,
+                    coordinator.Context.CurrentTurn);
 
             session = new ActiveAbilityCombatExecutionSession(
                 binding,
@@ -378,9 +397,16 @@ namespace ValorChronicle.Battle.Combat.Integration
 
         private void ValidateRootActions(
             IReadOnlyList<CombatAction> actions,
-            long idBeforeProvider)
+            long idBeforeProvider,
+            bool requireAtLeastOne = true)
         {
-            if (actions == null || actions.Count == 0)
+            if (actions == null)
+            {
+                throw new InvalidOperationException(
+                    "Active providers must return a root action collection.");
+            }
+
+            if (requireAtLeastOne && actions.Count == 0)
             {
                 throw new InvalidOperationException(
                     "Active providers must return at least one root action.");

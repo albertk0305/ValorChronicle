@@ -144,3 +144,64 @@ effect.fiora.flame_of_elation.name	Flame of Elation	고양의 불꽃
 effect.fiora.flame_of_elation.description	Party ATK +5% for 2 turns. Reuse refreshes duration without stacking, and this effect is outside Phoenix's Blessing's 20% cap.	파티 공격력이 2턴 동안 5% 증가합니다. 재발동 시 중첩하지 않고 지속 시간을 갱신하며 불사조의 축복 20% 상한에 포함되지 않습니다.
 effect.fiora.hymn_of_the_phoenix.name	Hymn of the Phoenix	불사조의 찬가
 effect.fiora.hymn_of_the_phoenix.description	Party ATK +9% for 3 turns. Reuse refreshes duration without stacking, and this effect is outside Phoenix's Blessing's 20% cap.	파티 공격력이 3턴 동안 9% 증가합니다. 재발동 시 중첩하지 않고 지속 시간을 갱신하며 불사조의 축복 20% 상한에 포함되지 않습니다.
+naira	Naira Windhorn	나이라 윈드혼
+naira.skill.match3.name	Grove Veil - 3 Match	숲의 장막 - 3매치
+naira.skill.match3.description	Grants the party a shield equal to {shield_rate}% of Naira's final Max HP for {duration} turns. Match combo multipliers apply.	나이라의 최종 최대 HP의 {shield_rate}%만큼 파티 보호막을 {duration}턴 동안 부여합니다. 매치 콤보 배율이 적용됩니다.
+naira.skill.match4.name	Antler Reprisal - 4 Match	녹각의 반격 - 4매치
+naira.skill.match4.description	Grants a {shield_rate}% Max HP shield for {duration} turns, then deals {base_coefficient}% ATK as Grass damage. Damage increases by up to {charge_bonus}% according to shield charge after the shield is applied.	최종 최대 HP의 {shield_rate}%만큼 파티 보호막을 {duration}턴 동안 부여한 뒤 공격력의 {base_coefficient}%만큼 풀속성 피해를 줍니다. 보호막 부여 후 충전율에 따라 피해가 최대 {charge_bonus}% 증가합니다.
+naira.skill.match5.name	Sacred Stag Charge - 5+ Match	성록의 돌진 - 5매치 이상
+naira.skill.match5.description	Grants a {shield_rate}% Max HP shield for {duration} turns, then deals {base_coefficient}% ATK as Grass damage. Damage increases by up to {charge_bonus}% according to shield charge after the shield is applied.	최종 최대 HP의 {shield_rate}%만큼 파티 보호막을 {duration}턴 동안 부여한 뒤 공격력의 {base_coefficient}%만큼 풀속성 피해를 줍니다. 보호막 부여 후 충전율에 따라 피해가 최대 {charge_bonus}% 증가합니다.
+naira.skill.match5.awakening6_description	Grants a {shield_rate}% Max HP shield for {duration} turns, then deals {base_coefficient}% ATK as Grass damage. Damage increases by up to {charge_bonus}% according to shield charge. At 100% charge after the shield is processed, gains Ancient Guardian, reducing the next valid boss hit by {guardian_reduction}%.	최종 최대 HP의 {shield_rate}%만큼 파티 보호막을 {duration}턴 동안 부여한 뒤 공격력의 {base_coefficient}%만큼 풀속성 피해를 줍니다. 보호막 충전율에 따라 피해가 최대 {charge_bonus}% 증가합니다. 보호막 처리 후 충전율이 100%라면 다음 유효 보스 타격 피해를 {guardian_reduction}% 감소시키는 고대의 수호를 얻습니다.
+naira.skill.active.name	Descent of the Spirit Stag	영록강림
+naira.skill.active.description	Grants the party a shield equal to {shield_rate}% of Naira's final Max HP for {duration} turns and White Stag's Grace, which reduces the next valid boss hit by {grace_reduction}%. Cooldown: {cooldown} turns.	나이라의 최종 최대 HP의 {shield_rate}%만큼 파티 보호막을 {duration}턴 동안 부여하고, 다음 유효 보스 타격 피해를 {grace_reduction}% 감소시키는 백록의 가호를 얻습니다. 재사용 대기시간: {cooldown}턴.
+naira.skill.passive.name	Spirit Ward	영령의 결계
+naira.skill.passive.description	While the party has a shield, increases damage taken by the boss by {damage_increase}%.	파티가 보호막을 보유한 동안 보스가 받는 피해가 {damage_increase}% 증가합니다.
+naira.awakening.1.name	Child of the Wilds	숲에서 자란 자
+naira.awakening.1.description	Max HP multiplier increases from {multiplier_before}% to {multiplier_after}%.	최대 HP 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+naira.awakening.2.name	Wild Antler	야생의 뿔
+naira.awakening.2.description	ATK multiplier increases from {multiplier_before}% to {multiplier_after}%.	공격력 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+naira.awakening.3.name	Guardian's Presence	수호의 위압
+naira.awakening.3.description	Spirit Ward's damage taken increase changes from {damage_before}% to {damage_after}%.	영령의 결계의 받는 피해 증가량이 {damage_before}%에서 {damage_after}%로 변경됩니다.
+naira.awakening.4.name	Spirit Stag's Veil	영록의 장막
+naira.awakening.4.description	Grove Veil's shield changes from {match3_before}% to {match3_after}% Max HP, and Antler Reprisal's shield changes from {match4_before}% to {match4_after}% Max HP.	숲의 장막 보호막이 최대 HP의 {match3_before}%에서 {match3_after}%로, 녹각의 반격 보호막이 {match4_before}%에서 {match4_after}%로 변경됩니다.
+naira.awakening.5.name	Guardian Spirit's Oath	수호령의 맹세
+naira.awakening.5.description	White Stag's Grace damage reduction changes from {reduction_before}% to {reduction_after}%.	백록의 가호 피해 감소율이 {reduction_before}%에서 {reduction_after}%로 변경됩니다.
+naira.awakening.6.name	Spirit's Embrace	영령의 품
+naira.awakening.6.description	After a 5+ Match shield is processed, if shield charge based on Naira's final Max HP is {charge}%, gain Ancient Guardian. It reduces the next valid boss hit by {damage_reduction}%.	5매치 이상 보호막 처리 후 나이라 자신의 최종 최대 HP 기준 보호막 충전율이 {charge}%라면 고대의 수호를 얻습니다. 고대의 수호는 다음 유효 보스 타격 피해를 {damage_reduction}% 감소시킵니다.
+naira.effect.spirit_ward.name	Spirit Ward	영령의 결계
+naira.effect.spirit_ward.description	While the party has a shield, the boss takes 5% more damage, or 6% after Awakening 3. This effect has no turn duration.	파티가 보호막을 보유한 동안 보스가 받는 피해가 5% 증가하며, 3각성 이후 6% 증가합니다. 턴 지속 시간이 없는 조건부 효과입니다.
+naira.effect.white_stag_grace.name	White Stag's Grace	백록의 가호
+naira.effect.white_stag_grace.description	Reduces the next valid boss hit by 35%, or 40% after Awakening 5, then is consumed. It remains until consumed and does not stack.	다음 유효 보스 타격 피해를 35% 감소시키며, 5각성 이후 40% 감소시킨 뒤 소비됩니다. 소비 전까지 유지되며 중첩되지 않습니다.
+naira.effect.ancient_guardian.name	Ancient Guardian	고대의 수호
+naira.effect.ancient_guardian.description	Reduces the next valid boss hit by 15%, then is consumed. It remains until consumed and does not stack.	다음 유효 보스 타격 피해를 15% 감소시킨 뒤 소비됩니다. 소비 전까지 유지되며 중첩되지 않습니다.
+koharu	Sakuragi Koharu	사쿠라기 코하루
+koharu.description	A Grass Trickster who gathers Spirit Energy to shorten her Active cooldown and empowers Additional and Chase attacks.	영력을 모아 액티브 재사용 대기시간을 줄이고 추가 공격과 추격 공격을 강화하는 풀속성 트릭스터입니다.
+koharu.skill.match3.name	Fox Spirit's Whisper - 3 Match	여우령의 속삭임 - 3매치
+koharu.skill.match3.description	Deals {coefficient}% ATK as Grass damage, then gains {spirit_gain} Spirit Energy after damage resolves.	공격력의 {coefficient}%만큼 풀속성 피해를 준 뒤 피해 처리가 완료되면 영력 {spirit_gain}을 얻습니다.
+koharu.skill.match4.name	Dance of a Thousand Leaves - 4 Match	천엽의 춤 - 4매치
+koharu.skill.match4.description	Deals {coefficient}% ATK as Grass damage, then gains {spirit_gain} Spirit Energy after damage resolves.	공격력의 {coefficient}%만큼 풀속성 피해를 준 뒤 피해 처리가 완료되면 영력 {spirit_gain}을 얻습니다.
+koharu.skill.match5.name	Celestial Fox's Blessing - 5+ Match	천호의 가호 - 5매치 이상
+koharu.skill.match5.description	Deals {coefficient}% ATK as Grass damage, then gains {spirit_gain} Spirit Energy and increases party Additional and Chase damage by {damage_increase}% for {duration} turns. Reuse refreshes duration without stacking.	공격력의 {coefficient}%만큼 풀속성 피해를 준 뒤 영력 {spirit_gain}을 얻고, 파티의 추가 공격 및 추격 공격 피해를 {duration}턴 동안 {damage_increase}% 증가시킵니다. 재발동 시 중첩하지 않고 지속 시간만 갱신합니다.
+koharu.skill.passive.name	Fox Spirit's Cycle	여우령의 순환
+koharu.skill.passive.description	After this character's Match damage resolves, gains Spirit Energy based on match size. Whenever at least {spirit_cost} Spirit Energy is available, consumes that amount to reduce this character's remaining Active cooldown by 1. Reducing it to 0 does not allow same-turn reuse.	이 캐릭터의 매칭 피해 처리가 완료되면 매칭 크기에 따라 영력을 얻습니다. 영력이 {spirit_cost} 이상이면 해당 수치만큼 소비해 자신의 남은 액티브 재사용 대기시간을 1 줄입니다. 0이 되어도 같은 턴에는 다시 사용할 수 없습니다.
+koharu.skill.active.name	Fox Spirit's Mischief	여우령의 장난
+koharu.skill.active.description	Converts up to {block_count} non-Grass normal blocks to Grass. Cooldown: {cooldown} turns.	풀이 아닌 일반 블록을 최대 {block_count}개까지 풀속성으로 변환합니다. 재사용 대기시간: {cooldown}턴.
+koharu.skill.active.awakening6	Also increases party Additional and Chase damage by {damage_increase}% for {duration} turn, ending at the end of the turn in which the Active is used. Reuse refreshes duration without stacking.	또한 파티의 추가 공격 및 추격 공격 피해를 {damage_increase}% 증가시킵니다. 효과는 액티브를 사용한 턴의 종료까지 {duration}턴 유지되며, 재발동 시 중첩하지 않고 지속 시간만 갱신합니다.
+koharu.status.spirit_energy.name	Spirit Energy	영력
+koharu.status.spirit_energy.description	Current Spirit Energy. It is automatically consumed in complete cost units to reduce this character's remaining Active cooldown.	현재 영력입니다. 비용 단위가 충족되면 자동으로 소비하여 이 캐릭터의 남은 액티브 재사용 대기시간을 줄입니다.
+koharu.effect.match5_blessing.name	Celestial Fox's Blessing	천호의 가호
+koharu.effect.match5_blessing.description	Increases party Additional and Chase damage by 12%, or 15% after Awakening 4, for 2 turns including the current turn. Reuse refreshes duration without stacking.	현재 턴을 포함해 2턴 동안 파티의 추가 공격 및 추격 공격 피해를 12% 증가시키며, 4각성 이후 15% 증가시킵니다. 재발동 시 중첩하지 않고 지속 시간만 갱신합니다.
+koharu.effect.fox_blessing.name	Fox's Blessing	여우의 축복
+koharu.effect.fox_blessing.description	After Awakening 6, using the Active increases party Additional and Chase damage by 10% until that turn ends. Reuse refreshes duration without stacking.	6각성 이후 액티브 사용 시 해당 턴이 끝날 때까지 파티의 추가 공격 및 추격 공격 피해를 10% 증가시킵니다. 재발동 시 중첩하지 않고 지속 시간만 갱신합니다.
+koharu.awakening.1.name	Fox Spirit's Protection	여우령의 수호
+koharu.awakening.1.description	Max HP multiplier increases from {multiplier_before}% to {multiplier_after}%.	최대 HP 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+koharu.awakening.2.name	Shrine Maiden's Spirit	무녀의 영력
+koharu.awakening.2.description	ATK multiplier increases from {multiplier_before}% to {multiplier_after}%.	공격력 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+koharu.awakening.3.name	Spirit Arts Mastery	영술숙련
+koharu.awakening.3.description	3 Match damage changes from {match3_before}% to {match3_after}% ATK, and 4 Match damage changes from {match4_before}% to {match4_after}% ATK.	3매치 공격력 계수가 {match3_before}%에서 {match3_after}%로, 4매치 공격력 계수가 {match4_before}%에서 {match4_after}%로 변경됩니다.
+koharu.awakening.4.name	Celestial Fox's Grace	천호의 은총
+koharu.awakening.4.description	5+ Match damage changes from {match5_before}% to {match5_after}% ATK, and its Additional and Chase damage increase changes from {buff_before}% to {buff_after}%.	5매치 이상 공격력 계수가 {match5_before}%에서 {match5_after}%로, 추가 공격 및 추격 공격 피해 증가량이 {buff_before}%에서 {buff_after}%로 변경됩니다.
+koharu.awakening.5.name	Spirit Energy Bloom	영력개화
+koharu.awakening.5.description	Spirit Energy required to reduce the remaining Active cooldown by 1 changes from {spirit_cost_before} to {spirit_cost_after}.	남은 액티브 재사용 대기시간을 1 줄이는 데 필요한 영력이 {spirit_cost_before}에서 {spirit_cost_after}로 변경됩니다.
+koharu.awakening.6.name	Fox's Blessing	여우의 축복
+koharu.awakening.6.description	Using the Active also increases party Additional and Chase damage by {damage_increase}% for {duration} turn, ending at TurnEnd.	액티브 사용 시 파티의 추가 공격 및 추격 공격 피해를 {damage_increase}% 증가시키며, TurnEnd에 만료되는 {duration}턴 효과를 부여합니다.

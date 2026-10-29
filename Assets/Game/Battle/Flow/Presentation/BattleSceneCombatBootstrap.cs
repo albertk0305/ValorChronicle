@@ -1,5 +1,7 @@
 using System;
 using UnityEngine;
+using ValorChronicle.Audio.Core;
+using ValorChronicle.Battle.Board.Presentation;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Entry;
@@ -40,6 +42,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             get;
             private set;
         }
+        public BattleSfxPresenter SfxPresenter { get; private set; }
 
         private void Awake()
         {
@@ -49,6 +52,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
         private void OnDestroy()
         {
             UnsubscribeResultAudio();
+            SfxPresenter?.Dispose();
+            SfxPresenter = null;
             CombatComposition?.Dispose();
         }
 
@@ -208,6 +213,7 @@ namespace ValorChronicle.Battle.Flow.Presentation
             }
 
             BattleSceneCombatComposition composition = null;
+            BattleSfxPresenter sfxPresenter = null;
             try
             {
                 GamePauseService pauseService =
@@ -237,6 +243,20 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     coordinator => composition.CreateBridge(
                         coordinator,
                         battleFlowController.BoardMutationSink));
+                var boardController =
+                    battleFlowController.BoardMutationSink
+                        as BattleBoardController;
+                if (boardController == null)
+                {
+                    throw new InvalidOperationException(
+                        "BattleBoardController is not available.");
+                }
+
+                sfxPresenter = new BattleSfxPresenter(
+                    bootstrapper.AudioService);
+                sfxPresenter.Initialize(
+                    boardController,
+                    composition.Bridge);
                 if (composition.ResultPersistenceCoordinator != null
                     && resultPresentationController != null)
                 {
@@ -252,11 +272,14 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 }
 
                 CombatComposition = composition;
+                SfxPresenter = sfxPresenter;
                 HasInitializedFlow = true;
             }
             catch (Exception exception)
             {
                 UnsubscribeResultAudio();
+                sfxPresenter?.Dispose();
+                SfxPresenter = null;
                 composition?.Dispose();
                 if (battleFlowController.Context != null)
                 {

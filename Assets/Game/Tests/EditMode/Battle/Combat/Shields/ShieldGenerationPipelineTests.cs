@@ -1,10 +1,14 @@
 using System;
 using NUnit.Framework;
+using UnityEditor;
 using ValorChronicle.Battle.Combat.Application;
 using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Battle.Combat.Shields;
 using ValorChronicle.Battle.Combat.State;
+using ValorChronicle.Characters.Build;
+using ValorChronicle.Characters.Stats;
 using ValorChronicle.Data.Definitions;
+using ValorChronicle.Relics.Stats;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Combat.Shields
 {
@@ -90,7 +94,7 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Shields
         }
 
         [Test]
-        public void Apply_AddsAllPositiveShieldWithoutCap()
+        public void Apply_ClampsGrantToPartyMaximumHp()
         {
             CharacterBattleState source = Character(1000);
             var party = new PartyBattleState(new[] { source });
@@ -116,9 +120,191 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Shields
                 new ShieldGrantRequest(2, "source", 2, null, 2));
 
             Assert.That(result.TotalShieldBefore, Is.EqualTo(900L));
-            Assert.That(result.GrantedShieldAmount, Is.EqualTo(2000L));
-            Assert.That(result.TotalShieldAfter, Is.EqualTo(2900L));
+            Assert.That(result.RequestedShieldAmount, Is.EqualTo(2000L));
+            Assert.That(result.GrantedShieldAmount, Is.EqualTo(100L));
+            Assert.That(result.TotalShieldAfter, Is.EqualTo(1000L));
             Assert.That(party.Shields.ActiveShields, Has.Count.EqualTo(2));
+            Assert.That(party.Shields.ActiveShields[1].InitialAmount,
+                Is.EqualTo(100L));
+        }
+
+        [Test]
+        public void Apply_SeparateCharacterGrantsShareOnePartyCap()
+        {
+            CharacterBattleState first = Character("first", 0, 600);
+            CharacterBattleState second = Character("second", 1, 400);
+            var party = new PartyBattleState(new[] { first, second });
+
+            ShieldGrantApplicationResult firstResult = Apply(
+                party,
+                requestedAmount: 400,
+                runtimeId: 1,
+                sourceId: first.CharacterId,
+                creationOrder: 1);
+            ShieldGrantApplicationResult secondResult = Apply(
+                party,
+                requestedAmount: 800,
+                runtimeId: 2,
+                sourceId: second.CharacterId,
+                creationOrder: 2);
+
+            Assert.That(firstResult.GrantedShieldAmount, Is.EqualTo(400L));
+            Assert.That(secondResult.GrantedShieldAmount, Is.EqualTo(600L));
+            Assert.That(secondResult.TotalShieldAfter, Is.EqualTo(1000L));
+            Assert.That(party.Shields.ActiveShields, Has.Count.EqualTo(2));
+            Assert.That(party.Shields.ActiveShields[0].SourceId,
+                Is.EqualTo(first.CharacterId));
+            Assert.That(party.Shields.ActiveShields[1].SourceId,
+                Is.EqualTo(second.CharacterId));
+        }
+
+        [Test]
+        public void Apply_ExactCapCreatesFullRequestedInstance()
+        {
+            CharacterBattleState source = Character(1000);
+            var party = new PartyBattleState(new[] { source });
+
+            ShieldGrantApplicationResult result = Apply(
+                party,
+                requestedAmount: 1000,
+                runtimeId: 1,
+                sourceId: source.CharacterId,
+                creationOrder: 1);
+
+            Assert.That(result.RequestedShieldAmount, Is.EqualTo(1000L));
+            Assert.That(result.GrantedShieldAmount, Is.EqualTo(1000L));
+            Assert.That(result.TotalShieldAfter, Is.EqualTo(1000L));
+            Assert.That(result.CreatedShieldRuntimeId, Is.EqualTo(1L));
+        }
+
+        [Test]
+        public void Apply_AtCapDoesNotCreateShieldInstance()
+        {
+            CharacterBattleState source = Character(1000);
+            var party = new PartyBattleState(new[] { source });
+            party.Shields.Add(new ShieldInstance(
+                1,
+                "old",
+                1000,
+                1,
+                2,
+                1));
+
+            ShieldGrantApplicationResult result = Apply(
+                party,
+                requestedAmount: 500,
+                runtimeId: 2,
+                sourceId: source.CharacterId,
+                creationOrder: 2);
+
+            Assert.That(result.RequestedShieldAmount, Is.EqualTo(500L));
+            Assert.That(result.GrantedShieldAmount, Is.Zero);
+            Assert.That(result.TotalShieldBefore, Is.EqualTo(1000L));
+            Assert.That(result.TotalShieldAfter, Is.EqualTo(1000L));
+            Assert.That(result.CreatedShieldRuntimeId, Is.Null);
+            Assert.That(party.Shields.ActiveShields, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void Apply_ClampedGrantPreservesExistingShieldMetadata()
+        {
+            CharacterBattleState source = Character(1000);
+            var party = new PartyBattleState(new[] { source });
+            var existing = new ShieldInstance(
+                1,
+                "old",
+                900,
+                3,
+                1,
+                10);
+            party.Shields.Add(existing);
+
+            ShieldGrantApplicationResult result = Apply(
+                party,
+                requestedAmount: 500,
+                runtimeId: 2,
+                sourceId: source.CharacterId,
+                creationOrder: 20,
+                remainingTurns: 4);
+
+            Assert.That(result.GrantedShieldAmount, Is.EqualTo(100L));
+            Assert.That(existing.CurrentAmount, Is.EqualTo(900L));
+            Assert.That(existing.RemainingTurns, Is.EqualTo(1));
+            Assert.That(existing.CreationOrder, Is.EqualTo(10L));
+            Assert.That(party.Shields.ActiveShields[1].RemainingTurns,
+                Is.EqualTo(4));
+            Assert.That(party.Shields.ActiveShields[1].CreationOrder,
+                Is.EqualTo(20L));
+        }
+
+        [Test]
+        public void Apply_AfterAbsorptionRefillsOnlyAvailableAmount()
+        {
+            CharacterBattleState source = Character(1000);
+            var party = new PartyBattleState(new[] { source });
+            party.Shields.Add(new ShieldInstance(
+                1,
+                "old",
+                1000,
+                1,
+                2,
+                1));
+            party.Shields.Absorb(300);
+
+            ShieldGrantApplicationResult result = Apply(
+                party,
+                requestedAmount: 500,
+                runtimeId: 2,
+                sourceId: source.CharacterId,
+                creationOrder: 2);
+
+            Assert.That(result.TotalShieldBefore, Is.EqualTo(700L));
+            Assert.That(result.GrantedShieldAmount, Is.EqualTo(300L));
+            Assert.That(result.TotalShieldAfter, Is.EqualTo(1000L));
+            Assert.That(party.Shields.ActiveShields, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void Apply_UsesAwakeningAndRelicAdjustedPartyMaximumHp()
+        {
+            CharacterDefinition definition = AssetDatabase.LoadAssetAtPath<
+                CharacterDefinition>(
+                "Assets/Data/Characters/marea_bluefang.asset");
+            Assert.That(definition, Is.Not.Null);
+            ResolvedCharacterBuild build =
+                CharacterBuildResolverFactory.CreateDefault().Resolve(
+                    definition,
+                    level: 100,
+                    awakening: 2,
+                    relicBonuses: new RelicStatBonusSummary(
+                        maxHpIncreaseRateSum: 0.10d,
+                        attackIncreaseRateSum: 0d));
+            CharacterBattleState adjusted = CharacterBattleStateFactory.Create(
+                definition,
+                build,
+                partySlotIndex: 0);
+            var party = new PartyBattleState(new[] { adjusted });
+            long availableAmount = 50;
+            party.Shields.Add(new ShieldInstance(
+                1,
+                "old",
+                party.MaxHp - availableAmount,
+                1,
+                2,
+                1));
+
+            ShieldGrantApplicationResult result = Apply(
+                party,
+                requestedAmount: 500,
+                runtimeId: 2,
+                sourceId: adjusted.CharacterId,
+                creationOrder: 2);
+
+            Assert.That(adjusted.MaxHp, Is.EqualTo(build.MaxHp));
+            Assert.That(build.MaxHpMultiplier, Is.EqualTo(1.05d));
+            Assert.That(result.GrantedShieldAmount,
+                Is.EqualTo(availableAmount));
+            Assert.That(result.TotalShieldAfter, Is.EqualTo(party.MaxHp));
         }
 
         [Test]
@@ -179,12 +365,47 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Shields
 
         private static CharacterBattleState Character(long maximumHp)
         {
+            return Character("source", 0, maximumHp);
+        }
+
+        private static CharacterBattleState Character(
+            string characterId,
+            int partySlotIndex,
+            long maximumHp)
+        {
             return new CharacterBattleState(
-                "source",
-                0,
+                characterId,
+                partySlotIndex,
                 ElementType.Water,
                 maximumHp,
                 100d);
+        }
+
+        private static ShieldGrantApplicationResult Apply(
+            PartyBattleState party,
+            long requestedAmount,
+            long runtimeId,
+            string sourceId,
+            long creationOrder,
+            int? remainingTurns = 3)
+        {
+            ShieldGenerationResult generation =
+                ShieldGenerationCalculator.Calculate(
+                    new ShieldGenerationContext(
+                        requestedAmount,
+                        1d,
+                        false,
+                        0,
+                        0d));
+            return ShieldGrantApplier.Apply(
+                party,
+                generation,
+                new ShieldGrantRequest(
+                    runtimeId,
+                    sourceId,
+                    1,
+                    remainingTurns,
+                    creationOrder));
         }
 
         private static EffectInstance Effect(

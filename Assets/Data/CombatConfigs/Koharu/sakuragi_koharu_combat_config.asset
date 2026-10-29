@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10ec27f25e594367b11f739508658f03, type: 3}
+  m_Name: sakuragi_koharu_combat_config
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Characters.Koharu.SakuragiKoharuCombatConfig
+  match3Coefficient: 0.5
+  match4Coefficient: 0.8
+  match5Coefficient: 1.3
+  match3SpiritEnergyGain: 1
+  match4SpiritEnergyGain: 2
+  match5SpiritEnergyGain: 3
+  match5AdditionalAndChaseDamageIncreaseRate: 0.12
+  match5EffectDurationTurns: 2
+  awakening3Match3Coefficient: 0.55
+  awakening3Match4Coefficient: 0.9
+  awakening4Match5Coefficient: 1.45
+  awakening4Match5AdditionalAndChaseDamageIncreaseRate: 0.15
+  spiritEnergyCostPerCooldownReduction: 6
+  awakening5SpiritEnergyCostPerCooldownReduction: 5
+  awakening6AdditionalAndChaseDamageIncreaseRate: 0.1
+  awakening6EffectDurationTurns: 1
+  activeCooldownTurns: 4
+  activeBlockConversionCount: 2

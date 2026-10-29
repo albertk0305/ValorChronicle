@@ -7,7 +7,8 @@ namespace ValorChronicle.Audio.Configuration
     [CreateAssetMenu(
         fileName = "AudioConfiguration",
         menuName = "Valor Chronicle/Audio/Audio Configuration")]
-    public sealed class AudioConfiguration : ScriptableObject
+    public sealed class AudioConfiguration : ScriptableObject,
+        ISfxClipProvider
     {
         [SerializeField]
         private AudioMixer audioMixer;
@@ -23,6 +24,12 @@ namespace ValorChronicle.Audio.Configuration
         private AudioClip normalBgm;
         [SerializeField]
         private AudioClip battleBgm;
+        [SerializeField]
+        private AudioClip buttonPressSfx;
+        [SerializeField]
+        private AudioClip blockPopSfx;
+        [SerializeField]
+        private AudioClip hitSfx;
         [SerializeField]
         [Min(0f)]
         private float sceneCrossfadeSeconds =
@@ -66,6 +73,30 @@ namespace ValorChronicle.Audio.Configuration
         public AudioClip InitBgm => initBgm;
         public AudioClip NormalBgm => normalBgm;
         public AudioClip BattleBgm => battleBgm;
+        public AudioClip ButtonPressSfx => buttonPressSfx;
+        public AudioClip BlockPopSfx => blockPopSfx;
+        public AudioClip HitSfx => hitSfx;
+
+        public bool TryGetSfxClip(SfxCue cue, out AudioClip clip)
+        {
+            switch (cue)
+            {
+                case SfxCue.ButtonPress:
+                    clip = buttonPressSfx;
+                    break;
+                case SfxCue.BlockPop:
+                    clip = blockPopSfx;
+                    break;
+                case SfxCue.Hit:
+                    clip = hitSfx;
+                    break;
+                default:
+                    clip = null;
+                    return false;
+            }
+
+            return clip != null;
+        }
 
         public BgmFadeSettings CreateFadeSettings()
         {

@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b70741572d4f453baabe4dfcd873ec8f, type: 3}
+  m_Name: naira_windhorn_combat_config
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Characters.Naira.NairaWindhornCombatConfig
+  match3ShieldMaxHpRate: 0.07
+  match4ShieldMaxHpRate: 0.12
+  match5ShieldMaxHpRate: 0.2
+  activeShieldMaxHpRate: 0.35
+  shieldDurationTurns: 3
+  matchShieldUsesComboMultiplier: 1
+  activeShieldUsesComboMultiplier: 0
+  match4BaseDamageCoefficient: 1.2
+  match4ChargeDamageIncreaseRate: 0.5
+  match5BaseDamageCoefficient: 2.2
+  match5ChargeDamageIncreaseRate: 1
+  passiveTargetTakenDamageIncreaseRate: 0.05
+  awakening3PassiveTargetTakenDamageIncreaseRate: 0.06
+  activeCooldownTurns: 12
+  whiteStagGraceDamageReductionRate: 0.35
+  awakening5WhiteStagGraceDamageReductionRate: 0.4
+  awakening4Match3ShieldMaxHpRate: 0.08
+  awakening4Match4ShieldMaxHpRate: 0.13
+  ancientGuardianDamageReductionRate: 0.15
+

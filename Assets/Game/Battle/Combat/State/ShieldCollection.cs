@@ -10,6 +10,7 @@ namespace ValorChronicle.Battle.Combat.State
             new List<ShieldInstance>();
         private readonly ReadOnlyCollection<ShieldInstance>
             readOnlyActiveShields;
+        private bool isNotifyingTotalShieldChanged;
 
         public ShieldCollection()
         {
@@ -18,6 +19,8 @@ namespace ValorChronicle.Battle.Combat.State
 
         public IReadOnlyList<ShieldInstance> ActiveShields =>
             readOnlyActiveShields;
+
+        public event Action<long> TotalShieldChanged;
 
         public long TotalShield
         {
@@ -36,6 +39,7 @@ namespace ValorChronicle.Battle.Combat.State
 
         public void Add(ShieldInstance shield)
         {
+            ThrowIfNotifyingTotalShieldChanged();
             if (shield == null)
             {
                 throw new ArgumentNullException(nameof(shield));
@@ -74,10 +78,12 @@ namespace ValorChronicle.Battle.Combat.State
 
             shield.RegisterWithCollection();
             activeShields.Add(shield);
+            NotifyTotalShieldChanged();
         }
 
         public ShieldAbsorptionResult Absorb(long incomingDamage)
         {
+            ThrowIfNotifyingTotalShieldChanged();
             if (incomingDamage < 0)
             {
                 throw new ArgumentOutOfRangeException(
@@ -108,12 +114,18 @@ namespace ValorChronicle.Battle.Combat.State
 
             activeShields.RemoveAll(shield => shield.IsDepleted);
             long absorbedDamage = incomingDamage - remainingDamage;
+            long totalShieldAfter = TotalShield;
+            if (totalShieldAfter != totalShieldBefore)
+            {
+                NotifyTotalShieldChanged(totalShieldAfter);
+            }
+
             return new ShieldAbsorptionResult(
                 incomingDamage,
                 absorbedDamage,
                 remainingDamage,
                 totalShieldBefore,
-                TotalShield,
+                totalShieldAfter,
                 depletedRuntimeIds);
         }
 
@@ -123,12 +135,53 @@ namespace ValorChronicle.Battle.Combat.State
         /// </summary>
         public void ProcessTurnEnd()
         {
+            ThrowIfNotifyingTotalShieldChanged();
+            long totalShieldBefore = TotalShield;
             for (int index = 0; index < activeShields.Count; index++)
             {
                 activeShields[index].ProcessTurnEnd();
             }
 
             activeShields.RemoveAll(shield => shield.IsExpired);
+            long totalShieldAfter = TotalShield;
+            if (totalShieldAfter != totalShieldBefore)
+            {
+                NotifyTotalShieldChanged(totalShieldAfter);
+            }
+        }
+
+        private void NotifyTotalShieldChanged()
+        {
+            NotifyTotalShieldChanged(TotalShield);
+        }
+
+        private void NotifyTotalShieldChanged(long totalShield)
+        {
+            Action<long> handlers = TotalShieldChanged;
+            if (handlers == null)
+            {
+                return;
+            }
+
+            isNotifyingTotalShieldChanged = true;
+            try
+            {
+                handlers(totalShield);
+            }
+            finally
+            {
+                isNotifyingTotalShieldChanged = false;
+            }
+        }
+
+        private void ThrowIfNotifyingTotalShieldChanged()
+        {
+            if (isNotifyingTotalShieldChanged)
+            {
+                throw new InvalidOperationException(
+                    "Shield collection cannot change during its change "
+                        + "notification.");
+            }
         }
 
         private static int CompareConsumptionOrder(

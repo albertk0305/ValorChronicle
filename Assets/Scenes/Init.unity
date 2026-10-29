@@ -131,6 +131,7 @@ GameObject:
   - component: {fileID: 43165005}
   - component: {fileID: 43165004}
   - component: {fileID: 43165003}
+  - component: {fileID: 3000000001}
   m_Layer: 5
   m_Name: SettingButton
   m_TagString: Untagged
@@ -461,6 +462,7 @@ GameObject:
   - component: {fileID: 1017674359}
   - component: {fileID: 1017674361}
   - component: {fileID: 1017674362}
+  - component: {fileID: 3000000002}
   m_Layer: 5
   m_Name: InitBackgroundImage
   m_TagString: Untagged
@@ -1197,6 +1199,7 @@ GameObject:
   - component: {fileID: 2090646875}
   - component: {fileID: 2090646874}
   - component: {fileID: 2090646877}
+  - component: {fileID: 3000000003}
   m_Layer: 5
   m_Name: ExitButton
   m_TagString: Untagged
@@ -1329,6 +1332,42 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a6126ebcd0206c4fabe4303f48a0290, type: 3}
   m_Name: 
   m_EditorClassIdentifier: ValorChronicle.Game::GameExitButton
+--- !u!114 &3000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 43165001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3000000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1017674357}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3000000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2090646872}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

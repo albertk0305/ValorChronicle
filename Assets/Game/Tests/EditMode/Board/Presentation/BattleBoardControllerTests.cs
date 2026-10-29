@@ -371,12 +371,19 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             int finishedCount = 0;
             var presentations =
                 new List<BoardCascadeStepPresentation>();
+            var removalGroupCounts = new List<int>();
             var eventOrder = new List<string>();
             controller.BoardActionStarted += value =>
             {
                 execution = value;
                 startedCount++;
                 eventOrder.Add("Started");
+            };
+            controller.MatchGroupsRemovalStarted += value =>
+            {
+                removalGroupCounts.Add(value);
+                eventOrder.Add(
+                    $"Removal[{removalGroupCounts.Count - 1}]");
             };
             controller.CascadeStepPresented += value =>
             {
@@ -438,8 +445,12 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(completion.Result.Shuffle, Is.SameAs(result.Shuffle));
             Assert.That(presentations.Count,
                 Is.EqualTo(result.Cascade.Steps.Count));
+            Assert.That(removalGroupCounts.Count,
+                Is.EqualTo(result.Cascade.Steps.Count));
             for (int index = 0; index < presentations.Count; index++)
             {
+                Assert.That(removalGroupCounts[index],
+                    Is.EqualTo(result.Cascade.Steps[index].Matches.Count));
                 Assert.That(presentations[index].ActionId,
                     Is.EqualTo(execution.ActionId));
                 Assert.That(presentations[index].CascadeStepIndex,
@@ -452,7 +463,14 @@ namespace ValorChronicle.Tests.EditMode.Board.Presentation
             Assert.That(eventOrder[eventOrder.Count - 1],
                 Is.EqualTo("Finished"));
             Assert.That(eventOrder.Count,
-                Is.EqualTo(result.Cascade.Steps.Count + 2));
+                Is.EqualTo(result.Cascade.Steps.Count * 2 + 2));
+            for (int index = 0; index < result.Cascade.Steps.Count; index++)
+            {
+                Assert.That(eventOrder[index * 2 + 1],
+                    Is.EqualTo($"Removal[{index}]"));
+                Assert.That(eventOrder[index * 2 + 2],
+                    Is.EqualTo($"Cascade[{index}]"));
+            }
         }
 
         [UnityTest]

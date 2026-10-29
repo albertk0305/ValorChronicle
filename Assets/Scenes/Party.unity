@@ -131,6 +131,7 @@ GameObject:
   - component: {fileID: 16863647}
   - component: {fileID: 16863646}
   - component: {fileID: 16863645}
+  - component: {fileID: 3200000001}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -553,6 +554,7 @@ GameObject:
   - component: {fileID: 59053059}
   - component: {fileID: 59053058}
   - component: {fileID: 59053057}
+  - component: {fileID: 3200000002}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -1682,6 +1684,7 @@ GameObject:
   - component: {fileID: 130719362}
   - component: {fileID: 130719361}
   - component: {fileID: 130719360}
+  - component: {fileID: 3200000003}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -1917,6 +1920,7 @@ GameObject:
   - component: {fileID: 144404274}
   - component: {fileID: 144404273}
   - component: {fileID: 144404272}
+  - component: {fileID: 3200000004}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -2175,6 +2179,7 @@ GameObject:
   - component: {fileID: 155949402}
   - component: {fileID: 155949401}
   - component: {fileID: 155949400}
+  - component: {fileID: 3200000005}
   m_Layer: 5
   m_Name: GrassType
   m_TagString: Untagged
@@ -2870,6 +2875,7 @@ GameObject:
   - component: {fileID: 209595524}
   - component: {fileID: 209595523}
   - component: {fileID: 209595522}
+  - component: {fileID: 3200000006}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -2990,6 +2996,7 @@ GameObject:
   - component: {fileID: 209880328}
   - component: {fileID: 209880327}
   - component: {fileID: 209880326}
+  - component: {fileID: 3200000007}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -3185,6 +3192,7 @@ GameObject:
   - component: {fileID: 224739036}
   - component: {fileID: 224739035}
   - component: {fileID: 224739034}
+  - component: {fileID: 3200000008}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -3688,6 +3696,7 @@ GameObject:
   - component: {fileID: 264881359}
   - component: {fileID: 264881358}
   - component: {fileID: 264881357}
+  - component: {fileID: 3200000009}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -3883,6 +3892,7 @@ GameObject:
   - component: {fileID: 274068835}
   - component: {fileID: 274068834}
   - component: {fileID: 274068833}
+  - component: {fileID: 3200000010}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -4004,6 +4014,7 @@ GameObject:
   - component: {fileID: 282071399}
   - component: {fileID: 282071398}
   - component: {fileID: 282071397}
+  - component: {fileID: 3200000011}
   m_Layer: 5
   m_Name: DarkType
   m_TagString: Untagged
@@ -4416,6 +4427,7 @@ GameObject:
   - component: {fileID: 333474212}
   - component: {fileID: 333474211}
   - component: {fileID: 333474210}
+  - component: {fileID: 3200000012}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -4725,6 +4737,7 @@ GameObject:
   - component: {fileID: 344073893}
   - component: {fileID: 344073892}
   - component: {fileID: 344073891}
+  - component: {fileID: 3200000013}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -4995,6 +5008,7 @@ GameObject:
   - component: {fileID: 366564695}
   - component: {fileID: 366564694}
   - component: {fileID: 366564693}
+  - component: {fileID: 3200000014}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -5933,6 +5947,7 @@ GameObject:
   - component: {fileID: 432747537}
   - component: {fileID: 432747536}
   - component: {fileID: 432747535}
+  - component: {fileID: 3200000015}
   m_Layer: 5
   m_Name: ExitButton
   m_TagString: Untagged
@@ -6896,6 +6911,7 @@ GameObject:
   - component: {fileID: 543124573}
   - component: {fileID: 543124572}
   - component: {fileID: 543124571}
+  - component: {fileID: 3200000016}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -7055,6 +7071,7 @@ GameObject:
   - component: {fileID: 552374098}
   - component: {fileID: 552374097}
   - component: {fileID: 552374096}
+  - component: {fileID: 3200000017}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -7250,6 +7267,7 @@ GameObject:
   - component: {fileID: 554361315}
   - component: {fileID: 554361314}
   - component: {fileID: 554361313}
+  - component: {fileID: 3200000018}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -8084,6 +8102,7 @@ GameObject:
   - component: {fileID: 624571372}
   - component: {fileID: 624571371}
   - component: {fileID: 624571370}
+  - component: {fileID: 3200000019}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -8204,6 +8223,7 @@ GameObject:
   - component: {fileID: 625023204}
   - component: {fileID: 625023203}
   - component: {fileID: 625023202}
+  - component: {fileID: 3200000020}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -8324,6 +8344,7 @@ GameObject:
   - component: {fileID: 629374613}
   - component: {fileID: 629374612}
   - component: {fileID: 629374611}
+  - component: {fileID: 3200000021}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -8884,6 +8905,7 @@ GameObject:
   - component: {fileID: 669122945}
   - component: {fileID: 669122944}
   - component: {fileID: 669122943}
+  - component: {fileID: 3200000022}
   m_Layer: 5
   m_Name: SelectButton
   m_TagString: Untagged
@@ -9004,6 +9026,7 @@ GameObject:
   - component: {fileID: 674732976}
   - component: {fileID: 674732975}
   - component: {fileID: 674732974}
+  - component: {fileID: 3200000023}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -9124,6 +9147,7 @@ GameObject:
   - component: {fileID: 675681663}
   - component: {fileID: 675681662}
   - component: {fileID: 675681661}
+  - component: {fileID: 3200000024}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -9319,6 +9343,7 @@ GameObject:
   - component: {fileID: 680310268}
   - component: {fileID: 680310267}
   - component: {fileID: 680310266}
+  - component: {fileID: 3200000025}
   m_Layer: 5
   m_Name: O Button
   m_TagString: Untagged
@@ -9439,6 +9464,7 @@ GameObject:
   - component: {fileID: 682589641}
   - component: {fileID: 682589640}
   - component: {fileID: 682589639}
+  - component: {fileID: 3200000026}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -10163,6 +10189,7 @@ GameObject:
   - component: {fileID: 742487387}
   - component: {fileID: 742487386}
   - component: {fileID: 742487385}
+  - component: {fileID: 3200000027}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -10437,6 +10464,7 @@ GameObject:
   - component: {fileID: 780809086}
   - component: {fileID: 780809085}
   - component: {fileID: 780809084}
+  - component: {fileID: 3200000028}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -10632,6 +10660,7 @@ GameObject:
   - component: {fileID: 793057364}
   - component: {fileID: 793057363}
   - component: {fileID: 793057362}
+  - component: {fileID: 3200000029}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -11402,6 +11431,7 @@ GameObject:
   - component: {fileID: 877419362}
   - component: {fileID: 877419361}
   - component: {fileID: 877419360}
+  - component: {fileID: 3200000030}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -11597,6 +11627,7 @@ GameObject:
   - component: {fileID: 899177549}
   - component: {fileID: 899177548}
   - component: {fileID: 899177547}
+  - component: {fileID: 3200000031}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -11717,6 +11748,7 @@ GameObject:
   - component: {fileID: 900599979}
   - component: {fileID: 900599978}
   - component: {fileID: 900599977}
+  - component: {fileID: 3200000032}
   m_Layer: 5
   m_Name: OrderByLevelHighButton
   m_TagString: Untagged
@@ -11916,6 +11948,7 @@ GameObject:
   - component: {fileID: 908404618}
   - component: {fileID: 908404617}
   - component: {fileID: 908404616}
+  - component: {fileID: 3200000033}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -12151,6 +12184,7 @@ GameObject:
   - component: {fileID: 931216701}
   - component: {fileID: 931216700}
   - component: {fileID: 931216699}
+  - component: {fileID: 3200000034}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -12889,6 +12923,7 @@ GameObject:
   - component: {fileID: 1025267752}
   - component: {fileID: 1025267751}
   - component: {fileID: 1025267750}
+  - component: {fileID: 3200000035}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -13221,6 +13256,7 @@ GameObject:
   - component: {fileID: 1033081922}
   - component: {fileID: 1033081921}
   - component: {fileID: 1033081920}
+  - component: {fileID: 3200000036}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -13606,6 +13642,7 @@ GameObject:
   - component: {fileID: 1062757380}
   - component: {fileID: 1062757379}
   - component: {fileID: 1062757378}
+  - component: {fileID: 3200000037}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -13876,6 +13913,7 @@ GameObject:
   - component: {fileID: 1087828379}
   - component: {fileID: 1087828378}
   - component: {fileID: 1087828377}
+  - component: {fileID: 3200000038}
   m_Layer: 5
   m_Name: SelectButton
   m_TagString: Untagged
@@ -13996,6 +14034,7 @@ GameObject:
   - component: {fileID: 1091166334}
   - component: {fileID: 1091166333}
   - component: {fileID: 1091166332}
+  - component: {fileID: 3200000039}
   m_Layer: 5
   m_Name: X Button
   m_TagString: Untagged
@@ -14484,6 +14523,7 @@ GameObject:
   - component: {fileID: 1137017345}
   - component: {fileID: 1137017344}
   - component: {fileID: 1137017343}
+  - component: {fileID: 3200000040}
   m_Layer: 5
   m_Name: LightType
   m_TagString: Untagged
@@ -14604,6 +14644,7 @@ GameObject:
   - component: {fileID: 1145066534}
   - component: {fileID: 1145066533}
   - component: {fileID: 1145066532}
+  - component: {fileID: 3200000041}
   m_Layer: 5
   m_Name: SelectButton
   m_TagString: Untagged
@@ -14799,6 +14840,7 @@ GameObject:
   - component: {fileID: 1153954837}
   - component: {fileID: 1153954836}
   - component: {fileID: 1153954835}
+  - component: {fileID: 3200000042}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -14994,6 +15036,7 @@ GameObject:
   - component: {fileID: 1175284564}
   - component: {fileID: 1175284563}
   - component: {fileID: 1175284562}
+  - component: {fileID: 3200000043}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -15114,6 +15157,7 @@ GameObject:
   - component: {fileID: 1176220240}
   - component: {fileID: 1176220239}
   - component: {fileID: 1176220238}
+  - component: {fileID: 3200000044}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -15499,6 +15543,7 @@ GameObject:
   - component: {fileID: 1186301201}
   - component: {fileID: 1186301200}
   - component: {fileID: 1186301199}
+  - component: {fileID: 3200000045}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -15958,6 +16003,7 @@ GameObject:
   - component: {fileID: 1250751734}
   - component: {fileID: 1250751733}
   - component: {fileID: 1250751732}
+  - component: {fileID: 3200000046}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -16157,6 +16203,7 @@ GameObject:
   - component: {fileID: 1279190503}
   - component: {fileID: 1279190502}
   - component: {fileID: 1279190501}
+  - component: {fileID: 3200000047}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -16278,6 +16325,7 @@ GameObject:
   - component: {fileID: 1285921780}
   - component: {fileID: 1285921779}
   - component: {fileID: 1285921778}
+  - component: {fileID: 3200000048}
   m_Layer: 5
   m_Name: WaterType
   m_TagString: Untagged
@@ -16438,6 +16486,7 @@ GameObject:
   - component: {fileID: 1295870803}
   - component: {fileID: 1295870802}
   - component: {fileID: 1295870801}
+  - component: {fileID: 3200000049}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -16708,6 +16757,7 @@ GameObject:
   - component: {fileID: 1299241392}
   - component: {fileID: 1299241391}
   - component: {fileID: 1299241390}
+  - component: {fileID: 3200000050}
   m_Layer: 5
   m_Name: SettingButton
   m_TagString: Untagged
@@ -16828,6 +16878,7 @@ GameObject:
   - component: {fileID: 1302396059}
   - component: {fileID: 1302396058}
   - component: {fileID: 1302396057}
+  - component: {fileID: 3200000051}
   m_Layer: 5
   m_Name: OrderByStarButton
   m_TagString: Untagged
@@ -17023,6 +17074,7 @@ GameObject:
   - component: {fileID: 1317223301}
   - component: {fileID: 1317223300}
   - component: {fileID: 1317223299}
+  - component: {fileID: 3200000052}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -17368,6 +17420,7 @@ GameObject:
   - component: {fileID: 1341214260}
   - component: {fileID: 1341214259}
   - component: {fileID: 1341214258}
+  - component: {fileID: 3200000053}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -17638,6 +17691,7 @@ GameObject:
   - component: {fileID: 1357806721}
   - component: {fileID: 1357806720}
   - component: {fileID: 1357806719}
+  - component: {fileID: 3200000054}
   m_Layer: 5
   m_Name: SelectButton
   m_TagString: Untagged
@@ -18023,6 +18077,7 @@ GameObject:
   - component: {fileID: 1442159299}
   - component: {fileID: 1442159298}
   - component: {fileID: 1442159297}
+  - component: {fileID: 3200000055}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -18635,6 +18690,7 @@ GameObject:
   - component: {fileID: 1480234048}
   - component: {fileID: 1480234047}
   - component: {fileID: 1480234046}
+  - component: {fileID: 3200000056}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -19368,6 +19424,7 @@ GameObject:
   - component: {fileID: 1553374782}
   - component: {fileID: 1553374781}
   - component: {fileID: 1553374780}
+  - component: {fileID: 3200000057}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -19489,6 +19546,7 @@ GameObject:
   - component: {fileID: 1559154706}
   - component: {fileID: 1559154705}
   - component: {fileID: 1559154704}
+  - component: {fileID: 3200000058}
   m_Layer: 5
   m_Name: FireType
   m_TagString: Untagged
@@ -20480,6 +20538,7 @@ GameObject:
   - component: {fileID: 1647407299}
   - component: {fileID: 1647407298}
   - component: {fileID: 1647407297}
+  - component: {fileID: 3200000059}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -20812,6 +20871,7 @@ GameObject:
   - component: {fileID: 1690362995}
   - component: {fileID: 1690362994}
   - component: {fileID: 1690362993}
+  - component: {fileID: 3200000060}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -21352,6 +21412,7 @@ GameObject:
   - component: {fileID: 1731581538}
   - component: {fileID: 1731581537}
   - component: {fileID: 1731581536}
+  - component: {fileID: 3200000061}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -21472,6 +21533,7 @@ GameObject:
   - component: {fileID: 1737114429}
   - component: {fileID: 1737114428}
   - component: {fileID: 1737114427}
+  - component: {fileID: 3200000062}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -22014,6 +22076,7 @@ GameObject:
   - component: {fileID: 1775877910}
   - component: {fileID: 1775877909}
   - component: {fileID: 1775877908}
+  - component: {fileID: 3200000063}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -22739,6 +22802,7 @@ GameObject:
   - component: {fileID: 1851602946}
   - component: {fileID: 1851602945}
   - component: {fileID: 1851602944}
+  - component: {fileID: 3200000064}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -23124,6 +23188,7 @@ GameObject:
   - component: {fileID: 1897189659}
   - component: {fileID: 1897189658}
   - component: {fileID: 1897189657}
+  - component: {fileID: 3200000065}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -23319,6 +23384,7 @@ GameObject:
   - component: {fileID: 1911601592}
   - component: {fileID: 1911601591}
   - component: {fileID: 1911601590}
+  - component: {fileID: 3200000066}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -23439,6 +23505,7 @@ GameObject:
   - component: {fileID: 1913883633}
   - component: {fileID: 1913883632}
   - component: {fileID: 1913883631}
+  - component: {fileID: 3200000067}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -23634,6 +23701,7 @@ GameObject:
   - component: {fileID: 1948303730}
   - component: {fileID: 1948303729}
   - component: {fileID: 1948303728}
+  - component: {fileID: 3200000068}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -24600,6 +24668,7 @@ GameObject:
   - component: {fileID: 2025915572}
   - component: {fileID: 2025915571}
   - component: {fileID: 2025915570}
+  - component: {fileID: 3200000069}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -24835,6 +24904,7 @@ GameObject:
   - component: {fileID: 2058840036}
   - component: {fileID: 2058840035}
   - component: {fileID: 2058840034}
+  - component: {fileID: 3200000070}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -24955,6 +25025,7 @@ GameObject:
   - component: {fileID: 2065651604}
   - component: {fileID: 2065651603}
   - component: {fileID: 2065651602}
+  - component: {fileID: 3200000071}
   m_Layer: 5
   m_Name: SelectButton
   m_TagString: Untagged
@@ -27206,6 +27277,7 @@ GameObject:
   - component: {fileID: 2123259792}
   - component: {fileID: 2123259791}
   - component: {fileID: 2123259790}
+  - component: {fileID: 3200000072}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -27466,6 +27538,870 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2135748994}
   m_CullTransparentMesh: 1
+--- !u!114 &3200000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 16863643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 59053055}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 130719358}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 144404270}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 155949398}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 209595520}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 209880324}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 224739032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 264881355}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 274068831}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 282071395}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 333474208}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000013
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 344073889}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 366564691}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000015
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 432747533}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000016
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 543124569}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000017
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 552374094}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000018
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 554361311}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000019
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 624571368}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 625023200}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000021
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 629374609}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000022
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 669122941}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000023
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 674732972}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000024
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 675681659}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000025
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 680310264}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000026
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 682589637}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000027
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 742487383}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000028
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 780809082}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000029
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 793057360}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000030
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 877419358}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000031
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 899177545}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000032
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900599975}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000033
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 908404614}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000034
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 931216697}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000035
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1025267748}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000036
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1033081918}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000037
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1062757376}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000038
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1087828375}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000039
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1091166330}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000040
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1137017341}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000041
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1145066530}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000042
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1153954833}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000043
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1175284560}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000044
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1176220236}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000045
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1186301197}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000046
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1250751730}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000047
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1279190499}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000048
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1285921776}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000049
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1295870799}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000050
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1299241387}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000051
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1302396055}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000052
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1317223297}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000053
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1341214256}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000054
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1357806717}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000055
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1442159295}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000056
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1480234044}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000057
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1553374778}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000058
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1559154702}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000059
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1647407295}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000060
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1690362991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000061
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1731581534}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000062
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1737114425}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000063
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1775877906}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000064
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1851602942}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000065
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1897189655}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000066
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1911601588}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000067
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1913883629}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000068
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1948303726}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000069
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2025915568}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000070
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2058840032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000071
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2065651600}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3200000072
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2123259788}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

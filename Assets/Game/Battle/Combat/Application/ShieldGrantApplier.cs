@@ -28,10 +28,16 @@ namespace ValorChronicle.Battle.Combat.Application
 
             long requestedAmount = generationResult.FinalShieldAmount;
             long totalBefore = party.Shields.TotalShield;
-            if (requestedAmount == 0)
+            long availableAmount = Math.Max(
+                party.MaxHp - totalBefore,
+                0L);
+            long grantedAmount = Math.Min(
+                requestedAmount,
+                availableAmount);
+            if (grantedAmount == 0)
             {
                 return new ShieldGrantApplicationResult(
-                    0,
+                    requestedAmount,
                     0,
                     totalBefore,
                     totalBefore,
@@ -41,14 +47,14 @@ namespace ValorChronicle.Battle.Combat.Application
             var shield = new ShieldInstance(
                 request.RuntimeId,
                 request.SourceId,
-                requestedAmount,
+                grantedAmount,
                 request.CreatedTurn,
                 request.RemainingTurns,
                 request.CreationOrder);
             party.Shields.Add(shield);
             return new ShieldGrantApplicationResult(
                 requestedAmount,
-                requestedAmount,
+                grantedAmount,
                 totalBefore,
                 party.Shields.TotalShield,
                 shield.RuntimeId);

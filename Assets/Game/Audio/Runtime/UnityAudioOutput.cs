@@ -340,13 +340,19 @@ namespace ValorChronicle.Audio.Runtime
         public void PlaySfx(AudioClip clip)
         {
             if (clip != null)
+            {
+                sfxSource.pitch = 1f;
                 sfxSource.PlayOneShot(clip);
+            }
         }
 
         public void PlayUiSfx(AudioClip clip)
         {
             if (clip != null)
+            {
+                uiSfxSource.pitch = 1f;
                 uiSfxSource.PlayOneShot(clip);
+            }
         }
 
         private void RefreshSourceVolumes()

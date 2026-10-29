@@ -36,10 +36,19 @@ namespace ValorChronicle.Battle.Combat.Integration
         public IReadOnlyList<CombatAction> CreateRootActions(
             MatchEventExecution execution)
         {
+            return CreateRootActions(execution, playerTurnNumber: 1);
+        }
+
+        public IReadOnlyList<CombatAction> CreateRootActions(
+            MatchEventExecution execution,
+            int playerTurnNumber)
+        {
             if (execution == null)
             {
                 throw new ArgumentNullException(nameof(execution));
             }
+
+            ValidatePlayerTurnNumber(playerTurnNumber);
 
             var rootActions = new List<CombatAction>();
             for (int characterIndex = 0;
@@ -54,7 +63,10 @@ namespace ValorChronicle.Battle.Combat.Integration
                 }
 
                 IReadOnlyList<CombatAction> characterActions =
-                    CreateCharacterRootActions(execution, character);
+                    CreateCharacterRootActions(
+                        execution,
+                        character,
+                        playerTurnNumber);
                 for (int actionIndex = 0;
                     actionIndex < characterActions.Count;
                     actionIndex++)
@@ -70,6 +82,17 @@ namespace ValorChronicle.Battle.Combat.Integration
             MatchEventExecution execution,
             CharacterBattleState character)
         {
+            return CreateCharacterRootActions(
+                execution,
+                character,
+                playerTurnNumber: 1);
+        }
+
+        public IReadOnlyList<CombatAction> CreateCharacterRootActions(
+            MatchEventExecution execution,
+            CharacterBattleState character,
+            int playerTurnNumber)
+        {
             if (execution == null)
             {
                 throw new ArgumentNullException(nameof(execution));
@@ -79,6 +102,8 @@ namespace ValorChronicle.Battle.Combat.Integration
             {
                 throw new ArgumentNullException(nameof(character));
             }
+
+            ValidatePlayerTurnNumber(playerTurnNumber);
 
             ValidatePartyCharacter(character);
             if (character.Element != execution.MatchEvent.Element)
@@ -92,7 +117,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 ResolveAttackTag(execution.MatchEvent.Tier),
                 party,
                 boss,
-                actionIds);
+                actionIds,
+                playerTurnNumber);
             long idBeforeProvider = actionIds.LastIssuedId;
             IReadOnlyList<CombatAction> characterActions =
                 provider.CreateRootActions(context);
@@ -101,6 +127,17 @@ namespace ValorChronicle.Battle.Combat.Integration
                 context,
                 idBeforeProvider);
             return characterActions;
+        }
+
+        private static void ValidatePlayerTurnNumber(int playerTurnNumber)
+        {
+            if (playerTurnNumber <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(playerTurnNumber),
+                    playerTurnNumber,
+                    "Player turn number must be positive.");
+            }
         }
 
         private void ValidatePartyCharacter(CharacterBattleState character)

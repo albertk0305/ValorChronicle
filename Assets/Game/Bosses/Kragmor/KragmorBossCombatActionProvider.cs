@@ -189,7 +189,8 @@ namespace ValorChronicle.Bosses.Kragmor
                     boss,
                     party,
                     intent.DamageCoefficient,
-                    attackTags)));
+                    attackTags,
+                    BossDamageHitType.Direct)));
         }
 
         private void AddDefenseTransition(

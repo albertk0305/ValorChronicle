@@ -70,6 +70,8 @@ namespace ValorChronicle.Battle.Board.Presentation
         public bool IsAnimating { get; private set; }
 
         internal event Action<int, BoardCascadeStep> CascadeStepPresented;
+        internal event Action<int, BoardCascadeStep>
+            MatchGroupsRemovalStarted;
 
         public IReadOnlyDictionary<long, BlockView> ActiveViews
         {
@@ -1604,6 +1606,16 @@ namespace ValorChronicle.Battle.Board.Presentation
             ActiveAnimation animation,
             string contextPrefix)
         {
+            if (!IsAnimationCurrent(version, animation))
+            {
+                yield break;
+            }
+
+            if (plan.Removals.Count > 0 && step.Matches.Count > 0)
+            {
+                MatchGroupsRemovalStarted?.Invoke(stepIndex, step);
+            }
+
             if (removalDuration > 0f)
             {
                 float elapsed = 0f;

@@ -726,6 +726,7 @@ GameObject:
   - component: {fileID: 39127554}
   - component: {fileID: 39127553}
   - component: {fileID: 39127556}
+  - component: {fileID: 3400000001}
   m_Layer: 5
   m_Name: ReturnButton
   m_TagString: Untagged
@@ -1307,6 +1308,7 @@ GameObject:
   - component: {fileID: 70643566}
   - component: {fileID: 70643565}
   - component: {fileID: 70643564}
+  - component: {fileID: 3400000002}
   m_Layer: 5
   m_Name: YesButton
   m_TagString: Untagged
@@ -3272,6 +3274,7 @@ GameObject:
   - component: {fileID: 204590660}
   - component: {fileID: 204590659}
   - component: {fileID: 204590658}
+  - component: {fileID: 3400000003}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -6488,6 +6491,7 @@ GameObject:
   - component: {fileID: 393685728}
   - component: {fileID: 393685727}
   - component: {fileID: 393685726}
+  - component: {fileID: 3400000004}
   m_Layer: 5
   m_Name: GiveUpButton
   m_TagString: Untagged
@@ -6745,6 +6749,7 @@ GameObject:
   - component: {fileID: 412931235}
   - component: {fileID: 412931234}
   - component: {fileID: 412931233}
+  - component: {fileID: 3400000005}
   m_Layer: 5
   m_Name: NoButton
   m_TagString: Untagged
@@ -8153,6 +8158,7 @@ GameObject:
   - component: {fileID: 520015594}
   - component: {fileID: 520015593}
   - component: {fileID: 520015592}
+  - component: {fileID: 3400000006}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -13400,6 +13406,7 @@ GameObject:
   - component: {fileID: 857152765}
   - component: {fileID: 857152764}
   - component: {fileID: 857152763}
+  - component: {fileID: 3400000007}
   m_Layer: 5
   m_Name: PauseButton
   m_TagString: Untagged
@@ -19088,6 +19095,7 @@ GameObject:
   - component: {fileID: 1059030901}
   - component: {fileID: 1059030900}
   - component: {fileID: 1059030899}
+  - component: {fileID: 3400000008}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -20093,6 +20101,7 @@ GameObject:
   - component: {fileID: 1112850550}
   - component: {fileID: 1112850549}
   - component: {fileID: 1112850548}
+  - component: {fileID: 3400000009}
   m_Layer: 5
   m_Name: ReturnButton
   m_TagString: Untagged
@@ -21349,6 +21358,7 @@ GameObject:
   - component: {fileID: 1151109485}
   - component: {fileID: 1151109484}
   - component: {fileID: 1151109483}
+  - component: {fileID: 3400000010}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -32496,6 +32506,7 @@ GameObject:
   - component: {fileID: 1774000631}
   - component: {fileID: 1774000630}
   - component: {fileID: 1774000629}
+  - component: {fileID: 3400000011}
   m_Layer: 5
   m_Name: SettingButton
   m_TagString: Untagged
@@ -34786,6 +34797,7 @@ GameObject:
   - component: {fileID: 1954642808}
   - component: {fileID: 1954642807}
   - component: {fileID: 1954642806}
+  - component: {fileID: 3400000012}
   m_Layer: 5
   m_Name: CharacterButton
   m_TagString: Untagged
@@ -37621,6 +37633,150 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2141574397}
   m_CullTransparentMesh: 1
+--- !u!114 &3400000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 39127551}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3400000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 70643562}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3400000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 204590656}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3400000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 393685724}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3400000005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 412931231}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3400000006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 520015590}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3400000007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 857152761}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3400000008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1059030897}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3400000009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1112850546}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3400000010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1151109481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3400000011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1774000626}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
+--- !u!114 &3400000012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1954642804}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a47e76d8ef4cb9bd54d4c27a879101, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.UI.Audio.ButtonPressSfx
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

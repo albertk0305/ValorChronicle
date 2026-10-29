@@ -204,6 +204,330 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Actions
         }
 
         [Test]
+        public void Execute_DeferredCoefficientSeesShieldGrantedEarlierInQueue()
+        {
+            CreateBattle(
+                out CharacterBattleState character,
+                out PartyBattleState party,
+                out BossBattleState boss,
+                out CombatActionExecutor executor);
+            int resolveCount = 0;
+            var shield = new ShieldAction(
+                10,
+                ActionOrigin.Match,
+                new ShieldGenerationContextBuildRequest(
+                    character,
+                    party,
+                    0.50d,
+                    false,
+                    0),
+                new ShieldGrantRequest(
+                    100,
+                    character.CharacterId,
+                    1,
+                    3,
+                    100));
+            var damage = new DamageAction(
+                11,
+                ActionOrigin.Match,
+                DeferredDamageRequest(
+                    character,
+                    party,
+                    boss,
+                    request =>
+                    {
+                        resolveCount++;
+                        return Match4Coefficient(request);
+                    }));
+
+            Assert.That(resolveCount, Is.Zero);
+            CombatActionExecutionResult result = executor.Execute(
+                new CombatActionQueue(new CombatAction[]
+                {
+                    shield,
+                    damage
+                }));
+            var shieldResult = (ShieldActionResult)result.ActionResults[0];
+            var damageResult = (DamageActionResult)result.ActionResults[1];
+
+            Assert.That(shieldResult.ApplicationResult.GrantedShieldAmount,
+                Is.EqualTo(500L));
+            Assert.That(damageResult.Context.SkillCoefficient,
+                Is.EqualTo(1.50d).Within(0.000000001d));
+            Assert.That(damageResult.DamageResult.FinalDamage,
+                Is.EqualTo(1500L));
+            Assert.That(resolveCount, Is.EqualTo(1));
+            Assert.That(shield.ActionId, Is.EqualTo(10L));
+            Assert.That(shield.RootActionId, Is.EqualTo(10L));
+            Assert.That(shield.SourceActionId, Is.Null);
+            Assert.That(damage.ActionId, Is.EqualTo(11L));
+            Assert.That(damage.RootActionId, Is.EqualTo(11L));
+            Assert.That(damage.SourceActionId, Is.Null);
+        }
+
+        [Test]
+        public void Execute_DeferredCoefficientUsesCurrentShieldWhenGrantIsZero()
+        {
+            CreateBattle(
+                out CharacterBattleState character,
+                out PartyBattleState party,
+                out BossBattleState boss,
+                out CombatActionExecutor executor);
+            party.Shields.Add(new ShieldInstance(
+                90,
+                "existing",
+                400,
+                1,
+                2,
+                90));
+            var queue = new CombatActionQueue(new CombatAction[]
+            {
+                Shield(character, party, coefficient: 0d),
+                new DamageAction(
+                    2,
+                    ActionOrigin.Match,
+                    DeferredDamageRequest(
+                        character,
+                        party,
+                        boss,
+                        Match4Coefficient))
+            });
+
+            CombatActionExecutionResult result = executor.Execute(queue);
+            var shieldResult = (ShieldActionResult)result.ActionResults[0];
+            var damageResult = (DamageActionResult)result.ActionResults[1];
+
+            Assert.That(shieldResult.ApplicationResult.GrantedShieldAmount,
+                Is.Zero);
+            Assert.That(shieldResult.ApplicationResult.CreatedShieldRuntimeId,
+                Is.Null);
+            Assert.That(damageResult.Context.SkillCoefficient,
+                Is.EqualTo(1.44d).Within(0.000000001d));
+            Assert.That(damageResult.DamageResult.FinalDamage,
+                Is.EqualTo(1440L));
+        }
+
+        [Test]
+        public void Execute_DeferredCoefficientUsesPostCapShieldTotal()
+        {
+            CreateBattle(
+                out CharacterBattleState character,
+                out PartyBattleState party,
+                out BossBattleState boss,
+                out CombatActionExecutor executor);
+            party.Shields.Add(new ShieldInstance(
+                90,
+                "existing",
+                900,
+                1,
+                2,
+                90));
+            var queue = new CombatActionQueue(new CombatAction[]
+            {
+                Shield(character, party, coefficient: 0.50d),
+                new DamageAction(
+                    2,
+                    ActionOrigin.Match,
+                    DeferredDamageRequest(
+                        character,
+                        party,
+                        boss,
+                        Match4Coefficient))
+            });
+
+            CombatActionExecutionResult result = executor.Execute(queue);
+            var shieldResult = (ShieldActionResult)result.ActionResults[0];
+            var damageResult = (DamageActionResult)result.ActionResults[1];
+
+            Assert.That(shieldResult.GenerationResult.FinalShieldAmount,
+                Is.EqualTo(500L));
+            Assert.That(shieldResult.ApplicationResult.GrantedShieldAmount,
+                Is.EqualTo(100L));
+            Assert.That(party.Shields.TotalShield, Is.EqualTo(1000L));
+            Assert.That(damageResult.Context.SkillCoefficient,
+                Is.EqualTo(1.80d).Within(0.000000001d));
+        }
+
+        [Test]
+        public void Execute_DeferredCoefficientUsesExistingAndNewShieldTotal()
+        {
+            CreateBattle(
+                out CharacterBattleState character,
+                out PartyBattleState party,
+                out BossBattleState boss,
+                out CombatActionExecutor executor);
+            party.Shields.Add(new ShieldInstance(
+                90,
+                "existing",
+                200,
+                1,
+                2,
+                90));
+            var queue = new CombatActionQueue(new CombatAction[]
+            {
+                Shield(character, party, coefficient: 0.30d),
+                new DamageAction(
+                    2,
+                    ActionOrigin.Match,
+                    DeferredDamageRequest(
+                        character,
+                        party,
+                        boss,
+                        Match4Coefficient))
+            });
+
+            CombatActionExecutionResult result = executor.Execute(queue);
+            var damageResult = (DamageActionResult)result.ActionResults[1];
+
+            Assert.That(party.Shields.TotalShield, Is.EqualTo(500L));
+            Assert.That(damageResult.Context.SkillCoefficient,
+                Is.EqualTo(1.50d).Within(0.000000001d));
+        }
+
+        [Test]
+        public void Execute_DeferredCoefficientClampsChargeAboveOne()
+        {
+            var character = new CharacterBattleState(
+                "hero",
+                0,
+                ElementType.Fire,
+                1000,
+                1000d);
+            var ally = new CharacterBattleState(
+                "ally",
+                1,
+                ElementType.Water,
+                1000,
+                100d);
+            var party = new PartyBattleState(new[] { character, ally });
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Fire,
+                10000,
+                500d);
+            var executor = new CombatActionExecutor(
+                boss,
+                party,
+                new DamageContextFactory(new SeededRandomSource(1)));
+            party.Shields.Add(new ShieldInstance(
+                90,
+                "existing",
+                1200,
+                1,
+                2,
+                90));
+            var queue = new CombatActionQueue(new CombatAction[]
+            {
+                Shield(character, party, coefficient: 0.50d),
+                new DamageAction(
+                    2,
+                    ActionOrigin.Match,
+                    DeferredDamageRequest(
+                        character,
+                        party,
+                        boss,
+                        Match5Coefficient,
+                        baseCoefficient: 2.20d,
+                        attackTag: AttackTag.Match5Plus))
+            });
+
+            CombatActionExecutionResult result = executor.Execute(queue);
+            var damageResult = (DamageActionResult)result.ActionResults[1];
+
+            Assert.That(party.Shields.TotalShield, Is.EqualTo(1700L));
+            Assert.That(damageResult.Context.SkillCoefficient,
+                Is.EqualTo(4.40d).Within(0.000000001d));
+            Assert.That(damageResult.DamageResult.FinalDamage,
+                Is.EqualTo(4400L));
+        }
+
+        [Test]
+        public void Execute_DeferredCoefficientCanUseFinalAttackerMaximumHp()
+        {
+            var character = new CharacterBattleState(
+                "adjusted_hero",
+                0,
+                ElementType.Fire,
+                1650,
+                1000d);
+            var party = new PartyBattleState(new[] { character });
+            var boss = new BossBattleState(
+                "boss",
+                ElementType.Fire,
+                10000,
+                500d);
+            var executor = new CombatActionExecutor(
+                boss,
+                party,
+                new DamageContextFactory(new SeededRandomSource(1)));
+            var queue = new CombatActionQueue(new CombatAction[]
+            {
+                Shield(character, party, coefficient: 0.50d),
+                new DamageAction(
+                    2,
+                    ActionOrigin.Match,
+                    DeferredDamageRequest(
+                        character,
+                        party,
+                        boss,
+                        Match4Coefficient))
+            });
+
+            CombatActionExecutionResult result = executor.Execute(queue);
+            var damageResult = (DamageActionResult)result.ActionResults[1];
+
+            Assert.That(character.MaxHp, Is.EqualTo(1650L));
+            Assert.That(party.Shields.TotalShield, Is.EqualTo(825L));
+            Assert.That(damageResult.Context.SkillCoefficient,
+                Is.EqualTo(1.50d).Within(0.000000001d));
+        }
+
+        [Test]
+        public void Execute_TerminalBossSkipsDeferredCoefficientEvaluation()
+        {
+            CreateBattle(
+                out CharacterBattleState character,
+                out PartyBattleState party,
+                out BossBattleState boss,
+                out CombatActionExecutor executor);
+            int resolveCount = 0;
+            var queue = new CombatActionQueue(new CombatAction[]
+            {
+                new DamageAction(
+                    1,
+                    ActionOrigin.Active,
+                    DamageRequest(character, party, boss, 10d)),
+                new DamageAction(
+                    2,
+                    ActionOrigin.Active,
+                    new DamageContextBuildRequest(
+                        character,
+                        party,
+                        boss,
+                        ElementType.Fire,
+                        AttackType.Active,
+                        AttackTag.None,
+                        1d,
+                        false,
+                        0,
+                        false,
+                        skillCoefficientResolver: request =>
+                        {
+                            resolveCount++;
+                            return 1d;
+                        }))
+            });
+
+            CombatActionExecutionResult result = executor.Execute(queue);
+
+            Assert.That(boss.IsDefeated, Is.True);
+            Assert.That(result.CompletedActionCount, Is.EqualTo(1));
+            Assert.That(result.StoppedEarly, Is.True);
+            Assert.That(result.ClearedRemainingActions, Is.True);
+            Assert.That(resolveCount, Is.Zero);
+        }
+
+        [Test]
         public void Execute_AddAndConsumeResourcesPreservesFifoAndOneRecord()
         {
             CreateBattle(
@@ -382,6 +706,70 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Actions
                 false,
                 0,
                 false);
+        }
+
+        private static DamageContextBuildRequest DeferredDamageRequest(
+            CharacterBattleState character,
+            PartyBattleState party,
+            BossBattleState boss,
+            DamageSkillCoefficientResolver resolver,
+            double baseCoefficient = 1.20d,
+            AttackTag attackTag = AttackTag.Match4)
+        {
+            return new DamageContextBuildRequest(
+                character,
+                party,
+                boss,
+                ElementType.Fire,
+                AttackType.Match,
+                attackTag,
+                baseCoefficient,
+                false,
+                0,
+                false,
+                skillCoefficientResolver: resolver);
+        }
+
+        private static ShieldAction Shield(
+            CharacterBattleState character,
+            PartyBattleState party,
+            double coefficient)
+        {
+            return new ShieldAction(
+                1,
+                ActionOrigin.Match,
+                new ShieldGenerationContextBuildRequest(
+                    character,
+                    party,
+                    coefficient,
+                    false,
+                    0),
+                new ShieldGrantRequest(
+                    100,
+                    character.CharacterId,
+                    1,
+                    3,
+                    100));
+        }
+
+        private static double Match4Coefficient(
+            DamageContextBuildRequest request)
+        {
+            double charge = Math.Min(
+                (double)request.Party.Shields.TotalShield
+                    / request.Attacker.MaxHp,
+                1d);
+            return request.SkillCoefficient * (1d + (charge * 0.50d));
+        }
+
+        private static double Match5Coefficient(
+            DamageContextBuildRequest request)
+        {
+            double charge = Math.Min(
+                (double)request.Party.Shields.TotalShield
+                    / request.Attacker.MaxHp,
+                1d);
+            return request.SkillCoefficient * (1d + charge);
         }
 
         private static EffectInstance Effect(

@@ -9,6 +9,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Main.Presentation;
+using ValorChronicle.UI.Audio;
 using ValorChronicle.UI.Navigation;
 
 namespace ValorChronicle.Tests.EditMode
@@ -112,6 +113,19 @@ namespace ValorChronicle.Tests.EditMode
                     Is.False);
                 Assert.That(unvalidPartyView.DismissButton.name,
                     Is.EqualTo("BackgroundPanel"));
+                Assert.That(
+                    unvalidPartyView.DismissButton.GetComponent<
+                        ButtonPressSfx>(),
+                    Is.Null);
+                ButtonPressSfx[] buttonPressSfx =
+                    Object.FindObjectsByType<ButtonPressSfx>(
+                        FindObjectsInactive.Include,
+                        FindObjectsSortMode.None);
+                Assert.That(buttonPressSfx, Has.Length.EqualTo(12));
+                Assert.That(
+                    buttonPressSfx,
+                    Has.All.Matches<ButtonPressSfx>(component =>
+                        component.GetComponent<Button>() != null));
                 Assert.That(
                     unvalidPartyView.DismissButton.targetGraphic.raycastTarget,
                     Is.True);

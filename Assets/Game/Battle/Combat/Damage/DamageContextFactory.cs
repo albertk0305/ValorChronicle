@@ -21,6 +21,7 @@ namespace ValorChronicle.Battle.Combat.Damage
                 throw new ArgumentNullException(nameof(request));
             }
 
+            double skillCoefficient = request.ResolveSkillCoefficient();
             AllyDamageModifierSnapshot modifiers =
                 CombatModifierCollector.CollectAllyDamage(
                     request.Attacker,
@@ -58,7 +59,7 @@ namespace ValorChronicle.Battle.Combat.Damage
                 request.Attacker.Attack,
                 modifiers.AttackIncreaseRateSum
                     - modifiers.AttackReductionRateSum,
-                request.SkillCoefficient,
+                skillCoefficient,
                 request.AppliesCombo,
                 request.FinalComboCount,
                 request.CanCritical,

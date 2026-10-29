@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using TMPro;
 using UnityEditor;
@@ -10,6 +11,7 @@ using ValorChronicle.Battle.Flow.Presentation;
 using ValorChronicle.Battle.Results;
 using ValorChronicle.Core.Scene;
 using ValorChronicle.Localization;
+using ValorChronicle.UI.Audio;
 using ValorChronicle.UI.Navigation;
 
 namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
@@ -106,6 +108,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 AttackProjectilePool projectilePool = projectilePools[0];
                 DamageNumberPool damageNumberPool = damageNumberPools[0];
                 BattlePausePanelBinding pauseBinding = pauseBindings[0];
+                AssertButtonPressSfxConnections(
+                    hudController,
+                    pauseBinding,
+                    resultView);
                 Assert.That(flowController.gameObject.name,
                     Is.EqualTo("GameContent"));
                 Assert.That(hudController.gameObject,
@@ -578,6 +584,54 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 .Find("BackgroundPanel")?.GetComponent<Image>();
             Assert.That(blocker, Is.Not.Null);
             Assert.That(blocker.raycastTarget, Is.True);
+        }
+
+        private static void AssertButtonPressSfxConnections(
+            BattleHudController hudController,
+            BattlePausePanelBinding pauseBinding,
+            BattleResultView resultView)
+        {
+            Button[] allButtons = Object.FindObjectsByType<Button>(
+                FindObjectsInactive.Include,
+                FindObjectsSortMode.None);
+            ButtonPressSfx[] connected =
+                Object.FindObjectsByType<ButtonPressSfx>(
+                    FindObjectsInactive.Include,
+                    FindObjectsSortMode.None);
+            Assert.That(allButtons, Has.Length.EqualTo(69));
+            Assert.That(connected, Has.Length.EqualTo(12));
+
+            var expected = new HashSet<Button>
+            {
+                pauseBinding.PauseButton,
+                pauseBinding.ResumeButton,
+                pauseBinding.GiveUpButton,
+                pauseBinding.ConfirmGiveUpButton,
+                pauseBinding.CancelGiveUpButton,
+                hudController.transform.Find("SettingButton")
+                    .GetComponent<Button>(),
+                resultView.transform.Find("ReturnButton")
+                    .GetComponent<Button>()
+            };
+            for (int index = 0;
+                index < hudController.CharacterSlotCount;
+                index++)
+            {
+                expected.Add(hudController.GetCharacterSlot(index)
+                    .ActiveButton);
+            }
+
+            Assert.That(expected, Has.Count.EqualTo(12));
+            foreach (Button button in allButtons)
+            {
+                int componentCount =
+                    button.GetComponents<ButtonPressSfx>().Length;
+                Assert.That(
+                    componentCount,
+                    Is.EqualTo(expected.Contains(button) ? 1 : 0),
+                    GetPath(button.transform));
+            }
+
         }
 
         private static void AssertLocalizedText(

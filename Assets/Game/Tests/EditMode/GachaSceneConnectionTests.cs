@@ -12,6 +12,7 @@ using ValorChronicle.Core.Scene;
 using ValorChronicle.Exchange.Presentation;
 using ValorChronicle.Gacha.Presentation;
 using ValorChronicle.Localization;
+using ValorChronicle.UI.Audio;
 using ValorChronicle.UI.Navigation;
 using Object = UnityEngine.Object;
 
@@ -57,6 +58,15 @@ namespace ValorChronicle.Tests.EditMode
                 GachaSceneInstaller installer =
                     content.GetComponent<GachaSceneInstaller>();
                 Assert.That(installer, Is.Not.Null);
+                Button[] authoredButtons =
+                    Object.FindObjectsByType<Button>(
+                        FindObjectsInactive.Include,
+                        FindObjectsSortMode.None);
+                Assert.That(authoredButtons, Has.Length.EqualTo(26));
+                Assert.That(
+                    authoredButtons,
+                    Has.All.Matches<Button>(button =>
+                        button.GetComponents<ButtonPressSfx>().Length == 1));
 
                 installer.Install();
 
@@ -203,6 +213,13 @@ namespace ValorChronicle.Tests.EditMode
                     .GetComponent<Image>().raycastTarget, Is.True);
                 Assert.That(content.Find("GachaPresentation/TouchPanel")
                     .GetComponent<Button>(), Is.Not.Null);
+                Assert.That(content.Find("GachaPresentation/TouchPanel")
+                    .GetComponent<ButtonPressSfx>(), Is.Null);
+                Assert.That(
+                    installer.ExchangeGridView.PoolSlots,
+                    Has.All.Matches<ExchangeSlotView>(slot =>
+                        slot.Button.GetComponents<ButtonPressSfx>().Length
+                            == 1));
                 Transform skipText = content.Find(
                     "GachaPresentation/SkipButton/Text (TMP)");
                 Assert.That(skipText, Is.Not.Null);

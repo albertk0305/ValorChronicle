@@ -55,6 +55,28 @@ namespace ValorChronicle.Tests.EditMode.Audio
         }
 
         [Test]
+        public void AudioConfiguration_MapsAllSfxCuesToImportedWavClips()
+        {
+            GameAudioConfiguration configuration = AssetDatabase
+                .LoadAssetAtPath<GameAudioConfiguration>(
+                    "Assets/Data/Audio/AudioConfiguration.asset");
+
+            Assert.That(configuration, Is.Not.Null);
+            AssertCueClip(
+                configuration,
+                SfxCue.ButtonPress,
+                "dragon-studio-button-press-382713");
+            AssertCueClip(
+                configuration,
+                SfxCue.BlockPop,
+                "dragon-studio-pop-402324");
+            AssertCueClip(
+                configuration,
+                SfxCue.Hit,
+                "universfield-classic-punch-impact-352711");
+        }
+
+        [Test]
         public void SettingsBinding_AppliesStoredValuesAndOnlyChangedChannel()
         {
             SettingsService settings = SettingsService.CreateInMemoryDefaults();
@@ -151,6 +173,51 @@ namespace ValorChronicle.Tests.EditMode.Audio
             {
                 Object.DestroyImmediate(owner);
             }
+        }
+
+        [Test]
+        public void EffectPlayback_RestoresSfxAndUiPitchToOne()
+        {
+            var owner = new GameObject("AudioPitchTest");
+            AudioClip clip = AudioClip.Create("test", 64, 1, 44100, false);
+            try
+            {
+                LogAssert.Expect(
+                    LogType.Warning,
+                    "[Audio] AudioConfiguration is not assigned. "
+                        + "Audio remains available without clips or mixer routing.");
+                var output = new UnityAudioOutput(owner, null);
+                AudioSource sfx = owner.transform.Find("Audio_Sfx")
+                    .GetComponent<AudioSource>();
+                AudioSource ui = owner.transform.Find("Audio_UiSfx")
+                    .GetComponent<AudioSource>();
+                sfx.pitch = 1.5f;
+                ui.pitch = 0.5f;
+
+                output.PlaySfx(clip);
+                output.PlayUiSfx(clip);
+
+                Assert.That(sfx.pitch, Is.EqualTo(1f));
+                Assert.That(ui.pitch, Is.EqualTo(1f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(clip);
+                Object.DestroyImmediate(owner);
+            }
+        }
+
+        private static void AssertCueClip(
+            GameAudioConfiguration configuration,
+            SfxCue cue,
+            string expectedName)
+        {
+            Assert.That(
+                configuration.TryGetSfxClip(cue, out AudioClip clip),
+                Is.True,
+                cue.ToString());
+            Assert.That(clip, Is.Not.Null, cue.ToString());
+            Assert.That(clip.name, Is.EqualTo(expectedName), cue.ToString());
         }
     }
 }

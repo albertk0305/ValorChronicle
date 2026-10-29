@@ -16,9 +16,12 @@ MonoBehaviour:
   bgmMixerGroup: {fileID: 645692549301575139, guid: cf4991a3cb12f3346a3e4879effb408c, type: 2}
   sfxMixerGroup: {fileID: 7266138085344024215, guid: cf4991a3cb12f3346a3e4879effb408c, type: 2}
   uiMixerGroup: {fileID: 19397189210448637, guid: cf4991a3cb12f3346a3e4879effb408c, type: 2}
-  initBgm: {fileID: 8300000, guid: c6a7dd97621786d4782ebdd31ef9c457, type: 3}
-  normalBgm: {fileID: 8300000, guid: 13ed4e3dd5d37ed4d9ec8d21de0170a1, type: 3}
-  battleBgm: {fileID: 8300000, guid: 1a1ed7837e619ec4e8149aff5d553fb5, type: 3}
+  initBgm: {fileID: 8300000, guid: d7a6954885204f54c8644cf84ffcb2d5, type: 3}
+  normalBgm: {fileID: 8300000, guid: 208c6f03dba0ac3479b6f95f4f69037a, type: 3}
+  battleBgm: {fileID: 8300000, guid: 6d0572a3171adbc4f80daea68d14c93b, type: 3}
+  buttonPressSfx: {fileID: 8300000, guid: fde09608de94fc7488b603769fb1c985, type: 3}
+  blockPopSfx: {fileID: 8300000, guid: 7c72ead39f4858345adc534739cc0958, type: 3}
+  hitSfx: {fileID: 8300000, guid: 4be949a2c3381c148ae9ea8c550d1a7a, type: 3}
   sceneCrossfadeSeconds: 0.8
   resultFadeOutSeconds: 1.2
   initLoopFadeEnabled: 1

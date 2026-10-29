@@ -380,6 +380,9 @@ namespace ValorChronicle.Tests.EditMode.Bosses.Kragmor
             Assert.That(((BossDamageAction)fourth.Action)
                     .ContextRequest.AttackTags,
                 Is.EqualTo(AttackTag.Heavy));
+            Assert.That(((BossDamageAction)fourth.Action)
+                    .ContextRequest.HitType,
+                Is.EqualTo(BossDamageHitType.Direct));
             Assert.That(battle.Runtime.PatternIndex, Is.Zero);
 
             BossDamageActionResult fifth = ResolveDamage(battle, 5);

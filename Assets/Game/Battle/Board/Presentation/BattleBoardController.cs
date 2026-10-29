@@ -72,6 +72,7 @@ namespace ValorChronicle.Battle.Board.Presentation
         public event Action<BoardActionExecution> BoardActionStarted;
         public event Action<BoardCascadeStepPresentation>
             CascadeStepPresented;
+        public event Action<int> MatchGroupsRemovalStarted;
         public event Action<BoardActionCompletion> BoardActionFinished;
         public event Action ExternalInputDisabled;
 
@@ -877,6 +878,8 @@ namespace ValorChronicle.Battle.Board.Presentation
             }
 
             boardView.CascadeStepPresented += HandleCascadeStepPresented;
+            boardView.MatchGroupsRemovalStarted +=
+                HandleMatchGroupsRemovalStarted;
             observesCascadeStepPresentation = true;
         }
 
@@ -888,23 +891,34 @@ namespace ValorChronicle.Battle.Board.Presentation
             }
 
             boardView.CascadeStepPresented -= HandleCascadeStepPresented;
+            boardView.MatchGroupsRemovalStarted -=
+                HandleMatchGroupsRemovalStarted;
             observesCascadeStepPresentation = false;
+        }
+
+        private void HandleMatchGroupsRemovalStarted(
+            int cascadeStepIndex,
+            BoardCascadeStep step)
+        {
+            if (!IsCurrentCascadeStep(cascadeStepIndex, step))
+            {
+                return;
+            }
+
+            int matchGroupCount = step.Matches.Count;
+            if (matchGroupCount <= 0)
+            {
+                return;
+            }
+
+            PublishMatchGroupsRemovalStarted(matchGroupCount);
         }
 
         private void HandleCascadeStepPresented(
             int cascadeStepIndex,
             BoardCascadeStep step)
         {
-            if (!activeActionStarted
-                || activeActionId <= 0
-                || activeActionResult?.Status
-                    != BoardSwapActionStatus.Resolved
-                || activeActionResult.Cascade == null
-                || cascadeStepIndex != nextCascadeStepPresentationIndex
-                || cascadeStepIndex >= activeActionResult.Cascade.Steps.Count
-                || !ReferenceEquals(
-                    activeActionResult.Cascade.Steps[cascadeStepIndex],
-                    step))
+            if (!IsCurrentCascadeStep(cascadeStepIndex, step))
             {
                 return;
             }
@@ -939,6 +953,47 @@ namespace ValorChronicle.Battle.Board.Presentation
                     GameLogger.Exception(exception, this);
                     GameLogger.Error(
                         "[BattleBoard] Cascade presentation observer failed.",
+                        this);
+                }
+            }
+        }
+
+        private bool IsCurrentCascadeStep(
+            int cascadeStepIndex,
+            BoardCascadeStep step)
+        {
+            return activeActionStarted
+                && activeActionId > 0
+                && activeActionResult?.Status
+                    == BoardSwapActionStatus.Resolved
+                && activeActionResult.Cascade != null
+                && cascadeStepIndex == nextCascadeStepPresentationIndex
+                && cascadeStepIndex >= 0
+                && cascadeStepIndex < activeActionResult.Cascade.Steps.Count
+                && ReferenceEquals(
+                    activeActionResult.Cascade.Steps[cascadeStepIndex],
+                    step);
+        }
+
+        private void PublishMatchGroupsRemovalStarted(int matchGroupCount)
+        {
+            Action<int> observers = MatchGroupsRemovalStarted;
+            if (observers == null)
+            {
+                return;
+            }
+
+            foreach (Action<int> observer in observers.GetInvocationList())
+            {
+                try
+                {
+                    observer(matchGroupCount);
+                }
+                catch (Exception exception)
+                {
+                    GameLogger.Exception(exception, this);
+                    GameLogger.Error(
+                        "[BattleBoard] Match removal observer failed.",
                         this);
                 }
             }

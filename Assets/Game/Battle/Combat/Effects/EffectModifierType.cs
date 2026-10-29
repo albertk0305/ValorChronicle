@@ -19,6 +19,7 @@ namespace ValorChronicle.Battle.Combat.Effects
         PartyTakenDamageIncrease = 14,
         PartyDamageReduction = 15,
         HealingIncrease = 16,
-        ShieldAmountIncrease = 17
+        ShieldAmountIncrease = 17,
+        NextBossHitDamageReduction = 18
     }
 }

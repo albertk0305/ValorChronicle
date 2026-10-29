@@ -8,6 +8,7 @@ using ValorChronicle.Battle.Board;
 using ValorChronicle.Battle.Combat.Actions;
 using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Battle.Combat.Damage;
+using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Battle.Flow;
@@ -68,16 +69,67 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
         }
 
         [Test]
+        public void BoardSuccessActionsRunAfterCommitThroughActivePipeline()
+        {
+            BoardState original = CreateBoard(DeadBoardElements);
+            var sink = new ResolverBoardSink(
+                original,
+                new[] { 0, 1, 2, 4 });
+            var order = new List<string>();
+            var provider = new RecordingSuccessActionBoardProvider(
+                order,
+                useForeignPartyTarget: false);
+            RuntimeBattle battle = CreateBoardBattle(sink, 4, provider);
+            provider.SetActiveStateSource(() => battle.ActiveState);
+            battle.Bridge.ActiveCombatActionStepApplied +=
+                _ => order.Add("action_step");
+            battle.Bridge.CombatActionsApplied +=
+                () => order.Add("actions_applied");
+
+            Assert.That(battle.Bridge.TryUseActive(0), Is.True);
+
+            Assert.That(order, Is.EqualTo(new[]
+            {
+                "plan",
+                "commit",
+                "provide_actions",
+                "action_step",
+                "actions_applied"
+            }));
+            Assert.That(provider.CommitObservedCommittedCooldown, Is.True);
+            Assert.That(provider.ObservedTurn, Is.EqualTo(1));
+            Assert.That(battle.Party.Effects.Count, Is.EqualTo(1));
+            Assert.That(battle.Party.Effects.FindByEffectId(
+                "board_success_effect"), Has.Count.EqualTo(1));
+            Assert.That(battle.ActionIds.LastIssuedId, Is.EqualTo(1));
+            Assert.That(battle.Bridge.LastActiveExecutionResult.ActionResults,
+                Has.Count.EqualTo(1));
+            Assert.That(battle.Bridge.LastActiveExecutionResult
+                .ActionResults[0], Is.TypeOf<ApplyEffectActionResult>());
+            Assert.That(battle.Bridge.LastActiveExecutionResult
+                .ActionResults[0].ExecutionOrder, Is.EqualTo(1));
+            CombatAction recordedAction = battle.Bridge
+                .LastActiveExecutionResult.ActionResults[0].Action;
+            Assert.That(recordedAction.ActionId, Is.EqualTo(1));
+            Assert.That(recordedAction.RootActionId, Is.EqualTo(1));
+            Assert.That(recordedAction.SourceActionId, Is.Null);
+            Assert.That(recordedAction.Origin, Is.EqualTo(ActionOrigin.Active));
+        }
+
+        [Test]
         public void NoCandidatesFailurePreservesBoardRuntimeAndCanRetry()
         {
             BoardState original = CreateUniformBoard(ElementType.Water);
             var sink = new ResolverBoardSink(original, Array.Empty<int>());
-            RuntimeBattle battle = CreateBoardBattle(sink, 4);
+            var provider = new RecordingSuccessActionBoardProvider(
+                new List<string>(),
+                useForeignPartyTarget: false);
+            RuntimeBattle battle = CreateBoardBattle(sink, 4, provider);
 
             Assert.That(battle.Bridge.TryUseActive(0), Is.False);
             AssertFailureStateUnchanged(battle, sink, original);
-            Assert.That(((RecordingBoardProvider)battle.BoardProvider)
-                .SuccessCommitCount, Is.Zero);
+            Assert.That(provider.SuccessCommitCount, Is.Zero);
+            Assert.That(provider.SuccessActionCallCount, Is.Zero);
             Assert.That(sink.LastResult.Failure,
                 Is.EqualTo(BoardElementConversionFailure.NoCandidates));
 
@@ -95,7 +147,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                 original,
                 new[] { 0 },
                 maxRandomSelectionAttempts: 1);
-            RuntimeBattle battle = CreateBoardBattle(sink, 4);
+            var provider = new RecordingSuccessActionBoardProvider(
+                new List<string>(),
+                useForeignPartyTarget: false);
+            RuntimeBattle battle = CreateBoardBattle(sink, 4, provider);
 
             Assert.That(battle.Bridge.TryUseActive(0), Is.False);
 
@@ -103,6 +158,41 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(sink.LastResult.Failure,
                 Is.EqualTo(
                     BoardElementConversionFailure.NoPlayableCombination));
+            Assert.That(provider.SuccessCommitCount, Is.Zero);
+            Assert.That(provider.SuccessActionCallCount, Is.Zero);
+        }
+
+        [Test]
+        public void BoardSuccessActionFailureKeepsCommittedBoardAndRuntime()
+        {
+            BoardState original = CreateBoard(DeadBoardElements);
+            var sink = new ResolverBoardSink(
+                original,
+                new[] { 0, 1, 2, 4 });
+            var provider = new RecordingSuccessActionBoardProvider(
+                new List<string>(),
+                useForeignPartyTarget: true);
+            RuntimeBattle battle = CreateBoardBattle(sink, 4, provider);
+            provider.SetActiveStateSource(() => battle.ActiveState);
+            int actionSteps = 0;
+            battle.Bridge.ActiveCombatActionStepApplied +=
+                _ => actionSteps++;
+
+            Assert.That(
+                () => battle.Bridge.TryUseActive(0),
+                Throws.TypeOf<InvalidOperationException>());
+
+            Assert.That(sink.Board, Is.Not.SameAs(original));
+            Assert.That(sink.LastResult.Succeeded, Is.True);
+            Assert.That(battle.ActiveState.UsedThisTurn, Is.True);
+            Assert.That(battle.ActiveState.RemainingCooldown, Is.EqualTo(3));
+            Assert.That(provider.SuccessCommitCount, Is.EqualTo(1));
+            Assert.That(provider.SuccessActionCallCount, Is.EqualTo(1));
+            Assert.That(battle.ActionIds.LastIssuedId, Is.EqualTo(1));
+            Assert.That(battle.Party.Effects.Count, Is.Zero);
+            Assert.That(battle.Bridge.LastActiveExecutionResult, Is.Null);
+            Assert.That(actionSteps, Is.Zero);
+            Assert.That(battle.Bridge.CancelActiveCombat(), Is.True);
         }
 
         [Test]
@@ -379,7 +469,9 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(battle.Coordinator.PendingMatchEventCount, Is.Zero);
             Assert.That(battle.ActionIds.LastIssuedId, Is.Zero);
             Assert.That(battle.Party.CurrentHp, Is.EqualTo(battle.Party.MaxHp));
+            Assert.That(battle.Party.Effects.Count, Is.Zero);
             Assert.That(battle.Boss.CurrentHp, Is.EqualTo(battle.Boss.MaxHp));
+            Assert.That(battle.Bridge.LastActiveExecutionResult, Is.Null);
         }
 
         private static BoardState CreateBoard(int[] elements)
@@ -491,6 +583,97 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
                 ActiveAbilityBoardSuccessContext context)
             {
                 throw new InvalidOperationException("commit failed");
+            }
+        }
+
+        private sealed class RecordingSuccessActionBoardProvider
+            : IActiveAbilityBoardPlanProvider,
+              IActiveAbilityBoardSuccessCommitter,
+              IActiveAbilityBoardSuccessActionProvider
+        {
+            private readonly List<string> order;
+            private readonly bool useForeignPartyTarget;
+            private Func<ActiveAbilityRuntimeState> activeStateSource;
+
+            public RecordingSuccessActionBoardProvider(
+                List<string> order,
+                bool useForeignPartyTarget)
+            {
+                this.order = order
+                    ?? throw new ArgumentNullException(nameof(order));
+                this.useForeignPartyTarget = useForeignPartyTarget;
+            }
+
+            public int SuccessCommitCount { get; private set; }
+            public int SuccessActionCallCount { get; private set; }
+            public bool CommitObservedCommittedCooldown { get; private set; }
+            public int ObservedTurn { get; private set; }
+
+            public void SetActiveStateSource(
+                Func<ActiveAbilityRuntimeState> source)
+            {
+                activeStateSource = source
+                    ?? throw new ArgumentNullException(nameof(source));
+            }
+
+            public ActiveAbilityBoardElementConversionPlan CreateBoardPlan(
+                ActiveAbilityBoardPlanContext context)
+            {
+                order.Add("plan");
+                return new ActiveAbilityBoardElementConversionPlan(
+                    ElementType.Water,
+                    requestedCount: 4);
+            }
+
+            public void CommitBoardSuccess(
+                ActiveAbilityBoardSuccessContext context)
+            {
+                order.Add("commit");
+                SuccessCommitCount++;
+                if (activeStateSource != null)
+                {
+                    ActiveAbilityRuntimeState state = activeStateSource();
+                    CommitObservedCommittedCooldown = state.UsedThisTurn
+                        && state.RemainingCooldown == 3;
+                }
+            }
+
+            public IReadOnlyList<CombatAction> CreateBoardSuccessActions(
+                ActiveAbilityBoardSuccessActionContext context)
+            {
+                order.Add("provide_actions");
+                SuccessActionCallCount++;
+                ObservedTurn = context.CurrentTurn;
+                PartyBattleState target = context.Party;
+                if (useForeignPartyTarget)
+                {
+                    target = new PartyBattleState(new[]
+                    {
+                        new CharacterBattleState(
+                            "foreign",
+                            1,
+                            ElementType.Fire,
+                            100,
+                            10d)
+                    });
+                }
+
+                return new CombatAction[]
+                {
+                    new ApplyEffectAction(
+                        context.ActionIds.Next(),
+                        ActionOrigin.Active,
+                        target,
+                        new EffectInstance(
+                            runtimeId: 100,
+                            effectId: "board_success_effect",
+                            sourceId: context.Character.CharacterId,
+                            EffectCategory.Buff,
+                            EffectModifierType.AttackIncrease,
+                            magnitude: 0.10d,
+                            remainingTurns: 1,
+                            creationOrder: 100))
+                };
             }
         }
 

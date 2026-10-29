@@ -14,6 +14,7 @@ using ValorChronicle.Data.Definitions;
 using ValorChronicle.Party.Presentation;
 using ValorChronicle.Party.Roster;
 using ValorChronicle.Relics.Presentation;
+using ValorChronicle.UI.Audio;
 using ValorChronicle.UI.Navigation;
 using Object = UnityEngine.Object;
 
@@ -107,8 +108,17 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                     Object.FindObjectsByType<CharacterRosterSceneInstaller>(
                         FindObjectsInactive.Include,
                         FindObjectsSortMode.None);
+                Button[] authoredButtons =
+                    Object.FindObjectsByType<Button>(
+                        FindObjectsInactive.Include,
+                        FindObjectsSortMode.None);
 
                 Assert.That(installers, Has.Length.EqualTo(1));
+                Assert.That(authoredButtons, Has.Length.EqualTo(65));
+                Assert.That(
+                    authoredButtons,
+                    Has.All.Matches<Button>(button =>
+                        button.GetComponents<ButtonPressSfx>().Length == 1));
                 Assert.That(installers[0].IsConfigured, Is.True);
                 Transform content = installers[0].transform.Find(
                     "CharacterSlots/CharacterSelectSlots");
@@ -267,6 +277,11 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                         == true), Is.True);
                 Assert.That(runtimeCells.All(cell => cell.IsConfigured),
                     Is.True);
+                Assert.That(
+                    poolCells,
+                    Has.All.Matches<CharacterRosterCellView>(cell =>
+                        cell.Button.GetComponents<ButtonPressSfx>().Length
+                            == 1));
                 Assert.That(content.GetComponentsInChildren<
                     RelicInventoryCellView>(true), Is.Empty);
 
@@ -375,6 +390,12 @@ namespace ValorChronicle.Tests.EditMode.Characters.Presentation
                     relicContent.GetComponentsInChildren<
                         RelicInventoryCellView>(true),
                     Has.Length.EqualTo(30));
+                Assert.That(
+                    relicContent.GetComponentsInChildren<
+                        RelicInventoryCellView>(true),
+                    Has.All.Matches<RelicInventoryCellView>(cell =>
+                        cell.Button.GetComponents<ButtonPressSfx>().Length
+                            == 1));
                 Transform[] authoredRelicCells = relicContent
                     .Cast<Transform>()
                     .Where(child => child.name.StartsWith(

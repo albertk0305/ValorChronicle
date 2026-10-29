@@ -248,6 +248,156 @@ namespace ValorChronicle.Tests.EditMode.Audio
         }
 
         [Test]
+        public void CueSfx_SelectsConfiguredClipsAndDedicatedRoutes()
+        {
+            var output = new RecordingAudioOutput();
+            var clips = new FakeSfxClipProvider();
+            var clock = new FakeUnscaledTimeSource();
+            AudioClip button = AudioClip.Create(
+                "button",
+                64,
+                1,
+                44100,
+                false);
+            AudioClip pop = AudioClip.Create("pop", 64, 1, 44100, false);
+            AudioClip hit = AudioClip.Create("hit", 64, 1, 44100, false);
+            try
+            {
+                clips.SetClip(SfxCue.ButtonPress, button);
+                clips.SetClip(SfxCue.BlockPop, pop);
+                clips.SetClip(SfxCue.Hit, hit);
+                AudioService service = CreateService(
+                    SettingsService.CreateInMemoryDefaults(),
+                    output,
+                    new FakeSceneChangeSource("Init"),
+                    clips,
+                    clock);
+                service.Initialize();
+
+                Assert.That(service.PlayUiSfx(SfxCue.ButtonPress), Is.True);
+                Assert.That(service.PlaySfx(SfxCue.BlockPop), Is.True);
+                Assert.That(service.PlaySfx(SfxCue.Hit), Is.True);
+
+                Assert.That(output.UiSfxClips, Is.EqualTo(new[] { button }));
+                Assert.That(output.SfxClips, Is.EqualTo(new[] { pop, hit }));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(button);
+                UnityEngine.Object.DestroyImmediate(pop);
+                UnityEngine.Object.DestroyImmediate(hit);
+            }
+        }
+
+        [TestCase(
+            SfxCue.ButtonPress,
+            SfxCuePlaybackPolicy.ButtonPressMinimumIntervalSeconds)]
+        [TestCase(
+            SfxCue.BlockPop,
+            SfxCuePlaybackPolicy.BlockPopMinimumIntervalSeconds)]
+        [TestCase(
+            SfxCue.Hit,
+            SfxCuePlaybackPolicy.HitMinimumIntervalSeconds)]
+        public void CueSfx_BlocksWithinIntervalAndAllowsAtBoundary(
+            SfxCue cue,
+            double interval)
+        {
+            var output = new RecordingAudioOutput();
+            var clips = new FakeSfxClipProvider();
+            var clock = new FakeUnscaledTimeSource();
+            AudioClip clip = AudioClip.Create(
+                cue.ToString(),
+                64,
+                1,
+                44100,
+                false);
+            try
+            {
+                clips.SetClip(cue, clip);
+                AudioService service = CreateService(
+                    SettingsService.CreateInMemoryDefaults(),
+                    output,
+                    new FakeSceneChangeSource("Init"),
+                    clips,
+                    clock);
+                service.Initialize();
+
+                Assert.That(service.PlaySfx(cue), Is.True);
+                clock.Advance(interval - 0.001d);
+                Assert.That(service.PlaySfx(cue), Is.False);
+                clock.CurrentTime = interval;
+                Assert.That(service.PlaySfx(cue), Is.True);
+                Assert.That(output.SfxCount, Is.EqualTo(2));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(clip);
+            }
+        }
+
+        [Test]
+        public void CueSfx_UsesInjectedUnscaledTimeInsteadOfTimeScale()
+        {
+            var output = new RecordingAudioOutput();
+            var clips = new FakeSfxClipProvider();
+            var clock = new FakeUnscaledTimeSource();
+            AudioClip clip = AudioClip.Create("hit", 64, 1, 44100, false);
+            float originalTimeScale = Time.timeScale;
+            try
+            {
+                clips.SetClip(SfxCue.Hit, clip);
+                AudioService service = CreateService(
+                    SettingsService.CreateInMemoryDefaults(),
+                    output,
+                    new FakeSceneChangeSource("Init"),
+                    clips,
+                    clock);
+                service.Initialize();
+
+                Time.timeScale = 0.5f;
+                Assert.That(service.PlaySfx(SfxCue.Hit), Is.True);
+                Time.timeScale = 1.5f;
+                Assert.That(service.PlaySfx(SfxCue.Hit), Is.False);
+                clock.Advance(
+                    SfxCuePlaybackPolicy.HitMinimumIntervalSeconds);
+                Assert.That(service.PlaySfx(SfxCue.Hit), Is.True);
+            }
+            finally
+            {
+                Time.timeScale = originalTimeScale;
+                UnityEngine.Object.DestroyImmediate(clip);
+            }
+        }
+
+        [Test]
+        public void CueSfx_MissingClipDoesNotConsumeCooldown()
+        {
+            var output = new RecordingAudioOutput();
+            var clips = new FakeSfxClipProvider();
+            var clock = new FakeUnscaledTimeSource();
+            AudioClip clip = AudioClip.Create("pop", 64, 1, 44100, false);
+            try
+            {
+                AudioService service = CreateService(
+                    SettingsService.CreateInMemoryDefaults(),
+                    output,
+                    new FakeSceneChangeSource("Init"),
+                    clips,
+                    clock);
+                service.Initialize();
+
+                Assert.That(service.PlaySfx(SfxCue.BlockPop), Is.False);
+                clips.SetClip(SfxCue.BlockPop, clip);
+                Assert.That(service.PlaySfx(SfxCue.BlockPop), Is.True);
+                Assert.That(output.SfxClips, Is.EqualTo(new[] { clip }));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(clip);
+            }
+        }
+
+        [Test]
         public void CorruptSettingsRecovery_StillAllowsAudioInitialization()
         {
             string root = Path.Combine(
@@ -312,14 +462,18 @@ namespace ValorChronicle.Tests.EditMode.Audio
         private static AudioService CreateService(
             SettingsService settings,
             RecordingAudioOutput output,
-            ISceneChangeSource scenes)
+            ISceneChangeSource scenes,
+            ISfxClipProvider sfxClipProvider = null,
+            IUnscaledTimeSource unscaledTimeSource = null)
         {
             return new AudioService(
                 settings,
                 output,
                 output,
                 output,
-                scenes);
+                scenes,
+                sfxClipProvider: sfxClipProvider,
+                unscaledTimeSource: unscaledTimeSource);
         }
 
         private static SettingsService CreatePersistentSettings(string root)

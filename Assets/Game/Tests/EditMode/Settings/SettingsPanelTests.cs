@@ -16,6 +16,7 @@ using ValorChronicle.Core.Pause;
 using ValorChronicle.Localization;
 using ValorChronicle.Settings.Services;
 using ValorChronicle.UI.Navigation;
+using ValorChronicle.UI.Audio;
 using ValorChronicle.UI.Settings;
 using Object = UnityEngine.Object;
 using SettingsService = ValorChronicle.Settings.Services.SettingsService;
@@ -67,6 +68,14 @@ namespace ValorChronicle.Tests.EditMode.Settings
                 "TouchPanel");
             Assert.That(touch, Is.Not.Null);
             Assert.That(touch.GetComponent<Button>(), Is.Not.Null);
+            Assert.That(touch.GetComponent<ButtonPressSfx>(), Is.Null);
+            ButtonPressSfx[] buttonPressSfx =
+                prefab.GetComponentsInChildren<ButtonPressSfx>(true);
+            Assert.That(buttonPressSfx, Has.Length.EqualTo(4));
+            Assert.That(
+                buttonPressSfx,
+                Has.All.Matches<ButtonPressSfx>(component =>
+                    component.GetComponent<Button>() != null));
             Assert.That(touch.GetComponent<Image>().raycastTarget, Is.True);
             Assert.That(view.RedeemResultOverlay.transform.Find(
                 "CodeSuccessPanel").GetComponent<Image>().raycastTarget,

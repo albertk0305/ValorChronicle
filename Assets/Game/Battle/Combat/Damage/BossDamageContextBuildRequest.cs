@@ -4,13 +4,22 @@ using ValorChronicle.Battle.Combat.State;
 
 namespace ValorChronicle.Battle.Combat.Damage
 {
+    public enum BossDamageHitType
+    {
+        Direct = 0,
+        DamageOverTime = 1,
+        Reflected = 2,
+        SelfInflicted = 3
+    }
+
     public sealed class BossDamageContextBuildRequest
     {
         public BossDamageContextBuildRequest(
             BossBattleState boss,
             PartyBattleState party,
             double attackCoefficient,
-            AttackTag attackTags)
+            AttackTag attackTags,
+            BossDamageHitType hitType = BossDamageHitType.Direct)
         {
             Boss = boss ?? throw new ArgumentNullException(nameof(boss));
             Party = party ?? throw new ArgumentNullException(nameof(party));
@@ -25,14 +34,26 @@ namespace ValorChronicle.Battle.Combat.Damage
             }
 
             ValidateAttackTags(attackTags);
+            if (!Enum.IsDefined(typeof(BossDamageHitType), hitType))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(hitType),
+                    hitType,
+                    "Boss damage hit type must be defined.");
+            }
+
             AttackCoefficient = attackCoefficient;
             AttackTags = attackTags;
+            HitType = hitType;
         }
 
         public BossBattleState Boss { get; }
         public PartyBattleState Party { get; }
         public double AttackCoefficient { get; }
         public AttackTag AttackTags { get; }
+        public BossDamageHitType HitType { get; }
+        public bool CanConsumeNextBossHitDamageReduction =>
+            HitType == BossDamageHitType.Direct;
 
         private static void ValidateAttackTags(AttackTag attackTags)
         {

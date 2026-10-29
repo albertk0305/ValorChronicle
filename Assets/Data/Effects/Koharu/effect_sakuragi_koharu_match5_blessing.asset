@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b2d097d0d89c421f95f43f8b87290555, type: 3}
+  m_Name: effect_sakuragi_koharu_match5_blessing
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Data.Definitions.EffectDefinition
+  id: effect_sakuragi_koharu_match5_blessing
+  displayNameKey: koharu.effect.match5_blessing.name
+  descriptionKey: koharu.effect.match5_blessing.description
+  icon: {fileID: 21300000, guid: e5216e212d5a9414295e11774ba538c6, type: 3}

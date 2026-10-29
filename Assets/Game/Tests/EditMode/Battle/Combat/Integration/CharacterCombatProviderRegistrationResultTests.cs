@@ -32,7 +32,10 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(active.ResourceRequirements, Is.Empty);
             Assert.That(active.CombatStatusSources, Is.Empty);
             Assert.That(active.InitialPartyEffects, Is.Empty);
+            Assert.That(active.ShieldConditionalBossEffects, Is.Empty);
             Assert.That(active.PreMatchQueueActionProviders, Is.Empty);
+            Assert.That(active.ActiveAbilityCooldownReductionHandle,
+                Is.Null);
             Assert.That(passive.HasActiveAbility, Is.False);
             Assert.That(passive.ActiveAbilityId, Is.Empty);
             Assert.That(passive.ActiveCooldownTurns, Is.Zero);
@@ -40,7 +43,44 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(passive.ResourceRequirements, Is.Empty);
             Assert.That(passive.CombatStatusSources, Is.Empty);
             Assert.That(passive.InitialPartyEffects, Is.Empty);
+            Assert.That(passive.ShieldConditionalBossEffects, Is.Empty);
             Assert.That(passive.PreMatchQueueActionProviders, Is.Empty);
+            Assert.That(passive.ActiveAbilityCooldownReductionHandle,
+                Is.Null);
+        }
+
+        [Test]
+        public void CooldownReductionHandleRequiresActiveAndRemainsUnbound()
+        {
+            var handle = new ActiveAbilityCooldownReductionHandle(
+                "character_test",
+                partySlotIndex: 2);
+
+            CharacterCombatProviderRegistrationResult result =
+                CharacterCombatProviderRegistrationResult
+                    .WithActiveAbility("active_id", 4)
+                    .WithActiveAbilityCooldownReductionHandle(handle)
+                    .WithInitialPartyEffects(
+                        Array.Empty<InitialPartyEffectDefinition>());
+
+            Assert.That(result.ActiveAbilityCooldownReductionHandle,
+                Is.SameAs(handle));
+            Assert.That(handle.CharacterId, Is.EqualTo("character_test"));
+            Assert.That(handle.PartySlotIndex, Is.EqualTo(2));
+            Assert.That(handle.IsBound, Is.False);
+            Assert.That(
+                () => handle.ReduceRemainingCooldown(1),
+                Throws.TypeOf<InvalidOperationException>());
+            Assert.That(
+                () => CharacterCombatProviderRegistrationResult
+                    .WithoutActiveAbility()
+                    .WithActiveAbilityCooldownReductionHandle(handle),
+                Throws.TypeOf<InvalidOperationException>());
+            Assert.That(
+                () => CharacterCombatProviderRegistrationResult
+                    .WithActiveAbility("active_id", 4)
+                    .WithActiveAbilityCooldownReductionHandle(null),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -88,6 +128,33 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Integration
             Assert.That(result.ActiveCooldownTurns, Is.EqualTo(8));
             Assert.That(result.InitialPartyEffects,
                 Is.EqualTo(new[] { effect }));
+        }
+
+        [Test]
+        public void ShieldConditionalBossEffectsAreCopiedAndValidated()
+        {
+            var effect = new ShieldConditionalBossEffectDefinition(
+                "shield_debuff",
+                "character_test",
+                EffectCategory.Debuff,
+                EffectModifierType.TargetTakenDamageIncrease,
+                0.05d);
+            ShieldConditionalBossEffectDefinition[] source = { effect };
+
+            CharacterCombatProviderRegistrationResult result =
+                CharacterCombatProviderRegistrationResult
+                    .WithoutActiveAbility()
+                    .WithShieldConditionalBossEffects(source);
+            source[0] = null;
+
+            Assert.That(result.ShieldConditionalBossEffects,
+                Is.EqualTo(new[] { effect }));
+            Assert.That(effect.EffectId, Is.EqualTo("shield_debuff"));
+            Assert.Throws<ArgumentNullException>(() =>
+                result.WithShieldConditionalBossEffects(null));
+            Assert.Throws<ArgumentException>(() =>
+                result.WithShieldConditionalBossEffects(
+                    new ShieldConditionalBossEffectDefinition[] { null }));
         }
 
         [Test]

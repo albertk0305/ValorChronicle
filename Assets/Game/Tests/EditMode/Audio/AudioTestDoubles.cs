@@ -13,6 +13,8 @@ namespace ValorChronicle.Tests.EditMode.Audio
         public readonly List<(AudioVolumeChannel Channel, float Decibels)>
             Volumes = new List<(AudioVolumeChannel, float)>();
         public readonly List<string> Operations = new List<string>();
+        public readonly List<AudioClip> SfxClips = new List<AudioClip>();
+        public readonly List<AudioClip> UiSfxClips = new List<AudioClip>();
 
         public int PlayNormalCount { get; private set; }
         public int PauseNormalCount { get; private set; }
@@ -51,8 +53,17 @@ namespace ValorChronicle.Tests.EditMode.Audio
         public void PauseSpecial() => PauseSpecialCount++;
         public void ResumeSpecial() => ResumeSpecialCount++;
         public void StopSpecial() => StopSpecialCount++;
-        public void PlaySfx(AudioClip clip) => SfxCount++;
-        public void PlayUiSfx(AudioClip clip) => UiSfxCount++;
+        public void PlaySfx(AudioClip clip)
+        {
+            SfxCount++;
+            SfxClips.Add(clip);
+        }
+
+        public void PlayUiSfx(AudioClip clip)
+        {
+            UiSfxCount++;
+            UiSfxClips.Add(clip);
+        }
     }
 
     internal sealed class RecordingFadingAudioOutput :
@@ -140,6 +151,32 @@ namespace ValorChronicle.Tests.EditMode.Audio
         {
             CurrentSceneName = sceneName;
             handler?.Invoke(sceneName);
+        }
+    }
+
+    internal sealed class FakeSfxClipProvider : ISfxClipProvider
+    {
+        private readonly Dictionary<SfxCue, AudioClip> clips =
+            new Dictionary<SfxCue, AudioClip>();
+
+        public void SetClip(SfxCue cue, AudioClip clip)
+        {
+            clips[cue] = clip;
+        }
+
+        public bool TryGetSfxClip(SfxCue cue, out AudioClip clip)
+        {
+            return clips.TryGetValue(cue, out clip) && clip != null;
+        }
+    }
+
+    internal sealed class FakeUnscaledTimeSource : IUnscaledTimeSource
+    {
+        public double CurrentTime { get; set; }
+
+        public void Advance(double seconds)
+        {
+            CurrentTime += seconds;
         }
     }
 }

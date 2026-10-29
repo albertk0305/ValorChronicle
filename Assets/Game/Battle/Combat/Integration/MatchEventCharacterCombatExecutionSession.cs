@@ -122,7 +122,8 @@ namespace ValorChronicle.Battle.Combat.Integration
                 IReadOnlyList<CombatAction> rootActions =
                     actionFactory.CreateCharacterRootActions(
                         Execution,
-                        character);
+                        character,
+                        Math.Max(playerTurnNumber, 1));
                 currentCharacter = character;
                 currentActionSession =
                     executor.BeginExecution(

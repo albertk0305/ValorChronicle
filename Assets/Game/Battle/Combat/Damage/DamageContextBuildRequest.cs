@@ -5,10 +5,16 @@ using ValorChronicle.Data.Definitions;
 
 namespace ValorChronicle.Battle.Combat.Damage
 {
+    public delegate double DamageSkillCoefficientResolver(
+        DamageContextBuildRequest request);
+
     public sealed class DamageContextBuildRequest
     {
         public const double DefaultBaseCriticalChance = 0d;
         public const double DefaultBaseCriticalDamageMultiplier = 1.50d;
+
+        private readonly DamageSkillCoefficientResolver
+            skillCoefficientResolver;
 
         public DamageContextBuildRequest(
             CharacterBattleState attacker,
@@ -25,7 +31,8 @@ namespace ValorChronicle.Battle.Combat.Damage
             double baseCriticalDamageMultiplier =
                 DefaultBaseCriticalDamageMultiplier,
             double actionLocalDealtDamageIncreaseRate = 0d,
-            double actionLocalAttackTypeDamageIncreaseRate = 0d)
+            double actionLocalAttackTypeDamageIncreaseRate = 0d,
+            DamageSkillCoefficientResolver skillCoefficientResolver = null)
         {
             Attacker = attacker
                 ?? throw new ArgumentNullException(nameof(attacker));
@@ -67,6 +74,7 @@ namespace ValorChronicle.Battle.Combat.Damage
             AttackType = attackType;
             AttackTags = attackTags;
             SkillCoefficient = skillCoefficient;
+            this.skillCoefficientResolver = skillCoefficientResolver;
             AppliesCombo = appliesCombo;
             FinalComboCount = finalComboCount;
             CanCritical = canCritical;
@@ -92,6 +100,14 @@ namespace ValorChronicle.Battle.Combat.Damage
         public double BaseCriticalDamageMultiplier { get; }
         public double ActionLocalDealtDamageIncreaseRate { get; }
         public double ActionLocalAttackTypeDamageIncreaseRate { get; }
+        internal double ResolveSkillCoefficient()
+        {
+            double resolved = skillCoefficientResolver != null
+                ? skillCoefficientResolver(this)
+                : SkillCoefficient;
+            ValidateNonNegative(resolved, "Resolved skill coefficient");
+            return resolved;
+        }
 
         private static void ValidateElement(ElementType element)
         {

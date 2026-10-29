@@ -218,6 +218,23 @@ namespace ValorChronicle.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator UnloadingBattleSceneDisposesBattleSfxPresenter()
+        {
+            BattleSfxPresenter presenter = combatBootstrap.SfxPresenter;
+            Assert.That(presenter, Is.Not.Null);
+            Assert.That(presenter.IsInitialized, Is.True);
+
+            Scene battleScene = SceneManager.GetSceneByName("Battle");
+            Assert.That(battleScene.IsValid(), Is.True);
+            Assert.That(battleScene.isLoaded, Is.True);
+
+            yield return SceneManager.UnloadSceneAsync(battleScene);
+            yield return null;
+
+            Assert.That(presenter.IsInitialized, Is.False);
+        }
+
+        [UnityTest]
         public IEnumerator GiveUpAbortsWithoutFinalizationOrProfileMutation()
         {
             ProfileSaveData before = saveService.GetCurrentProfileSnapshot();

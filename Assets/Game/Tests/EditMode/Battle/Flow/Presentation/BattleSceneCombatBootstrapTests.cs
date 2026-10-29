@@ -219,12 +219,22 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             InvokePrivate(combatBootstrap, "InitializeFlowOnce");
             BattleSceneCombatComposition composition =
                 combatBootstrap.CombatComposition;
+            BattleSfxPresenter sfxPresenter =
+                combatBootstrap.SfxPresenter;
             InvokePrivate(combatBootstrap, "InitializeFlowOnce");
 
             Assert.That(combatBootstrap.HasInitializedFlow, Is.True);
             Assert.That(combatBootstrap.HasInitializedCombat, Is.True);
             Assert.That(combatBootstrap.CombatComposition,
                 Is.SameAs(composition));
+            Assert.That(sfxPresenter, Is.Not.Null);
+            Assert.That(sfxPresenter.IsInitialized, Is.True);
+            Assert.That(combatBootstrap.SfxPresenter,
+                Is.SameAs(sfxPresenter));
+            Assert.That(sfxPresenter.Initialize(
+                    (BattleBoardController)flowController.BoardMutationSink,
+                    composition.Bridge),
+                Is.False);
             Assert.That(flowController.Setup.TurnLimit, Is.EqualTo(7));
             Assert.That(flowController.Setup.ActiveAbilityCooldowns,
                 Is.EqualTo(new[] { 8 }));
@@ -278,6 +288,41 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
             Assert.That(composition.ActiveBindings[0].CharacterId,
                 Is.EqualTo(mareaDefinition.Id));
             Assert.That(battleEntryService.HasPendingRequest, Is.False);
+        }
+
+        [Test]
+        public void OnDestroy_DisposesPresenterAndUnsubscribesEvents()
+        {
+            InvokePrivate(combatBootstrap, "InitializeFlowOnce");
+            BattleSfxPresenter presenter = combatBootstrap.SfxPresenter;
+            BattleSceneCombatComposition composition =
+                combatBootstrap.CombatComposition;
+            var boardController = (BattleBoardController)
+                flowController.BoardMutationSink;
+            BattleFlowCombatBridge bridge = composition.Bridge;
+
+            Assert.That(presenter, Is.Not.Null);
+            Assert.That(combatBootstrap.SfxPresenter,
+                Is.SameAs(presenter));
+            Assert.That(presenter.IsInitialized, Is.True);
+            AssertPresenterSubscriptions(
+                boardController,
+                bridge,
+                presenter,
+                expected: true);
+
+            Assert.DoesNotThrow(() =>
+                InvokePrivate(combatBootstrap, "OnDestroy"));
+
+            Assert.That(presenter.IsInitialized, Is.False);
+            Assert.That(combatBootstrap.SfxPresenter, Is.Null);
+            AssertPresenterSubscriptions(
+                boardController,
+                bridge,
+                presenter,
+                expected: false);
+            Assert.DoesNotThrow(() =>
+                InvokePrivate(combatBootstrap, "OnDestroy"));
         }
 
         [Test]
@@ -943,6 +988,55 @@ namespace ValorChronicle.Tests.EditMode.Battle.Flow.Presentation
                 BindingFlags.Instance | BindingFlags.NonPublic).Invoke(
                 target,
                 null);
+        }
+
+        private static void AssertPresenterSubscriptions(
+            BattleBoardController boardController,
+            BattleFlowCombatBridge bridge,
+            BattleSfxPresenter presenter,
+            bool expected)
+        {
+            Assert.That(HasEventSubscriber(
+                    boardController,
+                    "MatchGroupsRemovalStarted",
+                    presenter),
+                Is.EqualTo(expected));
+            Assert.That(HasEventSubscriber(
+                    bridge,
+                    "CombatActionStepApplied",
+                    presenter),
+                Is.EqualTo(expected));
+            Assert.That(HasEventSubscriber(
+                    bridge,
+                    "PreMatchQueueCombatActionStepApplied",
+                    presenter),
+                Is.EqualTo(expected));
+            Assert.That(HasEventSubscriber(
+                    bridge,
+                    "ActiveCombatActionStepApplied",
+                    presenter),
+                Is.EqualTo(expected));
+            Assert.That(HasEventSubscriber(
+                    bridge,
+                    "BossCombatActionStepApplied",
+                    presenter),
+                Is.EqualTo(expected));
+        }
+
+        private static bool HasEventSubscriber(
+            object eventSource,
+            string eventName,
+            object subscriber)
+        {
+            FieldInfo eventField = eventSource.GetType().GetField(
+                eventName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(eventField, Is.Not.Null, eventName);
+            var handlers = eventField.GetValue(eventSource)
+                as MulticastDelegate;
+            return handlers != null
+                && handlers.GetInvocationList().Any(handler =>
+                    ReferenceEquals(handler.Target, subscriber));
         }
 
         private static BattleResultBalanceDefinition

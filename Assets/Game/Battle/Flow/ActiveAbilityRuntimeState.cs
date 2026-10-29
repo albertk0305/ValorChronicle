@@ -24,6 +24,21 @@ namespace ValorChronicle.Battle.Flow
         public bool UsedThisTurn { get; private set; }
         public bool CanUse => RemainingCooldown == 0 && !UsedThisTurn;
 
+        public int ReduceRemainingCooldown(int amount)
+        {
+            if (amount <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(amount),
+                    amount,
+                    "Cooldown reduction amount must be positive.");
+            }
+
+            int appliedAmount = Math.Min(RemainingCooldown, amount);
+            RemainingCooldown -= appliedAmount;
+            return appliedAmount;
+        }
+
         internal void BeginTurn()
         {
             if (RemainingCooldown > 0)

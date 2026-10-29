@@ -35,7 +35,8 @@ namespace ValorChronicle.Audio.Runtime
                 output,
                 output,
                 sceneChangeSource,
-                bgmFadeSettings: configuration?.CreateFadeSettings());
+                bgmFadeSettings: configuration?.CreateFadeSettings(),
+                sfxClipProvider: configuration);
             Service.Initialize();
             return Service;
         }

@@ -21,12 +21,22 @@ namespace ValorChronicle.Battle.Flow.Presentation
     public sealed class BattleSceneCombatComposition : IDisposable
     {
         private const long InitialPartyEffectRuntimeIdBase = 1L << 62;
+        private const long ConditionalBossEffectRuntimeIdBase = 1L << 61;
 
         private readonly IReadOnlyList<ActiveAbilityBinding> activeBindings;
+        private readonly IReadOnlyList<ActiveAbilityCooldownReductionHandle>
+            activeCooldownReductionHandles;
         private readonly IReadOnlyList<ICharacterCombatStatusSource>
             combatStatusSources;
         private readonly IReadOnlyList<PreMatchQueueActionProviderBinding>
             preMatchQueueBindings;
+        private readonly IReadOnlyList<
+            ShieldConditionalBossEffectSynchronizer>
+            shieldConditionalBossEffectSynchronizers;
+        private BattleFlowCoordinator subscribedResultCoordinator;
+        private bool shieldConditionalBossEffectsDisposed;
+        private long lastConditionalBossEffectIdentity =
+            ConditionalBossEffectRuntimeIdBase - 1;
 
         public BattleSceneCombatComposition(
             IReadOnlyList<BattlePartyMemberInput> partyMembers,
@@ -187,6 +197,10 @@ namespace ValorChronicle.Battle.Flow.Presentation
             var bindings = new List<ActiveAbilityBinding>(
                 partyMembers.Count);
             var cooldowns = new List<int>(partyMembers.Count);
+            var cooldownReductionHandles = new List<
+                ActiveAbilityCooldownReductionHandle>(partyMembers.Count);
+            var registeredCooldownReductionHandles = new HashSet<
+                ActiveAbilityCooldownReductionHandle>();
             var triggerRules = new List<ICombatTriggerRule>();
             var resourceRequirements =
                 new List<CombatResourceRequirement>();
@@ -194,9 +208,13 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 new List<ICharacterCombatStatusSource>();
             var initialPartyEffects =
                 new List<InitialPartyEffectDefinition>();
+            var shieldConditionalBossEffects =
+                new List<ShieldConditionalBossEffectDefinition>();
             var preMatchBindings =
                 new List<PreMatchQueueActionProviderBinding>();
             var statusSourceKeys = new HashSet<string>(
+                StringComparer.Ordinal);
+            var shieldConditionalBossEffectIds = new HashSet<string>(
                 StringComparer.Ordinal);
             for (int index = 0; index < Party.Characters.Count; index++)
             {
@@ -346,6 +364,46 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     initialPartyEffects.Add(effect);
                 }
 
+                IReadOnlyList<ShieldConditionalBossEffectDefinition>
+                    registeredShieldConditionalEffects =
+                        registration.ShieldConditionalBossEffects
+                        ?? throw new InvalidOperationException(
+                            $"The registrar for '{character.CharacterId}' "
+                                + "returned a null shield-conditional Boss "
+                                + "Effect collection.");
+                for (int effectIndex = 0;
+                    effectIndex < registeredShieldConditionalEffects.Count;
+                    effectIndex++)
+                {
+                    ShieldConditionalBossEffectDefinition effect =
+                        registeredShieldConditionalEffects[effectIndex]
+                        ?? throw new InvalidOperationException(
+                            $"The registrar for "
+                                + $"'{character.CharacterId}' returned a "
+                                + "null shield-conditional Boss Effect at "
+                                + $"index {effectIndex}.");
+                    if (!string.Equals(
+                            effect.SourceId,
+                            character.CharacterId,
+                            StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException(
+                            $"Shield-conditional Boss Effect "
+                                + $"'{effect.EffectId}' must use its "
+                                + "registered character ID as the source "
+                                + "ID.");
+                    }
+
+                    if (!shieldConditionalBossEffectIds.Add(effect.EffectId))
+                    {
+                        throw new InvalidOperationException(
+                            $"Duplicate shield-conditional Boss Effect ID: "
+                                + $"{effect.EffectId}.");
+                    }
+
+                    shieldConditionalBossEffects.Add(effect);
+                }
+
                 IReadOnlyList<IPreMatchQueueActionProvider>
                     registeredPreMatchProviders =
                         registration.PreMatchQueueActionProviders
@@ -390,12 +448,47 @@ namespace ValorChronicle.Battle.Flow.Presentation
                             + "not register its active provider.");
                 }
 
+                ActiveAbilityCooldownReductionHandle cooldownReductionHandle =
+                    registration.ActiveAbilityCooldownReductionHandle;
+                if (cooldownReductionHandle != null)
+                {
+                    if (!string.Equals(
+                            cooldownReductionHandle.CharacterId,
+                            character.CharacterId,
+                            StringComparison.Ordinal)
+                        || cooldownReductionHandle.PartySlotIndex
+                            != character.PartySlotIndex)
+                    {
+                        throw new InvalidOperationException(
+                            "Active ability cooldown reduction handle must "
+                                + "match its registered character and "
+                                + "party slot.");
+                    }
+
+                    if (cooldownReductionHandle.IsBound)
+                    {
+                        throw new InvalidOperationException(
+                            "Active ability cooldown reduction handle is "
+                                + "already bound to a battle runtime.");
+                    }
+
+                    if (!registeredCooldownReductionHandles.Add(
+                            cooldownReductionHandle))
+                    {
+                        throw new InvalidOperationException(
+                            "An active ability cooldown reduction handle "
+                                + "cannot be shared by multiple party "
+                                + "members.");
+                    }
+                }
+
                 bindings.Add(new ActiveAbilityBinding(
                     activeAbilityIndex: bindings.Count,
                     partySlotIndex: character.PartySlotIndex,
                     characterId: character.CharacterId,
                     activeAbilityId: registration.ActiveAbilityId));
                 cooldowns.Add(registration.ActiveCooldownTurns);
+                cooldownReductionHandles.Add(cooldownReductionHandle);
             }
 
             ApplyInitialPartyEffects(initialPartyEffects);
@@ -437,10 +530,29 @@ namespace ValorChronicle.Battle.Flow.Presentation
                 new DamageContextFactory(randomSource),
                 TriggerResolver);
             activeBindings = Array.AsReadOnly(bindings.ToArray());
+            activeCooldownReductionHandles = Array.AsReadOnly(
+                cooldownReductionHandles.ToArray());
             combatStatusSources = Array.AsReadOnly(
                 statusSources.ToArray());
             preMatchQueueBindings = Array.AsReadOnly(
                 preMatchBindings.ToArray());
+            var conditionalSynchronizers = new List<
+                ShieldConditionalBossEffectSynchronizer>(
+                shieldConditionalBossEffects.Count);
+            for (int index = 0;
+                index < shieldConditionalBossEffects.Count;
+                index++)
+            {
+                conditionalSynchronizers.Add(
+                    new ShieldConditionalBossEffectSynchronizer(
+                        Party.Shields,
+                        Boss.Effects,
+                        shieldConditionalBossEffects[index],
+                        NextConditionalBossEffectIdentity));
+            }
+
+            shieldConditionalBossEffectSynchronizers = Array.AsReadOnly(
+                conditionalSynchronizers.ToArray());
             FlowSetup = new BattleFlowSetup(
                 bossDefinition.TurnLimit,
                 cooldowns);
@@ -518,6 +630,8 @@ namespace ValorChronicle.Battle.Flow.Presentation
                     "Combat bridge was already created.");
             }
 
+            BindActiveAbilityCooldownReductionHandles(coordinator);
+
             Bridge = new BattleFlowCombatBridge(
                 coordinator,
                 Party,
@@ -540,12 +654,101 @@ namespace ValorChronicle.Battle.Flow.Presentation
                         ResultPersistenceService);
             }
 
+            subscribedResultCoordinator = coordinator;
+            subscribedResultCoordinator.ResultReached +=
+                HandleBattleResultReached;
+
             return Bridge;
+        }
+
+        private void BindActiveAbilityCooldownReductionHandles(
+            BattleFlowCoordinator coordinator)
+        {
+            IReadOnlyList<ActiveAbilityRuntimeState> runtimeStates =
+                coordinator.Context.ActiveAbilities;
+            bool hasHandle = false;
+            for (int index = 0;
+                index < activeCooldownReductionHandles.Count;
+                index++)
+            {
+                if (activeCooldownReductionHandles[index] != null)
+                {
+                    hasHandle = true;
+                    break;
+                }
+            }
+
+            if (!hasHandle)
+            {
+                return;
+            }
+
+            if (runtimeStates.Count != activeBindings.Count)
+            {
+                throw new InvalidOperationException(
+                    "Active ability runtime state count does not match "
+                        + "the registered active ability bindings.");
+            }
+
+            for (int index = 0;
+                index < activeCooldownReductionHandles.Count;
+                index++)
+            {
+                ActiveAbilityBinding binding = activeBindings[index];
+                int activeAbilityIndex = binding.ActiveAbilityIndex;
+                ActiveAbilityRuntimeState runtimeState =
+                    runtimeStates[activeAbilityIndex];
+                if (runtimeState.CooldownTurns
+                    != FlowSetup.ActiveAbilityCooldowns[
+                        activeAbilityIndex])
+                {
+                    throw new InvalidOperationException(
+                        $"The active ability runtime cooldown for "
+                            + $"'{binding.CharacterId}' does not match "
+                            + "the registered cooldown.");
+                }
+
+                activeCooldownReductionHandles[index]?.Bind(runtimeState);
+            }
         }
 
         public void Dispose()
         {
+            DisposeShieldConditionalBossEffects();
             ResultPersistenceCoordinator?.Dispose();
+        }
+
+        private void HandleBattleResultReached(BattleResultKind result)
+        {
+            DisposeShieldConditionalBossEffects();
+        }
+
+        private void DisposeShieldConditionalBossEffects()
+        {
+            if (shieldConditionalBossEffectsDisposed)
+            {
+                return;
+            }
+
+            shieldConditionalBossEffectsDisposed = true;
+            if (subscribedResultCoordinator != null)
+            {
+                subscribedResultCoordinator.ResultReached -=
+                    HandleBattleResultReached;
+                subscribedResultCoordinator = null;
+            }
+
+            for (int index = 0;
+                index < shieldConditionalBossEffectSynchronizers.Count;
+                index++)
+            {
+                shieldConditionalBossEffectSynchronizers[index].Dispose();
+            }
+        }
+
+        private long NextConditionalBossEffectIdentity()
+        {
+            return checked(++lastConditionalBossEffectIdentity);
         }
     }
 }

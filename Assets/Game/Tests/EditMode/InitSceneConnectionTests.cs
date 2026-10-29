@@ -8,6 +8,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using ValorChronicle.Core.Bootstrap;
 using ValorChronicle.UI;
+using ValorChronicle.UI.Audio;
 
 namespace ValorChronicle.Tests.EditMode
 {
@@ -57,6 +58,17 @@ namespace ValorChronicle.Tests.EditMode
                 Assert.That(controller.StartButton,
                     Is.SameAs(controller.GetComponent<Button>()));
                 Assert.That(controller.StartButton.interactable, Is.False);
+                Assert.That(
+                    Object.FindObjectsByType<ButtonPressSfx>(
+                        FindObjectsInactive.Include,
+                        FindObjectsSortMode.None),
+                    Has.Length.EqualTo(3));
+                Assert.That(
+                    Object.FindObjectsByType<Button>(
+                        FindObjectsInactive.Include,
+                        FindObjectsSortMode.None),
+                    Has.All.Matches<Button>(button =>
+                        button.GetComponent<ButtonPressSfx>() != null));
                 Assert.That(controller.StartButton.transition,
                     Is.EqualTo(Selectable.Transition.None));
                 Assert.That(

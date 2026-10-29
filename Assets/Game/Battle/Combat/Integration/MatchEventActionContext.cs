@@ -13,7 +13,8 @@ namespace ValorChronicle.Battle.Combat.Integration
             AttackTag matchAttackTag,
             PartyBattleState party,
             BossBattleState boss,
-            CombatActionIdSequence actionIds)
+            CombatActionIdSequence actionIds,
+            int playerTurnNumber)
         {
             Character = character
                 ?? throw new ArgumentNullException(nameof(character));
@@ -23,7 +24,16 @@ namespace ValorChronicle.Battle.Combat.Integration
             Boss = boss ?? throw new ArgumentNullException(nameof(boss));
             ActionIds = actionIds
                 ?? throw new ArgumentNullException(nameof(actionIds));
+            if (playerTurnNumber <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(playerTurnNumber),
+                    playerTurnNumber,
+                    "Player turn number must be positive.");
+            }
+
             MatchAttackTag = matchAttackTag;
+            PlayerTurnNumber = playerTurnNumber;
         }
 
         public CharacterBattleState Character { get; }
@@ -34,5 +44,6 @@ namespace ValorChronicle.Battle.Combat.Integration
         public PartyBattleState Party { get; }
         public BossBattleState Boss { get; }
         public CombatActionIdSequence ActionIds { get; }
+        public int PlayerTurnNumber { get; }
     }
 }

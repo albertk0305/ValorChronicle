@@ -9,8 +9,10 @@ using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Characters.Build;
 using ValorChronicle.Characters.Brina;
 using ValorChronicle.Characters.Fiora;
+using ValorChronicle.Characters.Koharu;
 using ValorChronicle.Characters.Marea;
 using ValorChronicle.Characters.Miyuki;
+using ValorChronicle.Characters.Naira;
 using ValorChronicle.Characters.Presentation;
 using ValorChronicle.Characters.Runtime;
 using ValorChronicle.Characters.Serena;
@@ -45,7 +47,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
             CharacterRuntimeRegistrationCatalog catalog =
                 CharacterRuntimeRegistrationCatalog.CreateDefault();
 
-            Assert.That(catalog.Registrations.Count, Is.EqualTo(5));
+            Assert.That(catalog.Registrations.Count, Is.EqualTo(7));
             CharacterRuntimeRegistration registration = catalog
                 .Registrations
                 .Single(item => item.CharacterId
@@ -129,11 +131,57 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
             Assert.That(
                 brina.CreateLookupProvider(),
                 Is.TypeOf<BrinaAshwoodLookupDescriptionProvider>());
+            CharacterRuntimeRegistration naira = catalog.Registrations
+                .Single(item => item.CharacterId
+                    == NairaWindhornRules.CharacterId);
+            Assert.That(
+                naira.SupportedCombatConfigType,
+                Is.EqualTo(typeof(NairaWindhornCombatConfig)));
+            Assert.That(
+                naira.CreateBuildModifier(),
+                Is.TypeOf<NairaWindhornBuildModifier>());
+            Assert.That(
+                naira.CreateCombatRegistrar(),
+                Is.TypeOf<NairaWindhornCombatProviderRegistrar>());
+            Assert.That(
+                naira.CreateLookupProvider(),
+                Is.TypeOf<NairaWindhornLookupDescriptionProvider>());
+            CharacterRuntimeRegistration koharu = catalog.Registrations
+                .Single(item => item.CharacterId
+                    == SakuragiKoharuRules.CharacterId);
+            Assert.That(
+                koharu.SupportedCombatConfigType,
+                Is.EqualTo(typeof(SakuragiKoharuCombatConfig)));
+            Assert.That(
+                koharu.CreateBuildModifier(),
+                Is.TypeOf<SakuragiKoharuBuildModifier>());
+            Assert.That(
+                koharu.CreateCombatRegistrar(),
+                Is.TypeOf<SakuragiKoharuCombatProviderRegistrar>());
+            Assert.That(
+                koharu.CreateLookupProvider(),
+                Is.TypeOf<SakuragiKoharuLookupDescriptionProvider>());
             Assert.That(
                 catalog.Registrations.Select(item => item.CharacterId)
                     .Distinct()
                     .Count(),
-                Is.EqualTo(5));
+                Is.EqualTo(7));
+        }
+
+        [Test]
+        public void DefaultKoharuFactoriesCreateIndependentInstances()
+        {
+            CharacterRuntimeRegistration registration =
+                CharacterRuntimeRegistrationCatalog.CreateDefault()
+                    .Registrations.Single(item => item.CharacterId
+                        == SakuragiKoharuRules.CharacterId);
+
+            Assert.That(registration.CreateBuildModifier(), Is.Not.SameAs(
+                registration.CreateBuildModifier()));
+            Assert.That(registration.CreateCombatRegistrar(), Is.Not.SameAs(
+                registration.CreateCombatRegistrar()));
+            Assert.That(registration.CreateLookupProvider(), Is.Not.SameAs(
+                registration.CreateLookupProvider()));
         }
 
         [Test]

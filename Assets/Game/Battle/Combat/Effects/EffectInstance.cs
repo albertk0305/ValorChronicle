@@ -71,6 +71,10 @@ namespace ValorChronicle.Battle.Combat.Effects
                 stackPolicy,
                 stackCount,
                 maxStackCount);
+            ValidateNextBossHitDamageReduction(
+                modifierType,
+                stackPolicy,
+                remainingTurns);
             ValidateElementFilter(modifierType, elementFilter);
             ValidateAttackFilters(
                 modifierType,
@@ -252,6 +256,32 @@ namespace ValorChronicle.Battle.Combat.Effects
             }
         }
 
+        private static void ValidateNextBossHitDamageReduction(
+            EffectModifierType modifierType,
+            EffectStackPolicy stackPolicy,
+            int? remainingTurns)
+        {
+            if (modifierType
+                != EffectModifierType.NextBossHitDamageReduction)
+            {
+                return;
+            }
+
+            if (stackPolicy != EffectStackPolicy.Unique)
+            {
+                throw new ArgumentException(
+                    "Next-boss-hit damage reduction must be unique.",
+                    nameof(stackPolicy));
+            }
+
+            if (remainingTurns.HasValue)
+            {
+                throw new ArgumentException(
+                    "Next-boss-hit damage reduction cannot expire by turn.",
+                    nameof(remainingTurns));
+            }
+        }
+
         private static void ValidateAttackFilters(
             EffectModifierType modifierType,
             AttackTypeMask attackTypeMask,
@@ -328,10 +358,13 @@ namespace ValorChronicle.Battle.Combat.Effects
                 return;
             }
 
-            if (modifierType != EffectModifierType.AttackIncrease)
+            if (modifierType != EffectModifierType.AttackIncrease
+                && modifierType
+                    != EffectModifierType.TargetTakenDamageIncrease)
             {
                 throw new ArgumentException(
-                    "Modifier group caps currently support attack increases only.",
+                    "Modifier group caps support attack increases and target "
+                        + "taken-damage increases only.",
                     nameof(modifierGroupId));
             }
 

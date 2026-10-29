@@ -4,6 +4,7 @@ using ValorChronicle.Battle.Combat.Application;
 using ValorChronicle.Battle.Combat.Damage;
 using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Battle.Combat.Healing;
+using ValorChronicle.Battle.Combat.Modifiers;
 using ValorChronicle.Battle.Combat.Shields;
 using ValorChronicle.Battle.Combat.State;
 
@@ -174,12 +175,25 @@ namespace ValorChronicle.Battle.Combat.Actions
         {
             BossDamageContextBuildRequest request = action.ContextRequest;
             ValidateBattleReferences(request.Party, request.Boss);
+            EffectInstance selectedReduction =
+                request.CanConsumeNextBossHitDamageReduction
+                    ? CombatModifierCollector
+                        .SelectStrongestNextBossHitDamageReduction(party)
+                    : null;
             BossDamageContext context =
-                BossDamageContextFactory.Build(request);
+                BossDamageContextFactory.Build(
+                    request,
+                    selectedReduction?.EffectiveMagnitude ?? 0d);
             BossDamageResult damageResult =
                 BossDamageCalculator.Calculate(context);
             PartyDamageApplicationResult applicationResult =
                 PartyDamageApplier.Apply(party, damageResult);
+            if (selectedReduction != null
+                && !applicationResult.WasIncapacitatedBefore)
+            {
+                party.Effects.RemoveEffect(selectedReduction.RuntimeId);
+            }
+
             return new BossDamageActionResult(
                 action,
                 executionOrder,
