@@ -313,13 +313,30 @@ namespace ValorChronicle.Battle.Combat.Effects
                     "Required attack tags contain undefined flags.");
             }
 
-            if (modifierType
-                == EffectModifierType.AttackTypeDamageIncrease)
+            bool isAttackTypeDamageIncrease = modifierType
+                == EffectModifierType.AttackTypeDamageIncrease;
+            bool isTargetTakenDamageIncrease = modifierType
+                == EffectModifierType.TargetTakenDamageIncrease;
+            if (isAttackTypeDamageIncrease)
             {
                 if (attackTypeMask == AttackTypeMask.None)
                 {
                     throw new ArgumentException(
                         "Attack type damage effects require a non-empty mask.",
+                        nameof(attackTypeMask));
+                }
+
+                return;
+            }
+
+            if (isTargetTakenDamageIncrease)
+            {
+                if (attackTypeMask == AttackTypeMask.None
+                    && requiredAttackTags != AttackTag.None)
+                {
+                    throw new ArgumentException(
+                        "Target taken-damage effects require an attack type "
+                            + "mask when attack tags are configured.",
                         nameof(attackTypeMask));
                 }
 

@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26d09098adfe4ed1818bc974e6e43d39, type: 3}
+  m_Name: baek_hyeon_combat_config
+  m_EditorClassIdentifier: ValorChronicle.Game::ValorChronicle.Characters.BaekHyeon.BaekHyeonCombatConfig
+  initialMarkCount: 0
+  markMaxStackCount: 10
+  match3MarkGainAmount: 1
+  match4MarkGainAmount: 2
+  match5MarkGainAmount: 3
+  markDamageIncreaseRate: 0.03
+  awakening3MarkDamageIncreaseRate: 0.035
+  markDamageAttackTypes: 12
+  minimumActualDamageToConsumeMarks: 1
+  match3BaseCoefficient: 0.7
+  match4BaseCoefficient: 1.25
+  match5BaseCoefficient: 2
+  match3MarkCoefficient: 0.03
+  match4MarkCoefficient: 0.05
+  match5MarkCoefficient: 0.08
+  awakening4Match3BaseCoefficient: 0.75
+  awakening4Match4BaseCoefficient: 1.35
+  activeBaseCoefficient: 2.5
+  activeMarkCoefficient: 0.2
+  activeCooldownTurns: 8
+  awakening5ActiveBaseCoefficient: 2.8
+  awakening5ActiveMarkCoefficient: 0.22
+  exposureDamageIncreaseRate: 0.08
+  exposureDurationTurns: 2
+  exposureMaxStackCount: 1
+  exposureStackPolicy: 0
+  exposureAttackTypeMask: 0

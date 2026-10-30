@@ -8,7 +8,7 @@ namespace ValorChronicle.Exchange.Presentation
 {
     public sealed class ExchangeConfirmView : MonoBehaviour
     {
-        public const string UnownedText = "Unowned";
+        public const string UnownedText = "New";
         public const string NewInstanceText = "New 0";
 
         private GameObject root;

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Characters.Build;
+using ValorChronicle.Characters.BaekHyeon;
 using ValorChronicle.Characters.Brina;
 using ValorChronicle.Characters.Fiora;
 using ValorChronicle.Characters.Koharu;
@@ -105,7 +106,12 @@ namespace ValorChronicle.Characters.Runtime
                         SakuragiKoharuRules.CharacterId,
                         () => new SakuragiKoharuBuildModifier(),
                         () => new SakuragiKoharuCombatProviderRegistrar(),
-                        () => new SakuragiKoharuLookupDescriptionProvider())
+                        () => new SakuragiKoharuLookupDescriptionProvider()),
+                    new CharacterRuntimeRegistration(
+                        BaekHyeonRules.CharacterId,
+                        () => new BaekHyeonBuildModifier(),
+                        () => new BaekHyeonCombatProviderRegistrar(),
+                        () => new BaekHyeonLookupDescriptionProvider())
                 });
         }
 

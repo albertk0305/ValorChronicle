@@ -9,7 +9,7 @@ namespace ValorChronicle.Exchange.Presentation
     public sealed class ExchangeSlotView : MonoBehaviour
     {
         public const float MaximumCharacterAlpha = 0.45f;
-        public const string UnownedText = "Unowned";
+        public const string UnownedText = "New";
 
         [SerializeField] private Button button;
         [SerializeField] private Image contentImage;

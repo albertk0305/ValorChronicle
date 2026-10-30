@@ -7,6 +7,7 @@ using UnityEngine;
 using ValorChronicle.Battle.Combat.Integration;
 using ValorChronicle.Battle.Combat.State;
 using ValorChronicle.Characters.Build;
+using ValorChronicle.Characters.BaekHyeon;
 using ValorChronicle.Characters.Brina;
 using ValorChronicle.Characters.Fiora;
 using ValorChronicle.Characters.Koharu;
@@ -47,7 +48,7 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
             CharacterRuntimeRegistrationCatalog catalog =
                 CharacterRuntimeRegistrationCatalog.CreateDefault();
 
-            Assert.That(catalog.Registrations.Count, Is.EqualTo(7));
+            Assert.That(catalog.Registrations.Count, Is.EqualTo(8));
             CharacterRuntimeRegistration registration = catalog
                 .Registrations
                 .Single(item => item.CharacterId
@@ -161,11 +162,26 @@ namespace ValorChronicle.Tests.EditMode.Characters.Runtime
             Assert.That(
                 koharu.CreateLookupProvider(),
                 Is.TypeOf<SakuragiKoharuLookupDescriptionProvider>());
+            CharacterRuntimeRegistration baekHyeon = catalog.Registrations
+                .Single(item => item.CharacterId
+                    == BaekHyeonRules.CharacterId);
+            Assert.That(
+                baekHyeon.SupportedCombatConfigType,
+                Is.EqualTo(typeof(BaekHyeonCombatConfig)));
+            Assert.That(
+                baekHyeon.CreateBuildModifier(),
+                Is.TypeOf<BaekHyeonBuildModifier>());
+            Assert.That(
+                baekHyeon.CreateCombatRegistrar(),
+                Is.TypeOf<BaekHyeonCombatProviderRegistrar>());
+            Assert.That(
+                baekHyeon.CreateLookupProvider(),
+                Is.TypeOf<BaekHyeonLookupDescriptionProvider>());
             Assert.That(
                 catalog.Registrations.Select(item => item.CharacterId)
                     .Distinct()
                     .Count(),
-                Is.EqualTo(7));
+                Is.EqualTo(8));
         }
 
         [Test]

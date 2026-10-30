@@ -1,5 +1,6 @@
 using System;
 using NUnit.Framework;
+using ValorChronicle.Battle.Combat.Attacks;
 using ValorChronicle.Battle.Combat.Effects;
 using ValorChronicle.Battle.Combat.Modifiers;
 using ValorChronicle.Battle.Combat.State;
@@ -347,6 +348,137 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Modifiers
                 Is.EqualTo(0.30d).Within(0.000000001d));
         }
 
+        [TestCase(AttackType.Match, 0.08d)]
+        [TestCase(AttackType.Active, 0.08d)]
+        [TestCase(AttackType.Additional, 0.23d)]
+        [TestCase(AttackType.Chase, 0.23d)]
+        [TestCase(AttackType.DamageOverTime, 0.08d)]
+        public void CollectAllyDamage_FiltersTargetTakenByAttackType(
+            AttackType attackType,
+            double expectedIncrease)
+        {
+            CreateStates(
+                out CharacterBattleState attacker,
+                out PartyBattleState party,
+                out BossBattleState boss);
+            boss.Effects.ApplyEffect(TargetTakenEffect(
+                1,
+                "all_attacks",
+                0.08d));
+            boss.Effects.ApplyEffect(TargetTakenEffect(
+                2,
+                "follow_up_attacks",
+                0.15d,
+                AttackTypeMask.Additional | AttackTypeMask.Chase));
+            boss.Effects.ApplyEffect(Effect(
+                3,
+                "taken_reduction",
+                EffectModifierType.TargetTakenDamageReduction,
+                0.10d));
+
+            AllyDamageModifierSnapshot result =
+                CombatModifierCollector.CollectAllyDamage(
+                    attacker,
+                    party,
+                    boss,
+                    ElementType.Water,
+                    attackType,
+                    AttackTag.None);
+
+            Assert.That(
+                result.TargetTakenDamageIncreaseRateSum,
+                Is.EqualTo(expectedIncrease).Within(0.000000001d));
+            Assert.That(
+                result.TargetTakenDamageReductionRateSum,
+                Is.EqualTo(0.10d));
+        }
+
+        [Test]
+        public void CollectAllyDamage_RequiresTargetTakenTypeAndTags()
+        {
+            CreateStates(
+                out CharacterBattleState attacker,
+                out PartyBattleState party,
+                out BossBattleState boss);
+            boss.Effects.ApplyEffect(TargetTakenEffect(
+                1,
+                "heavy_additional",
+                0.20d,
+                AttackTypeMask.Additional,
+                AttackTag.Heavy));
+
+            Assert.That(CollectTargetTaken(
+                attacker,
+                party,
+                boss,
+                AttackType.Additional,
+                AttackTag.None), Is.Zero);
+            Assert.That(CollectTargetTaken(
+                attacker,
+                party,
+                boss,
+                AttackType.Chase,
+                AttackTag.Heavy), Is.Zero);
+            Assert.That(CollectTargetTaken(
+                attacker,
+                party,
+                boss,
+                AttackType.Additional,
+                AttackTag.Heavy), Is.EqualTo(0.20d));
+        }
+
+        [TestCase(0.03d, 5, 0.15d)]
+        [TestCase(0.03d, 10, 0.30d)]
+        [TestCase(0.035d, 10, 0.35d)]
+        public void CollectAllyDamage_TargetTakenStackCountUsesMagnitude(
+            double magnitude,
+            int stackCount,
+            double expectedIncrease)
+        {
+            CreateStates(
+                out CharacterBattleState attacker,
+                out PartyBattleState party,
+                out BossBattleState boss);
+            for (int index = 0; index < stackCount; index++)
+            {
+                boss.Effects.ApplyEffect(new EffectInstance(
+                    index + 1,
+                    "stacked_follow_up_vulnerability",
+                    "source",
+                    EffectCategory.Debuff,
+                    EffectModifierType.TargetTakenDamageIncrease,
+                    magnitude,
+                    remainingTurns: null,
+                    creationOrder: index + 1,
+                    stackPolicy: EffectStackPolicy.StackCount,
+                    maxStackCount: 10,
+                    attackTypeMask:
+                        AttackTypeMask.Additional | AttackTypeMask.Chase));
+            }
+
+            EffectInstance stacked = boss.Effects.GetActiveEffects()[0];
+            Assert.That(stacked.StackCount, Is.EqualTo(stackCount));
+            Assert.That(stacked.RemainingTurns, Is.Null);
+            Assert.That(CollectTargetTaken(
+                attacker,
+                party,
+                boss,
+                AttackType.Additional,
+                AttackTag.None), Is.EqualTo(expectedIncrease)
+                    .Within(0.000000001d));
+            Assert.That(CollectTargetTaken(
+                attacker,
+                party,
+                boss,
+                AttackType.Match,
+                AttackTag.None), Is.Zero);
+
+            boss.Effects.ProcessTurnEnd();
+
+            Assert.That(stacked.StackCount, Is.EqualTo(stackCount));
+            Assert.That(stacked.RemainingTurns, Is.Null);
+        }
+
         [Test]
         public void CollectAllyDamage_ExpiredEffectIsNotCollected()
         {
@@ -503,6 +635,42 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Modifiers
                 2,
                 id,
                 elementFilter: element);
+        }
+
+        private static EffectInstance TargetTakenEffect(
+            long id,
+            string effectId,
+            double magnitude,
+            AttackTypeMask attackTypeMask = AttackTypeMask.None,
+            AttackTag requiredAttackTags = AttackTag.None)
+        {
+            return new EffectInstance(
+                id,
+                effectId,
+                "source",
+                EffectCategory.Debuff,
+                EffectModifierType.TargetTakenDamageIncrease,
+                magnitude,
+                2,
+                id,
+                attackTypeMask: attackTypeMask,
+                requiredAttackTags: requiredAttackTags);
+        }
+
+        private static double CollectTargetTaken(
+            CharacterBattleState attacker,
+            PartyBattleState party,
+            BossBattleState boss,
+            AttackType attackType,
+            AttackTag attackTags)
+        {
+            return CombatModifierCollector.CollectAllyDamage(
+                attacker,
+                party,
+                boss,
+                ElementType.Water,
+                attackType,
+                attackTags).TargetTakenDamageIncreaseRateSum;
         }
 
         private static EffectInstance Effect(

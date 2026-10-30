@@ -205,3 +205,30 @@ koharu.awakening.5.name	Spirit Energy Bloom	영력개화
 koharu.awakening.5.description	Spirit Energy required to reduce the remaining Active cooldown by 1 changes from {spirit_cost_before} to {spirit_cost_after}.	남은 액티브 재사용 대기시간을 1 줄이는 데 필요한 영력이 {spirit_cost_before}에서 {spirit_cost_after}로 변경됩니다.
 koharu.awakening.6.name	Fox's Blessing	여우의 축복
 koharu.awakening.6.description	Using the Active also increases party Additional and Chase damage by {damage_increase}% for {duration} turn, ending at TurnEnd.	액티브 사용 시 파티의 추가 공격 및 추격 공격 피해를 {damage_increase}% 증가시키며, TurnEnd에 만료되는 {duration}턴 효과를 부여합니다.
+baek_hyeon	Baek Hyeon	백현
+baek_hyeon.skill.passive.name	Thread of Weakness	빈틈의 실
+baek_hyeon.skill.passive.description	Grass Matches apply {match3_mark_gain}/{match4_mark_gain}/{match5_mark_gain} Marks for 3/4/5+ Matches, up to {mark_max}. Each Mark increases Additional and Chase damage taken by {additional_damage_increase_per_mark}%, up to {additional_damage_increase_max}%, and all Marks are removed after a qualifying attack completes.	풀속성 3/4/5매칭 이상 공격 후 표식을 {match3_mark_gain}/{match4_mark_gain}/{match5_mark_gain}개 부착하며 최대 {mark_max}개까지 중첩됩니다. 표식 하나당 받는 추가 공격 및 추격 공격 피해가 {additional_damage_increase_per_mark}% 증가해 최대 {additional_damage_increase_max}%까지 증가하며, 해당 공격 완료 후 모든 표식을 제거합니다.
+baek_hyeon.skill.match3.name	Harassing Shot - 3 Match	견제 사격 - 3매치
+baek_hyeon.skill.match3.description	Deals {base_coefficient}% ATK as Grass damage, plus {per_mark_coefficient}% ATK per existing Mark, up to {max_coefficient}% at {mark_max} Marks. Applies {mark_gain} Mark after damage resolves.	공격력의 {base_coefficient}%만큼 풀속성 피해를 주고 기존 표식 하나당 공격력의 {per_mark_coefficient}%만큼 추가되어, 표식 {mark_max}개에서 최대 {max_coefficient}%가 됩니다. 피해 처리 후 표식 {mark_gain}개를 부착합니다.
+baek_hyeon.skill.match4.name	Weakpoint Shot - 4 Match	약점 사격 - 4매치
+baek_hyeon.skill.match4.description	Deals {base_coefficient}% ATK as Grass damage, plus {per_mark_coefficient}% ATK per existing Mark, up to {max_coefficient}% at {mark_max} Marks. Applies {mark_gain} Marks after damage resolves.	공격력의 {base_coefficient}%만큼 풀속성 피해를 주고 기존 표식 하나당 공격력의 {per_mark_coefficient}%만큼 추가되어, 표식 {mark_max}개에서 최대 {max_coefficient}%가 됩니다. 피해 처리 후 표식 {mark_gain}개를 부착합니다.
+baek_hyeon.skill.match5.name	Dead Aim - 5+ Match	정조준 - 5매치 이상
+baek_hyeon.skill.match5.description	Deals {base_coefficient}% ATK as Grass damage, plus {per_mark_coefficient}% ATK per existing Mark, up to {max_coefficient}% at {mark_max} Marks. Applies {mark_gain} Marks after damage resolves.	공격력의 {base_coefficient}%만큼 풀속성 피해를 주고 기존 표식 하나당 공격력의 {per_mark_coefficient}%만큼 추가되어, 표식 {mark_max}개에서 최대 {max_coefficient}%가 됩니다. 피해 처리 후 표식 {mark_gain}개를 부착합니다.
+baek_hyeon.skill.active.name	One Arrow Is Enough	한 발이면 충분해
+baek_hyeon.skill.active.description	Deals {base_coefficient}% ATK as Grass damage, plus {per_mark_coefficient}% ATK per Mark, up to {max_coefficient}% at {mark_max} Marks. Does not consume Marks. Cooldown: {cooldown} turns.	공격력의 {base_coefficient}%만큼 풀속성 피해를 주고 표식 하나당 공격력의 {per_mark_coefficient}%만큼 추가되어, 표식 {mark_max}개에서 최대 {max_coefficient}%가 됩니다. 표식을 소비하지 않습니다. 재사용 대기시간: {cooldown}턴.
+baek_hyeon.awakening.1.name	Taut Bowstring	당겨진 시위
+baek_hyeon.awakening.1.description	ATK multiplier increases from {multiplier_before}% to {multiplier_after}%.	공격력 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+baek_hyeon.awakening.2.name	Wandering Archer	방랑하는 궁수
+baek_hyeon.awakening.2.description	Max HP multiplier increases from {multiplier_before}% to {multiplier_after}%.	최대 HP 배율이 {multiplier_before}%에서 {multiplier_after}%로 증가합니다.
+baek_hyeon.awakening.3.name	Clearer Opening	선명해진 빈틈
+baek_hyeon.awakening.3.description	Damage taken from Additional and Chase attacks per Mark changes from {per_mark_before}% to {per_mark_after}%, increasing the maximum from {maximum_before}% to {maximum_after}%.	표식 하나당 받는 추가 공격 및 추격 공격 피해 증가량이 {per_mark_before}%에서 {per_mark_after}%로 변경되어 최대 증가량이 {maximum_before}%에서 {maximum_after}%로 증가합니다.
+baek_hyeon.awakening.4.name	Seasoned Marksmanship	노련해진 사격
+baek_hyeon.awakening.4.description	Harassing Shot changes from {match3_before}% to {match3_after}% ATK, and Weakpoint Shot changes from {match4_before}% to {match4_after}% ATK.	견제 사격의 공격력 계수가 {match3_before}%에서 {match3_after}%로, 약점 사격의 공격력 계수가 {match4_before}%에서 {match4_after}%로 변경됩니다.
+baek_hyeon.awakening.5.name	Weight of One Arrow	한 발의 무게
+baek_hyeon.awakening.5.description	One Arrow Is Enough changes from {base_before}% to {base_after}% ATK, and its coefficient per Mark changes from {per_mark_before}% to {per_mark_after}% ATK.	한 발이면 충분해의 공격력 계수가 {base_before}%에서 {base_after}%로, 표식당 추가 계수가 {per_mark_before}%에서 {per_mark_after}%로 변경됩니다.
+baek_hyeon.awakening.6.name	Exposed Opening	드러난 빈틈
+baek_hyeon.awakening.6.description	After a 5+ Match deals damage and applies Marks, it applies Exposure, increasing all damage taken by {damage_increase}% for {duration} turns. Reuse refreshes duration without stacking.	5매칭 이상 공격이 피해를 주고 표식을 부착한 뒤 노출을 부여합니다. 노출은 {duration}턴 동안 받는 모든 피해를 {damage_increase}% 증가시키며, 재적용 시 중첩하지 않고 지속 시간만 갱신합니다.
+baek_hyeon.effect.mark.name	Mark	표식
+baek_hyeon.effect.mark.description	Stacks up to 10 without a turn duration. Each Mark increases Additional and Chase damage taken by 3%, or 3.5% after Awakening 3. All Marks are removed after a qualifying attack completes.	턴 제한 없이 최대 10개까지 중첩됩니다. 표식 하나당 받는 추가 공격 및 추격 공격 피해가 3% 증가하며, 3각성 이후 3.5% 증가합니다. 해당 공격 완료 후 모든 표식을 제거합니다.
+baek_hyeon.effect.exposure.name	Exposure	노출
+baek_hyeon.effect.exposure.description	Increases all damage taken by 8% for 2 turns. Reuse refreshes duration without stacking.	2턴 동안 받는 모든 피해가 8% 증가합니다. 재적용 시 중첩하지 않고 지속 시간만 갱신합니다.

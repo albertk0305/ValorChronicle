@@ -178,6 +178,15 @@ namespace ValorChronicle.Tests.EditMode
                 data.Catalog,
                 profile);
 
+            Assert.That(catalog.Characters[0].Progress.Kind,
+                Is.EqualTo(ExchangeProgressKind.Unowned));
+            Assert.That(catalog.Relics[0].Progress.Kind,
+                Is.EqualTo(ExchangeProgressKind.Unowned));
+            Assert.That(ExchangeConfirmView.UnownedText,
+                Is.EqualTo("New"));
+            Assert.That(ExchangeSlotView.UnownedText,
+                Is.EqualTo(ExchangeConfirmView.UnownedText));
+
             fixture.View.Open(
                 catalog.Characters[0].CreateConfirmDisplayData(),
                 faceSprite,
@@ -186,7 +195,8 @@ namespace ValorChronicle.Tests.EditMode
             Assert.That(fixture.ContentImage.sprite, Is.SameAs(faceSprite));
             Assert.That(fixture.PriceIcon.sprite,
                 Is.SameAs(heroTokenSprite));
-            Assert.That(fixture.AwakeningText.text, Is.EqualTo("Unowned"));
+            Assert.That(fixture.AwakeningText.text,
+                Is.EqualTo(ExchangeConfirmView.UnownedText));
             Assert.That(fixture.AwakeningIcon.activeSelf, Is.False);
             Assert.That(fixture.PriceText.text, Is.EqualTo("X60"));
             Assert.That(fixture.ConfirmButton.interactable, Is.True);
@@ -195,7 +205,8 @@ namespace ValorChronicle.Tests.EditMode
                 catalog.Relics[0].CreateConfirmDisplayData(),
                 relicSprite,
                 relicTokenSprite);
-            Assert.That(fixture.AwakeningText.text, Is.EqualTo("Unowned"));
+            Assert.That(fixture.AwakeningText.text,
+                Is.EqualTo(ExchangeConfirmView.UnownedText));
             Assert.That(fixture.AwakeningIcon.activeSelf, Is.False);
             Assert.That(fixture.PriceText.text, Is.EqualTo("X25"));
             Assert.That(fixture.ContentImage.sprite,

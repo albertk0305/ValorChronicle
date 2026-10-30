@@ -91,6 +91,8 @@ namespace ValorChronicle.Battle.Combat.Modifiers
                 values);
             CollectTargetSource(
                 target.Effects.GetActiveEffects(),
+                attackType,
+                attackTags,
                 values);
             return new AllyDamageModifierSnapshot(
                 values.GetAttackIncrease(),
@@ -278,6 +280,8 @@ namespace ValorChronicle.Battle.Combat.Modifiers
 
         private static void CollectTargetSource(
             IReadOnlyList<EffectInstance> effects,
+            AttackType attackType,
+            AttackTag attackTags,
             AllyModifierValues values)
         {
             for (int index = 0; index < effects.Count; index++)
@@ -286,7 +290,18 @@ namespace ValorChronicle.Battle.Combat.Modifiers
                 switch (effect.ModifierType)
                 {
                     case EffectModifierType.TargetTakenDamageIncrease:
-                        values.AddTargetTakenDamageIncrease(effect);
+                        bool hasAttackFilter =
+                            effect.AttackTypeMask != AttackTypeMask.None
+                            || effect.RequiredAttackTags != AttackTag.None;
+                        if (!hasAttackFilter
+                            || MatchesAttackFilter(
+                                effect,
+                                attackType,
+                                attackTags))
+                        {
+                            values.AddTargetTakenDamageIncrease(effect);
+                        }
+
                         break;
                     case EffectModifierType.TargetTakenDamageReduction:
                         values.TargetTakenDamageReduction = Add(

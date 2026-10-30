@@ -139,6 +139,62 @@ namespace ValorChronicle.Tests.EditMode.Battle.Combat.Effects
                 Is.EqualTo(AttackTag.Heavy));
         }
 
+        [TestCase(AttackTypeMask.Additional)]
+        [TestCase(AttackTypeMask.Chase)]
+        [TestCase(AttackTypeMask.Additional | AttackTypeMask.Chase)]
+        public void Constructor_AllowsOptionalTargetTakenAttackTypeFilter(
+            AttackTypeMask attackTypeMask)
+        {
+            EffectInstance effect = Effect(
+                modifierType:
+                    EffectModifierType.TargetTakenDamageIncrease,
+                remainingTurns: null,
+                attackTypeMask: attackTypeMask);
+
+            Assert.That(effect.AttackTypeMask, Is.EqualTo(attackTypeMask));
+            Assert.That(effect.RequiredAttackTags, Is.EqualTo(AttackTag.None));
+        }
+
+        [Test]
+        public void Constructor_AllowsUnfilteredTargetTakenDamageIncrease()
+        {
+            EffectInstance effect = Effect(
+                modifierType:
+                    EffectModifierType.TargetTakenDamageIncrease);
+
+            Assert.That(effect.AttackTypeMask, Is.EqualTo(AttackTypeMask.None));
+            Assert.That(effect.RequiredAttackTags, Is.EqualTo(AttackTag.None));
+        }
+
+        [Test]
+        public void Constructor_ValidatesTargetTakenAttackTagFilter()
+        {
+            EffectInstance filtered = Effect(
+                modifierType:
+                    EffectModifierType.TargetTakenDamageIncrease,
+                attackTypeMask: AttackTypeMask.Additional,
+                requiredAttackTags: AttackTag.Heavy);
+
+            Assert.That(
+                filtered.RequiredAttackTags,
+                Is.EqualTo(AttackTag.Heavy));
+            Assert.Throws<ArgumentException>(() =>
+                Effect(
+                    modifierType:
+                        EffectModifierType.TargetTakenDamageIncrease,
+                    requiredAttackTags: AttackTag.Heavy));
+        }
+
+        [Test]
+        public void Constructor_RejectsUndefinedAttackTypeMask()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                Effect(
+                    modifierType:
+                        EffectModifierType.TargetTakenDamageIncrease,
+                    attackTypeMask: (AttackTypeMask)(1 << 20)));
+        }
+
         [Test]
         public void Constructor_ValidatesOptionalModifierGroupCap()
         {
